@@ -1,5 +1,11 @@
-The Bushfire Attack Level Computation Software 
-==============================================
+#BALRoG - Bushfire Attack Level (Rewritten on GDAL) 
+
+##WORK IN PROGRESS
+
+**This repo will become a version of Geoscience Australia's BAL toolkit that runs 100% on open source, primarily using GDAL**
+
+Original README below
+---------------------
 
 This software is an ESRI ArcGIS 10.2 toolbox used to produce Bushfire
 Attack Level (BAL), a measure of the severity of a building's
