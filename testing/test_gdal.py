@@ -2,7 +2,8 @@
 import glob
 import os
 # import numpy as np
-# import rasterio
+import pathlib
+import rasterio
 
 from osgeo import gdal
 
@@ -15,6 +16,9 @@ output_path = os.path.join(script_dir, "output")
 
 
 def process_dem(dem_file, output_type):
+    # create path if it doesn't exist
+    pathlib.Path(os.path.join(output_path, output_type)).mkdir(parents=True, exist_ok=True)
+
     output_file = os.path.join(output_path, output_type,
                                os.path.basename(file_path).replace(".asc", f"_{output_type}.tif"))
 
@@ -43,3 +47,5 @@ for file_path in glob.glob(input_path):
 # print(type(slope))
 # print(slope.dtype)
 # print(slope.shape)
+
+
