@@ -1,7 +1,8 @@
-#BALRoG - Bushfire Attack Level (Rewritten on GDAL) 
+BALRoG - Bushfire Attack Level (Rewritten on GDAL) 
+===================================================
 
-##WORK IN PROGRESS
-
+WORK IN PROGRESS
+----------------
 **This repo will become a version of Geoscience Australia's BAL toolkit that runs 100% on open source, primarily using GDAL**
 
 Original README below
