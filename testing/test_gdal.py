@@ -1,5 +1,6 @@
 
 import glob
+import json
 import logging
 import math
 import multiprocessing
@@ -36,7 +37,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # if False:
 #
 
-use_reference_data = False
+use_reference_data = True
 
 # input dem files path
 input_path = os.path.join(script_dir, "input", "*.asc")
@@ -80,16 +81,51 @@ def main():
     pg_conn.autocommit = True
     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    # # clean out target tables
+    # # clean out target table
     # pg_cur.execute(f"truncate table {output_table}")
 
-    sql = f"""select cad.jurisdiction_id, 
-                     geojson polygon
-              from {cad_table} as cad
-              inner join {gnaf_table} as gnaf on st_intersects(gnaf.geom, cad.geom)
-              where gnaf.gnaf_pid = 'fred'"""
+    # select rows in standard GeoJSON format (with SRID) -- done as the rest of the code will assume standard GeoJSON instead of rows of features
+    sql = f"""with cte as (
+                select cad.jurisdiction_id, 
+                       gnaf.gnaf_pid, 
+                       concat(gnaf.address, ', ', gnaf.locality_name, ' ', gnaf.state, ' ', gnaf.postcode) as address,
+                       cad.geom
+                from {cad_table} as cad
+                inner join {gnaf_table} as gnaf on st_intersects(gnaf.geom, cad.geom)
+                where gnaf.gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
+              )
+              select json_build_object(
+                       'type', 'FeatureCollection',
+                       'features', json_agg(ST_AsGeoJSON(cte.*)::jsonb)
+                     )
+              from cte
+              """
     pg_cur.execute(sql)
 
+    # get the GeoJSON as a dict
+    geojson_dict = list(pg_cur.fetchone())[0]
+
+    # get features as a list of dicts
+    features_dict = geojson_dict["features"]
+
+    # Using each GeoJSON geometry - create a masked raster
+
+    test_image_prefix = "PortHacking202004-LID1-AHD_3206234_56_0002_0002_1m"
+    image_types = ["slope", "aspect"]
+
+    if features_dict is not None:
+        for image_type in image_types:
+            input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
+
+            with rasterio.open(input_file) as raster:
+                for feature in features_dict:
+                    masked_band, masked_transform = rasterio.mask.mask(raster, feature)
+
+
+
+    # with rasterio.open(f"_{output_type}") as dataset:
+    #     slope=dataset.read(1)
+    # return slope
 
 
     # # test download of GIC DTM tiles
@@ -143,17 +179,17 @@ def num2deg(xtile, ytile, zoom):
     return lat_deg, lon_deg
 
 
-def download_gic_dtm(latitude, longitude, zoom):
-    tilex, tiley = deg2num(latitude, longitude, zoom)
-
-    # https://tile.openstreetmap.org/17/120531/78723.png
-    # https://tile.openstreetmap.org/16/60266/39361.png
-
-    url = f"https://api.gic.org/images/GetDTMTile/{zoom}/{tilex}/{tiley}?token={gic_auth_token}"
-
-    response = requests.get(url)
-
-    return response.content
+# def download_gic_dtm(latitude, longitude, zoom):
+#     tilex, tiley = deg2num(latitude, longitude, zoom)
+#
+#     # https://tile.openstreetmap.org/17/120531/78723.png
+#     # https://tile.openstreetmap.org/16/60266/39361.png
+#
+#     url = f"https://api.gic.org/images/GetDTMTile/{zoom}/{tilex}/{tiley}?token={gic_auth_token}"
+#
+#     response = requests.get(url)
+#
+#     return response.content
 
 
 def process_dem(dem_file, output_type):
@@ -168,6 +204,8 @@ def process_dem(dem_file, output_type):
                            colorFilename=os.path.join(script_dir, "colour_palette.txt"))
     else:
         gdal.DEMProcessing(output_file, dem_file, output_type)
+
+# "COMPRESS=LZW"
 
     # with rasterio.open(f"_{output_type}") as dataset:
     #     slope=dataset.read(1)
