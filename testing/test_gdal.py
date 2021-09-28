@@ -10,7 +10,7 @@ import pathlib
 import platform
 import psycopg2
 import psycopg2.extras
-import rasterio
+import rasterio.mask
 import requests
 
 from osgeo import gdal
@@ -89,7 +89,7 @@ def main():
                 select cad.jurisdiction_id, 
                        gnaf.gnaf_pid, 
                        concat(gnaf.address, ', ', gnaf.locality_name, ' ', gnaf.state, ' ', gnaf.postcode) as address,
-                       cad.geom
+                       st_transform(cad.geom, 28356) as geom  -- transform to raster projection: MGA Zone 56
                 from {cad_table} as cad
                 inner join {gnaf_table} as gnaf on st_intersects(gnaf.geom, cad.geom)
                 where gnaf.gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
@@ -118,12 +118,26 @@ def main():
             input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
 
             with rasterio.open(input_file) as raster:
+                raster_metadata = raster.meta.copy()
+
                 for feature in features_dict:
-                    masked_band, masked_transform = rasterio.mask.mask(raster, feature)
+                    gnaf_pid = feature["properties"]["gnaf_pid"]
+                    output_file = input_file.replace(".tif", f"_{gnaf_pid}.tif")
 
+                    masked_band, masked_transform = rasterio.mask.mask(raster, [feature])
 
+                    # set nodata values to 0
+                    masked_band[masked_band > 255] = 0
 
-    # with rasterio.open(f"_{output_type}") as dataset:
+                    raster_metadata.update(dtype=rasterio.uint8,
+                                           height=int(masked_band.shape[1]),
+                                           width=int(masked_band.shape[2]),
+                                           nodata=0, transform=masked_transform, compress='lzw')
+
+                    with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
+                        masked_raster.write(masked_band.astype(rasterio.uint8))
+
+# with rasterio.open(f"_{output_type}") as dataset:
     #     slope=dataset.read(1)
     # return slope
 
@@ -157,7 +171,7 @@ def main():
     pg_cur.close()
     pg_pool.putconn(pg_conn)
 
-    logger.info(f"FINISHED : swimming pool labelling : {datetime.now() - full_start_time}")
+    logger.info(f"FINISHED : Bushfire testing : {datetime.now() - full_start_time}")
 
 
 
