@@ -1,6 +1,6 @@
 
 import glob
-import json
+# import json
 import logging
 import math
 import multiprocessing
@@ -11,7 +11,7 @@ import platform
 import psycopg2
 import psycopg2.extras
 import rasterio.mask
-import requests
+# import requests
 
 from osgeo import gdal
 from datetime import datetime
@@ -29,15 +29,8 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # gic_auth_token = ""
 
 
-# The use_reference_data flag below determines 2 things
-#
-# if True:
-#   GNAF PIDs will be assigned slope and aspect values
-#
-# if False:
-#
-
-use_reference_data = True
+# The flag below determines if slope and aspect values will be applied to GNAF address IDs
+use_address_data = True
 
 # input dem files path
 input_path = os.path.join(script_dir, "input")
@@ -45,12 +38,10 @@ output_path = os.path.join(script_dir, "output")
 
 output_table = "bushfire.risk_factors"
 
-if use_reference_data:
+if use_address_data:
     # reference tables
-    gnaf_table = "data_science.address_principals_nsw"
+    gnaf_table = "gnaf_202108.address_principals"
     cad_table = "data_science.aus_cadastre_boundaries_nsw"
-else:
-    pass
 
 # auto-select model & postgres settings to allow testing on both MocBook and EC2 GPU (G4) instances
 if platform.system() == "Darwin":
@@ -95,13 +86,15 @@ def main():
               where gnaf.gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')"""
     pg_cur.execute(sql)
 
+    # TODO: remove property bdys and use a line projected from the GNAF point in the direction of the aspect
+
     # get the rows as a list of dicts
     feature_list = list(pg_cur.fetchall())
 
     # Using each GeoJSON geometry - create a masked raster
 
     test_image_prefix = "PortHacking202004-LID1-AHD_3206234_56_0002_0002_1m"
-    image_types = ["aspect", "slope"]
+    image_types = ["aspect", "slope", "dem"]
 
     dem_file_path = os.path.join(input_path, test_image_prefix + ".asc")
     process_dem(dem_file_path, "slope")
@@ -117,10 +110,10 @@ def main():
             output_dict["address"] = feature["address"]
 
             for image_type in image_types:
-                # if image_type == "dem":
-                #     input_file = os.path.join(input_path.replace("*.asc", test_image_prefix + ".asc"))
-                # else:
-                input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
+                if image_type == "dem":
+                    input_file = dem_file_path
+                else:
+                    input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
 
                 with rasterio.open(input_file) as raster:
                     raster_metadata = raster.meta.copy()
