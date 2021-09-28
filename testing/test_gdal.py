@@ -134,18 +134,33 @@ def main():
                     # create mask
                     masked_image, masked_transform = rasterio.mask.mask(raster, [feature["geometry"]], crop=True)
 
+                    # get rid of nodata values and flatten array
+                    flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+                    # masked_array = nan_if(masked_image, -9999)
+
                     # get stats across the masked image
-                    masked_array = nan_if(masked_image, -9999)
-                    min_value =
+                    min_value = numpy.min(flat_array)
+                    max_value = numpy.max(flat_array)
 
-                    avg_aspect = numpy.nanmean(nan_if(masked_image, -9999))
+                    # aspect is a special case - values could be on either side of 360 degrees
+                    if image_type == "aspect":
+                        if min_value < 90 and max_value > 270:
+                            flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
 
+                        avg_value = numpy.mean(flat_array)
+                        var_value = numpy.var(flat_array)
+                        std_value = numpy.std(flat_array)
 
-                    # # aspect is a special case - values could be on either side of 360 degrees
-                    # if image_type == "aspect":
-                    #     # fix the problem
+                        if avg_value > 360.0:
+                            avg_value -= 360.0
+                    else:
+                        avg_value = numpy.mean(flat_array)
+                        var_value = numpy.var(flat_array)
+                        std_value = numpy.std(flat_array)
 
+                    med_value = numpy.median(flat_array)
 
+                    # fix the problem
 
                     # output image (optional)
                     raster_metadata.update(driver="GTiff",
