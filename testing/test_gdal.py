@@ -5,7 +5,7 @@ import logging
 import math
 import multiprocessing
 import os
-# import numpy as np
+import numpy
 import pathlib
 import platform
 import psycopg2
@@ -111,32 +111,50 @@ def main():
     # Using each GeoJSON geometry - create a masked raster
 
     test_image_prefix = "PortHacking202004-LID1-AHD_3206234_56_0002_0002_1m"
-    image_types = ["slope", "aspect"]
+    image_types = ["aspect", "slope", "dem"]
 
     if features_dict is not None:
         for image_type in image_types:
-            input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
+            if image_type == "dem":
+                input_file = os.path.join(input_path.replace("*.asc", test_image_prefix + ".asc"))
+            else:
+                input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
 
             with rasterio.open(input_file) as raster:
                 raster_metadata = raster.meta.copy()
 
                 for feature in features_dict:
                     gnaf_pid = feature["properties"]["gnaf_pid"]
-                    output_file = input_file.replace(".tif", f"_{gnaf_pid}.tif")
 
-                    masked_band, masked_transform = rasterio.mask.mask(raster, [feature])
+                    if image_type == "dem":
+                        output_file = input_file.replace(".asc", f"_{gnaf_pid}.tif")
+                    else:
+                        output_file = input_file.replace(".tif", f"_{gnaf_pid}.tif")
 
-                    # set nodata values to 0
-                    masked_band[masked_band > 255] = 0
+                    # create mask
+                    masked_image, masked_transform = rasterio.mask.mask(raster, [feature["geometry"]], crop=True)
 
+                    # get stats across the masked image
+                    masked_array = nan_if(masked_image, -9999)
+                    min_value =
+
+                    avg_aspect = numpy.nanmean(nan_if(masked_image, -9999))
+
+
+                    # # aspect is a special case - values could be on either side of 360 degrees
+                    # if image_type == "aspect":
+                    #     # fix the problem
+
+
+
+                    # output image (optional)
                     raster_metadata.update(driver="GTiff",
-                                           height=int(masked_band.shape[1]),
-                                           width=int(masked_band.shape[2]),
-                                           nodata=0, transform=masked_transform, compress='lzw')
-
+                                           height=int(masked_image.shape[1]),
+                                           width=int(masked_image.shape[2]),
+                                           nodata=-9999, transform=masked_transform, compress='lzw')
 
                     with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
-                        masked_raster.write(masked_band)
+                        masked_raster.write(masked_image)
 
 # with rasterio.open(f"_{output_type}") as dataset:
     #     slope=dataset.read(1)
@@ -174,6 +192,10 @@ def main():
 
     logger.info(f"FINISHED : Bushfire testing : {datetime.now() - full_start_time}")
 
+
+def nan_if(arr, value):
+    """Replaces all values with NaN in a numpy array"""
+    return numpy.where(arr == value, numpy.nan, arr)
 
 
 def deg2num(lat_deg, lon_deg, zoom):
