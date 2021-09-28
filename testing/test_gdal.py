@@ -129,13 +129,14 @@ def main():
                     # set nodata values to 0
                     masked_band[masked_band > 255] = 0
 
-                    raster_metadata.update(dtype=rasterio.uint8,
+                    raster_metadata.update(driver="GTiff",
                                            height=int(masked_band.shape[1]),
                                            width=int(masked_band.shape[2]),
                                            nodata=0, transform=masked_transform, compress='lzw')
 
+
                     with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
-                        masked_raster.write(masked_band.astype(rasterio.uint8))
+                        masked_raster.write(masked_band)
 
 # with rasterio.open(f"_{output_type}") as dataset:
     #     slope=dataset.read(1)
