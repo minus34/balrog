@@ -36,7 +36,7 @@ use_address_data = True
 input_path = os.path.join(script_dir, "input")
 output_path = os.path.join(script_dir, "output")
 
-output_table = "bushfire.risk_factors"
+output_table = "bushfire.bal_factors"
 
 if use_address_data:
     # reference tables
@@ -64,32 +64,43 @@ pg_pool = psycopg2.pool.SimpleConnectionPool(1, max_postgres_connections, pg_con
 
 def main():
     full_start_time = datetime.now()
+    start_time = datetime.now()
 
-    logger.info(f"START : get slope & aspect : {full_start_time}")
+    logger.info(f"START : Create BAL Factors - aspect, slope & elevation : {full_start_time}")
 
     # get postgres connection from pool
     pg_conn = pg_pool.getconn()
     pg_conn.autocommit = True
     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    # # clean out target table
-    # pg_cur.execute(f"truncate table {output_table}")
+    # clean out target table
+    pg_cur.execute(f"truncate table {output_table}")
 
     # select rows with a GeoJSON geometry in teh same coordinate system as the rasters (MGA Zone 56)
     sql = f"""select cad.cad_pid, 
                      gnaf.gnaf_pid, 
                      concat(gnaf.address, ', ', gnaf.locality_name, ' ', gnaf.state, ' ', gnaf.postcode) as address,
                      st_asgeojson(st_transform(cad.geom, 28356), 1)::jsonb as geometry,
-                     st_asgeojson(st_buffer(st_transform(cad.geom, 28356), 100.0), 1)::jsonb as buffer
+                     st_asgeojson(st_buffer(st_transform(cad.geom, 28356), 100.0), 1)::jsonb as buffer,
+                     gnaf.latitude,
+                     gnaf.longitude,
+                     gnaf.geom as point_geom,
+                     cad.geom
               from {cad_table} as cad
               inner join {gnaf_table} as gnaf on st_intersects(gnaf.geom, cad.geom)
               where gnaf.gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')"""
     pg_cur.execute(sql)
 
+    print(sql)
+
     # TODO: remove property bdys and use a line projected from the GNAF point in the direction of the aspect
 
     # get the rows as a list of dicts
     feature_list = list(pg_cur.fetchall())
+    feature_count = len(feature_list)
+
+    logger.info(f"\t - got {feature_count} properties to process : {datetime.now() - start_time}")
+    start_time = datetime.now()
 
     # Using each GeoJSON geometry - create a masked raster
 
@@ -100,6 +111,9 @@ def main():
     process_dem(dem_file_path, "slope")
     process_dem(dem_file_path, "aspect")
 
+    logger.info(f"\t - created aspect & slope rasters : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
     if feature_list is not None:
         for feature in feature_list:
             gnaf_pid = feature["gnaf_pid"]
@@ -108,6 +122,10 @@ def main():
             output_dict["cad_pid"] = feature["cad_pid"]
             output_dict["gnaf_pid"] = gnaf_pid
             output_dict["address"] = feature["address"]
+            output_dict["latitude"] = feature["latitude"]
+            output_dict["longitude"] = feature["longitude"]
+            output_dict["point_geom"] = feature["point_geom"]
+            output_dict["geom"] = feature["geom"]
 
             for image_type in image_types:
                 if image_type == "dem":
@@ -171,7 +189,14 @@ def main():
                         with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
                             masked_raster.write(masked_image)
 
-            print(output_dict)
+            # export result to Postgres
+            insert_row(output_table, output_dict)
+
+            # print(output_dict)
+
+            logger.info(f"\t\t - processed {gnaf_pid} : {datetime.now() - start_time}")
+            start_time = datetime.now()
+
 
 # with rasterio.open(f"_{output_type}") as dataset:
     #     slope=dataset.read(1)
@@ -207,7 +232,7 @@ def main():
     pg_cur.close()
     pg_pool.putconn(pg_conn)
 
-    logger.info(f"FINISHED : Bushfire testing : {datetime.now() - full_start_time}")
+    logger.info(f"FINISHED : Create BAL Factors - aspect, slope & elevation : {datetime.now() - full_start_time}")
 
 
 def nan_if(arr, value):
@@ -264,6 +289,28 @@ def process_dem(dem_file, output_type):
     # with rasterio.open(f"_{output_type}") as dataset:
     #     slope=dataset.read(1)
     # return slope
+
+
+def insert_row(table_name, row):
+    """Inserts a python dictionary as a new row into a database table.
+    Allows for any number of columns and types; but column names and types MUST match existing columns"""
+
+    # get postgres connection from pool
+    pg_conn = pg_pool.getconn()
+    pg_conn.autocommit = True
+    pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    # get column names & values (dict keys must match existing table columns)
+    columns = list(row.keys())
+    values = [row[column] for column in columns]
+
+    insert_statement = f"INSERT INTO {table_name} (%s) VALUES %s"
+    sql = pg_cur.mogrify(insert_statement, (AsIs(','.join(columns)), tuple(values))).decode("utf-8")
+    pg_cur.execute(sql)
+
+    # clean up postgres connection
+    pg_cur.close()
+    pg_pool.putconn(pg_conn)
 
 
 if __name__ == "__main__":
