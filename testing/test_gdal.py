@@ -12,6 +12,7 @@ import psycopg2
 import psycopg2.extras
 import rasterio.mask
 # import requests
+import sys
 import time
 
 from osgeo import gdal
@@ -140,11 +141,14 @@ def main():
             mp_job_list.append([dem_file_path, feature, image_types, test_image_prefix])
 
     mp_pool = multiprocessing.Pool(max_processes)
-    mp_results = mp_pool.map_async(process_property, mp_job_list)
+    mp_results = mp_pool.map_async(process_property, mp_job_list, chunksize=1)
 
     while not mp_results.ready():
-        print("Properties left: {}".format(mp_results._number_left))
-        time.sleep(5)
+        print(f"\rProperties remaining : {mp_results._number_left}", end="")
+        sys.stdout.flush()
+        time.sleep(1)
+
+    print(f"\r\n", end="")
     real_results = mp_results.get()
     mp_pool.close()
     mp_pool.join()
