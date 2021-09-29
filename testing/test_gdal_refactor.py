@@ -131,8 +131,13 @@ def main():
     start_time = datetime.now()
 
     # get aspect and slope rasters
-    process_dem(dem_file_path, "slope")
-    process_dem(dem_file_path, "aspect")
+    slope_path = process_dem(dem_file_path, "slope")
+    aspect_path = process_dem(dem_file_path, "aspect")
+
+    raster_dict = dict()
+    raster_dict["dem"] = rasterio.open(dem_file_path)
+    raster_dict["slope"] = rasterio.open(slope_path)
+    raster_dict["aspect"] = rasterio.open(aspect_path)
 
     logger.info(f"\t - created aspect & slope rasters : {datetime.now() - start_time}")
     # start_time = datetime.now()
@@ -142,7 +147,7 @@ def main():
 
     if feature_list is not None:
         for feature in feature_list:
-            mp_job_list.append([dem_file_path, feature, image_types, test_image_prefix])
+            mp_job_list.append([dem_file_path, feature, image_types, test_image_prefix, raster_dict])
 
     mp_pool = multiprocessing.Pool(max_processes)
     mp_results = mp_pool.map_async(process_property, mp_job_list, chunksize=1)
@@ -209,6 +214,7 @@ def process_property(job):
     feature = job[1]
     image_types = job[2]
     test_image_prefix = job[3]
+    raster_dict = job[4]
 
     gnaf_pid = feature["gnaf_pid"]
 
@@ -227,7 +233,7 @@ def process_property(job):
         else:
             input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
 
-        with rasterio.open(input_file) as raster:
+        with raster_dict[image_type] as raster:
             raster_metadata = raster.meta.copy()
 
             for geom_field in ["geometry", "buffer"]:
@@ -345,12 +351,13 @@ def process_dem(dem_file, output_type):
     else:
         gdal.DEMProcessing(output_file, dem_file, output_type)
 
-# "COMPRESS=LZW"
+    # "COMPRESS=LZW"
 
     # with rasterio.open(f"_{output_type}") as dataset:
     #     slope=dataset.read(1)
     # return slope
 
+    return output_file
 
 def insert_row(table_name, row):
     """Inserts a python dictionary as a new row into a database table.
