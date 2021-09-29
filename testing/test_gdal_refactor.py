@@ -134,6 +134,8 @@ def main():
     slope_path = process_dem(dem_file_path, "slope")
     aspect_path = process_dem(dem_file_path, "aspect")
 
+    # TODO: remove this rasterio datasets can't be pickled across multiple threads/processes!
+    #   Need to refactor so that an image is processed in one go, not each address record
     raster_dict = dict()
     raster_dict["dem"] = rasterio.open(dem_file_path)
     raster_dict["slope"] = rasterio.open(slope_path)
