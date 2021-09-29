@@ -12,6 +12,7 @@ import psycopg2
 import psycopg2.extras
 import rasterio.mask
 # import requests
+import time
 
 from osgeo import gdal
 from datetime import datetime
@@ -28,6 +29,8 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # # This needs to be refreshed every 12 hours
 # gic_auth_token = ""
 
+test_image_prefix = "PortHacking202004-LID1-AHD_3206234_56_0002_0002_1m"
+image_types = ["aspect", "slope", "dem"]
 
 # The flag below determines if slope and aspect values will be applied to GNAF address IDs
 use_address_data = True
@@ -68,6 +71,20 @@ def main():
 
     logger.info(f"START : Create BAL Factors - aspect, slope & elevation : {full_start_time}")
 
+    dem_file_path = os.path.join(input_path, test_image_prefix + ".asc")
+
+    # get bounding box of raster to filter properties by
+    raster = gdal.Open(dem_file_path)
+    geoTransform = raster.GetGeoTransform()
+
+    minx = geoTransform[0]
+    maxy = geoTransform[3]
+    maxx = minx + geoTransform[1] * raster.RasterXSize
+    miny = maxy + geoTransform[5] * raster.RasterYSize
+    # print([minx, miny, maxx, maxy])
+
+    raster = None
+
     # get postgres connection from pool
     pg_conn = pg_pool.getconn()
     pg_conn.autocommit = True
@@ -76,22 +93,28 @@ def main():
     # clean out target table
     pg_cur.execute(f"truncate table {output_table}")
 
+    # TODO: this creates duplicate gnaf_pids - need to fix/avoid this
     # select rows with a GeoJSON geometry in teh same coordinate system as the rasters (MGA Zone 56)
-    sql = f"""select cad.cad_pid, 
-                     gnaf.gnaf_pid, 
-                     concat(gnaf.address, ', ', gnaf.locality_name, ' ', gnaf.state, ' ', gnaf.postcode) as address,
+    sql = f"""with gnaf as (
+                  select gnaf_pid,
+                         concat(address, ', ', locality_name, ' ', state, ' ', postcode) as address,
+                         latitude,
+                         longitude,
+                         geom as point_geom
+                  from {gnaf_table}
+                  where coalesce(primary_secondary, 'P') = 'P'
+                      --and gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
+                      and st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
+              )
+              select cad.cad_pid,
+                     gnaf.*,
                      st_asgeojson(st_transform(cad.geom, 28356), 1)::jsonb as geometry,
                      st_asgeojson(st_buffer(st_transform(cad.geom, 28356), 100.0), 1)::jsonb as buffer,
-                     gnaf.latitude,
-                     gnaf.longitude,
-                     gnaf.geom as point_geom,
                      cad.geom
               from {cad_table} as cad
-              inner join {gnaf_table} as gnaf on st_intersects(gnaf.geom, cad.geom)
-              where gnaf.gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')"""
+              inner join gnaf on st_intersects(gnaf.point_geom, cad.geom)"""
     pg_cur.execute(sql)
-
-    print(sql)
+    # print(sql)
 
     # TODO: remove property bdys and use a line projected from the GNAF point in the direction of the aspect
 
@@ -102,103 +125,39 @@ def main():
     logger.info(f"\t - got {feature_count} properties to process : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    # Using each GeoJSON geometry - create a masked raster
-
-    test_image_prefix = "PortHacking202004-LID1-AHD_3206234_56_0002_0002_1m"
-    image_types = ["aspect", "slope", "dem"]
-
-    dem_file_path = os.path.join(input_path, test_image_prefix + ".asc")
+    # get aspect and slope rasters
     process_dem(dem_file_path, "slope")
     process_dem(dem_file_path, "aspect")
 
     logger.info(f"\t - created aspect & slope rasters : {datetime.now() - start_time}")
-    start_time = datetime.now()
+    # start_time = datetime.now()
+
+    # create job list and process properties in parallel
+    mp_job_list = list()
 
     if feature_list is not None:
         for feature in feature_list:
-            gnaf_pid = feature["gnaf_pid"]
+            mp_job_list.append([dem_file_path, feature, image_types, test_image_prefix])
 
-            output_dict = dict()
-            output_dict["cad_pid"] = feature["cad_pid"]
-            output_dict["gnaf_pid"] = gnaf_pid
-            output_dict["address"] = feature["address"]
-            output_dict["latitude"] = feature["latitude"]
-            output_dict["longitude"] = feature["longitude"]
-            output_dict["point_geom"] = feature["point_geom"]
-            output_dict["geom"] = feature["geom"]
+    mp_pool = multiprocessing.Pool(max_processes)
+    mp_results = mp_pool.map_async(process_property, mp_job_list)
 
-            for image_type in image_types:
-                if image_type == "dem":
-                    input_file = dem_file_path
-                else:
-                    input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
+    while not mp_results.ready():
+        print("Properties left: {}".format(mp_results._number_left))
+        time.sleep(5)
+    real_results = mp_results.get()
+    mp_pool.close()
+    mp_pool.join()
 
-                with rasterio.open(input_file) as raster:
-                    raster_metadata = raster.meta.copy()
+    # mp_results = mp_pool.imap_unordered(process_property, mp_job_list)
+    # mp_pool.close()
+    # mp_pool.join()
 
-                    for geom_field in ["geometry", "buffer"]:
-                        if image_type == "dem":
-                            output_file = input_file.replace(".asc", f"_{gnaf_pid}_{geom_field}.tif")
-                        else:
-                            output_file = input_file.replace(".tif", f"_{gnaf_pid}_{geom_field}.tif")
+    for result in real_results:
+        if result != "SUCCESS!":
+            logger.warning("A multiprocessing process failed!")
 
-                        # create mask
-                        masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
-
-                        # get rid of nodata values and flatten array
-                        flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
-
-                        # get stats across the masked image
-                        min_value = numpy.min(flat_array)
-                        max_value = numpy.max(flat_array)
-
-                        # aspect is a special case - values could be on either side of 360 degrees
-                        if image_type == "aspect":
-                            if min_value < 90 and max_value > 270:
-                                flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
-
-                            avg_value = numpy.mean(flat_array)
-                            std_value = numpy.std(flat_array)
-
-                            if avg_value > 360.0:
-                                avg_value -= 360.0
-                        else:
-                            avg_value = numpy.mean(flat_array)
-                            std_value = numpy.std(flat_array)
-
-                        med_value = numpy.median(flat_array)
-
-                        # assign results to output
-                        if geom_field == "geometry":
-                            geom_name = "bdy"
-                        else:
-                            geom_name = "100m"
-
-                        output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
-                        output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
-                        output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
-                        output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
-                        output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
-
-                        # output image (optional)
-                        raster_metadata.update(driver="GTiff",
-                                               height=int(masked_image.shape[1]),
-                                               width=int(masked_image.shape[2]),
-                                               nodata=-9999, transform=masked_transform, compress='lzw')
-
-                        with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
-                            masked_raster.write(masked_image)
-
-            # export result to Postgres
-            insert_row(output_table, output_dict)
-
-            # print(output_dict)
-
-            logger.info(f"\t\t - processed {gnaf_pid} : {datetime.now() - start_time}")
-            start_time = datetime.now()
-
-
-# with rasterio.open(f"_{output_type}") as dataset:
+    # with rasterio.open(f"_{output_type}") as dataset:
     #     slope=dataset.read(1)
     # return slope
 
@@ -235,29 +194,120 @@ def main():
     logger.info(f"FINISHED : Create BAL Factors - aspect, slope & elevation : {datetime.now() - full_start_time}")
 
 
-def nan_if(arr, value):
-    """Replaces all values with NaN in a numpy array"""
-    return numpy.where(arr == value, numpy.nan, arr)
+def process_property(job):
+    start_time = datetime.now()
+
+    dem_file_path = job[0]
+    feature = job[1]
+    image_types = job[2]
+    test_image_prefix = job[3]
+
+    gnaf_pid = feature["gnaf_pid"]
+
+    output_dict = dict()
+    output_dict["cad_pid"] = feature["cad_pid"]
+    output_dict["gnaf_pid"] = gnaf_pid
+    output_dict["address"] = feature["address"]
+    output_dict["latitude"] = feature["latitude"]
+    output_dict["longitude"] = feature["longitude"]
+    output_dict["point_geom"] = feature["point_geom"]
+    output_dict["geom"] = feature["geom"]
+
+    for image_type in image_types:
+        if image_type == "dem":
+            input_file = dem_file_path
+        else:
+            input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
+
+        with rasterio.open(input_file) as raster:
+            raster_metadata = raster.meta.copy()
+
+            for geom_field in ["geometry", "buffer"]:
+                if image_type == "dem":
+                    output_file = input_file.replace(".asc", f"_{gnaf_pid}_{geom_field}.tif")
+                else:
+                    output_file = input_file.replace(".tif", f"_{gnaf_pid}_{geom_field}.tif")
+
+                # create mask
+                masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
+
+                # get rid of nodata values and flatten array
+                flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+
+                # get stats across the masked image
+                min_value = numpy.min(flat_array)
+                max_value = numpy.max(flat_array)
+
+                # aspect is a special case - values could be on either side of 360 degrees
+                if image_type == "aspect":
+                    if min_value < 90 and max_value > 270:
+                        flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
+
+                    avg_value = numpy.mean(flat_array)
+                    std_value = numpy.std(flat_array)
+
+                    if avg_value > 360.0:
+                        avg_value -= 360.0
+                else:
+                    avg_value = numpy.mean(flat_array)
+                    std_value = numpy.std(flat_array)
+
+                med_value = numpy.median(flat_array)
+
+                # assign results to output
+                if geom_field == "geometry":
+                    geom_name = "bdy"
+                else:
+                    geom_name = "100m"
+
+                output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
+                output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
+                output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
+                output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
+                output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
+
+                # output image (optional)
+                raster_metadata.update(driver="GTiff",
+                                       height=int(masked_image.shape[1]),
+                                       width=int(masked_image.shape[2]),
+                                       nodata=-9999, transform=masked_transform, compress='lzw')
+
+                with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
+                    masked_raster.write(masked_image)
+
+    # export result to Postgres
+    insert_row(output_table, output_dict)
+    # print(output_dict)
+
+    # # faux logging due to being in a separate process
+    # print(f"root        : INFO     \t\t - processed {gnaf_pid} : {datetime.now() - start_time}")
+
+    return "SUCCESS!"
 
 
-def deg2num(lat_deg, lon_deg, zoom):
-    """Converts lat/long coordinates and a zoom level to WMTS tile coordinates"""
-    lat_rad = math.radians(lat_deg)
-    n = 2.0 ** zoom
-    xtile = int((lon_deg + 180.0) / 360.0 * n)
-    ytile = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
-    return xtile, ytile
-
-
-def num2deg(xtile, ytile, zoom):
-    """Converts WMTS tile coordinates and a zoom level to lat/long coordinates"""
-    n = 2.0 ** zoom
-    lon_deg = xtile / n * 360.0 - 180.0
-    lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * ytile / n)))
-    lat_deg = math.degrees(lat_rad)
-    return lat_deg, lon_deg
-
-
+# def nan_if(arr, value):
+#     """Replaces all values with NaN in a numpy array"""
+#     return numpy.where(arr == value, numpy.nan, arr)
+#
+#
+# def deg2num(lat_deg, lon_deg, zoom):
+#     """Converts lat/long coordinates and a zoom level to WMTS tile coordinates"""
+#     lat_rad = math.radians(lat_deg)
+#     n = 2.0 ** zoom
+#     xtile = int((lon_deg + 180.0) / 360.0 * n)
+#     ytile = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
+#     return xtile, ytile
+#
+#
+# def num2deg(xtile, ytile, zoom):
+#     """Converts WMTS tile coordinates and a zoom level to lat/long coordinates"""
+#     n = 2.0 ** zoom
+#     lon_deg = xtile / n * 360.0 - 180.0
+#     lat_rad = math.atan(math.sinh(math.pi * (1 - 2 * ytile / n)))
+#     lat_deg = math.degrees(lat_rad)
+#     return lat_deg, lon_deg
+#
+#
 # def download_gic_dtm(latitude, longitude, zoom):
 #     tilex, tiley = deg2num(latitude, longitude, zoom)
 #

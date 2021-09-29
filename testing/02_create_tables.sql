@@ -52,7 +52,8 @@ create table bushfire.bal_factors (
 alter table bushfire.bal_factors owner to "postgres";
 
 -- TODO: move these to after data import if this needs to scale
-ALTER TABLE bushfire.bal_factors ADD CONSTRAINT bal_factors_pkey PRIMARY KEY (gnaf_pid);
+-- ALTER TABLE bushfire.bal_factors ADD CONSTRAINT bal_factors_pkey PRIMARY KEY (gnaf_pid);
+CREATE INDEX bal_factors_gnaf_pid_idx ON bushfire.bal_factors USING btree (gnaf_pid);
 CREATE INDEX bal_factors_point_geom_idx ON bushfire.bal_factors USING gist (point_geom);
 CREATE INDEX bal_factors_geom_idx ON bushfire.bal_factors USING gist (geom);
 ALTER TABLE bushfire.bal_factors CLUSTER ON bal_factors_geom_idx;
