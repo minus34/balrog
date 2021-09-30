@@ -1,6 +1,32 @@
 
 
 
+
+
+-- https://portal.spatial.nsw.gov.au/download/contours/56/StAlbans-CONT-AHD_56_2m.zip
+-- https://portal.spatial.nsw.gov.au/download/dem/56/StAlbans-DEM-AHD_56_5m.zip
+-- https://portal.spatial.nsw.gov.au/download/slope/56/StAlbans-SLP-AHD_56_5m.zip
+-- https://portal.spatial.nsw.gov.au/download/aspect/56/StAlbans-ASP-AHD_56_5m.zip
+
+
+select * from bushfire.nsw_elevation_index;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 with gnaf as (
     select gnaf_pid,
            concat(address, ', ', locality_name, ' ', state, ' ', postcode) as address,
@@ -21,6 +47,27 @@ from data_science.aus_cadastre_boundaries_nsw as cad
 ;
 
 
+
+
+
+SELECT gid, bld_pid, add_pid, add_dt_pid, address, dt_create, dt_mod, rel_conf, is_resi
+FROM geo_propertyloc.rf_aus_building_address
+limit 10;
+
+
+SELECT gid, bld_pid, pr_pid, dt_create, dt_mod, rel_conf
+FROM geo_propertyloc.rf_aus_building_property
+limit 10;
+
+
+SELECT gid, pr_ply_pid, pr_pid, cntrb_id, dt_create, dt_mod, state, source, base_prop, area, geom
+FROM geo_propertyloc.rf_aus_property_parcel_polygon
+limit 10;
+
+
+SELECT id, bld_pid, geom, dt_create, dt_mod, capt_date, bld_rv_dt, bld_src, qual_class, loc_pid, state, add_count, sp_adj, sp_rv_dt, solar_p, solp_rv_dt, plan_zone, roof_hgt, eave_hgt, grd_elev, grd_el_src, pr_rf_mat, roof_type, roof_clr, mb_code, num_vert, area, volume, bld_gm_qlt, cntrd_long, cntrd_lat, geoscape_version, schema_version, geom_json
+FROM geo_propertyloc.aus_buildings_polygons
+limit 10;
 
 
 
