@@ -38,6 +38,9 @@ s3_path = "nsw_dcs_spatial_services"
 max_processes = multiprocessing.cpu_count()
 max_postgres_connections = max_processes + 1
 
+s3_client = boto3.client("s3")
+s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 10MB
+
 
 def main():
     full_start_time = datetime.now()
@@ -65,19 +68,8 @@ def main():
     cog_image = convert_to_cog(image, crs, output_file_name, debug)
     # cog_image = convert_to_cog(image, crs, output_file_name)
 
-    logger.info(f"\t - Raster dataset created : {datetime.now() - start_time}")
-    start_time = datetime.now()
-
-    # upload to AWS S3
-    s3_file_path = f"{s3_path}/dem/{output_file_name}"
-    s3_client = boto3.client("s3")
-    config = TransferConfig(multipart_threshold=10240 ** 2)  # 10MB
-    aws_response = s3_client.upload_fileobj(cog_image, s3_bucket, s3_file_path, Config=config)
-
-    if aws_response is not None:
-        print("\t\t - WARNING: {} copy to S3 problem : {}".format(output_file_name, aws_response))
-
-    logger.info(f"\t - Image uploaded to S3 : {datetime.now() - start_time}")
+    logger.info(f"\t - Raster dataset created & uploaded to S3: {datetime.now() - start_time}")
+    # start_time = datetime.now()
 
     logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
 
@@ -117,23 +109,23 @@ def convert_to_cog(input_image, crs, output_file_name, debug=False):
     dst_profile.update({"crs": str(crs)})
 
     # Create the COG in-memory
-    dataset = input_image.open()
-    output_image = MemoryFile()
+    with input_image.open() as dataset:
+        with MemoryFile() as output_image:
+            cog_translate(dataset, output_image.name, dst_profile, in_memory=True, nodata=-9999)
 
-    # give the image a name
-    # if output_file_name is not None:
-    image_name = output_file_name.replace(".tif","")
-    # else:
-    #     image_name = output_image.name
+            # DEBUGGING
+            if debug:
+                with open(os.path.join(output_path, output_file_name), "wb") as f:
+                    f.write(output_image.read())
+                    output_image.seek(0)
 
-    cog_translate(dataset, image_name, dst_profile, in_memory=True, nodata=-9999)
+            # upload to AWS S3
+            s3_file_path = f"{s3_path}/dem/{output_file_name}"
+            aws_response = s3_client.upload_fileobj(output_image, s3_bucket, s3_file_path, Config=s3_config)
 
-    # DEBUGGING
-    if debug:
-        with open(os.path.join(output_path, output_file_name), "wb") as f:
-            f.write(output_image.read())
+            if aws_response is not None:
+                print("\t\t - WARNING: {} copy to S3 problem : {}".format(output_file_name, aws_response))
 
-    return output_image
 
 
 def download_extract_zip(url: str):

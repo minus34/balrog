@@ -1,4 +1,5 @@
 
+import boto3
 import glob
 # import json
 import logging
@@ -15,10 +16,13 @@ import rasterio.mask
 import sys
 import time
 
+
 from osgeo import gdal
 from datetime import datetime
 from psycopg2 import pool
 from psycopg2.extensions import AsIs
+
+from rasterio.session import AWSSession
 
 # the directory of this script
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -27,7 +31,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-# input_file_path = "/Users/s57405/git/iag_geo/balrog/data_prep/output/Sydney-DEM-AHD_56_5m.asc"
+# input_file_path = "/Users/s57405/git/iag_geo/balrog/data_prep/output/Sydney-DEM-AHD_56_5m.tif"
 input_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
 
 # # This needs to be refreshed every 12 hours
@@ -53,13 +57,15 @@ else:
 # END: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
 max_processes = multiprocessing.cpu_count()
 max_postgres_connections = max_processes + 1
 
 # create postgres connection pool (accessible across multiple processes)
 pg_pool = psycopg2.pool.SimpleConnectionPool(1, max_postgres_connections, pg_connect_string)
+
+# create AWS session object
+aws_session = AWSSession(boto3.Session())
 
 
 def main():
@@ -89,7 +95,7 @@ def main():
                          geom as point_geom
                   from {gnaf_table}
                   where coalesce(primary_secondary, 'P') = 'P'
-                      and gnaf_pid in ('GANSW706440716', 'GANSW716504168', 'GANSW716543216')
+--                       and gnaf_pid in ('GANSW706440716', 'GANSW716504168', 'GANSW716543216')
 --                       and gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
 --                       and locality_name = 'WAHROONGA'
               )
@@ -164,57 +170,58 @@ def process_property(job):
     output_dict["point_geom"] = feature["point_geom"]
     output_dict["geom"] = feature["geom"]
 
-    with rasterio.open(input_file) as raster:
-            for geom_field in ["geometry", "buffer"]:
-                # create mask
-                masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
+    with rasterio.Env(aws_session):
+        with rasterio.open(input_file) as raster:
+                for geom_field in ["geometry", "buffer"]:
+                    # create mask
+                    masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
 
-                # get rid of nodata values and flatten array
-                flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+                    # get rid of nodata values and flatten array
+                    flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
 
-                # get stats across the masked image
-                min_value = numpy.min(flat_array)
-                max_value = numpy.max(flat_array)
+                    # get stats across the masked image
+                    min_value = numpy.min(flat_array)
+                    max_value = numpy.max(flat_array)
 
-                # aspect is a special case - values could be on either side of 360 degrees
-                if image_type == "aspect":
-                    if min_value < 90 and max_value > 270:
-                        flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
+                    # aspect is a special case - values could be on either side of 360 degrees
+                    if image_type == "aspect":
+                        if min_value < 90 and max_value > 270:
+                            flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
 
-                    avg_value = numpy.mean(flat_array)
-                    std_value = numpy.std(flat_array)
+                        avg_value = numpy.mean(flat_array)
+                        std_value = numpy.std(flat_array)
 
-                    if avg_value > 360.0:
-                        avg_value -= 360.0
-                else:
-                    avg_value = numpy.mean(flat_array)
-                    std_value = numpy.std(flat_array)
+                        if avg_value > 360.0:
+                            avg_value -= 360.0
+                    else:
+                        avg_value = numpy.mean(flat_array)
+                        std_value = numpy.std(flat_array)
 
-                med_value = numpy.median(flat_array)
+                    med_value = numpy.median(flat_array)
 
-                # assign results to output
-                if geom_field == "geometry":
-                    geom_name = "bdy"
-                else:
-                    geom_name = "100m"
+                    # assign results to output
+                    if geom_field == "geometry":
+                        geom_name = "bdy"
+                    else:
+                        geom_name = "100m"
 
-                output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
-                output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
-                output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
-                output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
-                output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
+                    output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
+                    output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
+                    output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
+                    output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
+                    output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
 
-                # # output image (optional)
-                # raster_metadata.update(driver="GTiff",
-                #                        height=int(masked_image.shape[1]),
-                #                        width=int(masked_image.shape[2]),
-                #                        nodata=-9999, transform=masked_transform, compress='lzw')
-                #
-                # with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
-                #     masked_raster.write(masked_image)
+                    # # output image (optional)
+                    # raster_metadata.update(driver="GTiff",
+                    #                        height=int(masked_image.shape[1]),
+                    #                        width=int(masked_image.shape[2]),
+                    #                        nodata=-9999, transform=masked_transform, compress='lzw')
+                    #
+                    # with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
+                    #     masked_raster.write(masked_image)
 
-    # export result to Postgres
-    insert_row(output_table, output_dict)
+        # export result to Postgres
+        insert_row(output_table, output_dict)
 
     return "SUCCESS!"
 
