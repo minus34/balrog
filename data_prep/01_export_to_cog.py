@@ -60,6 +60,7 @@ def main():
 
     crs = None
     raster_bytes = None
+    input_file = None
 
     # get the raster and it's coordinate system
     for file in files:
@@ -68,28 +69,53 @@ def main():
 
         # get raster as a byte array
         if file_path.endswith(".asc"):
-            raster_bytes = file_obj
+            # raster_bytes = file_obj
+            input_file = file_path
 
-        # get well known text coordinate system
-        if file_path.endswith(".prj"):
-            proj_string = file_obj.decode("utf-8")
-            crs = rasterio.crs.CRS.from_wkt(proj_string)
+        # # get well known text coordinate system
+        # if file_path.endswith(".prj"):
+        #     proj_string = file_obj.decode("utf-8")
+        #     crs = rasterio.crs.CRS.from_wkt(proj_string)
 
         # save file to disk
-        # with open(file_path, "wb") as f:
-        #     f.write(file_obj)
+        with open(file_path, "wb") as f:
+            f.write(file_obj)
 
     logger.info(f"\t - File unzipped & saved to memory : {datetime.now() - start_time}")
+    start_time = datetime.now()
 
-    if raster_bytes is not None and crs is not None:
-        with MemoryFile(raster_bytes) as memfile:
-            with memfile.open() as dataset:
+    if input_file is not None:
+        with rasterio.open(input_file) as dataset:
 
-                dataset.crs = crs
+    # if raster_bytes is not None and crs is not None:
+    #     # kwargs = {'crs': str(crs)}
+    #
+    #     # with open(raster_bytes, 'rb') as f, MemoryFile(f) as memfile:
+    #
+    #     with MemoryFile(raster_bytes) as memfile:
+    #         with memfile.open() as dataset:
+                # raster = src.read()
+                # kwargs = src.meta.copy()
+                # kwargs.update({
+                #     'crs': str(crs)
+                # })
+                #
+                # with MemoryFile(raster, **kwargs) as memfile2:
 
-                # data_array = dataset.read()
+                # dataset.crs = crs
 
-                print(dataset)
+                data_array = dataset.read()
+
+                print(str(dataset.crs))
+                print(f"file size is {len(data_array)}")
+
+    logger.info(f"\t - Raster dataset created : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+
+
+
+
 
 
     # if input_file is not None:
@@ -100,19 +126,19 @@ def main():
 
 
 
-    in_data = f"/vsigzip//vsicurl/{url}"
-
-    with MemoryFile() as mem_dst:
-        # Creating the COG, with a memory cache and no download. Shiny.
-        cog_translate(
-            in_data,
-            mem_dst.name,
-            cog_profiles.get("deflate"),
-            in_memory=True,
-            nodata=-9999,
-        )
-
-        print(len(mem_dst))
+    # in_data = f"/vsigzip//vsicurl/{url}"
+    #
+    # with MemoryFile() as mem_dst:
+    #     # Creating the COG, with a memory cache and no download. Shiny.
+    #     cog_translate(
+    #         in_data,
+    #         mem_dst.name,
+    #         cog_profiles.get("deflate"),
+    #         in_memory=True,
+    #         nodata=-9999,
+    #     )
+    #
+    #     print(len(mem_dst))
 
 
 
