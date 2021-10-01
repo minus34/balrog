@@ -1,4 +1,5 @@
 
+import boto3
 import io
 import logging
 import multiprocessing
@@ -9,7 +10,7 @@ import rasterio.mask
 import requests
 import zipfile
 
-from boto3.session import Session as boto3_session
+from boto3.s3.transfer import TransferConfig
 from datetime import datetime
 from rasterio.io import MemoryFile
 from rio_cogeo import cog_translate
@@ -64,14 +65,16 @@ def main():
     logger.info(f"\t - Raster dataset created : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-
     # upload to AWS S3
     s3_file_path = f"{s3_path}/dem/{output_file_name}"
+    s3_client = boto3.client("s3")
+    config = TransferConfig(multipart_threshold=10240 ** 2)  # 10MB
+    aws_response = s3_client.upload_fileobj(cog_image, s3_bucket, s3_file_path, Config=config)
 
-    client = boto3_session.client("s3")
-    client.upload_fileobj(cog_image, s3_bucket, s3_file_path)
+    if aws_response is not None:
+        print("\t\t - WARNING: {} copy to S3 problem : {}".format(output_file_name, aws_response))
 
-    logger.info(f"\t - IMage uploaded to S3 : {datetime.now() - start_time}")
+    logger.info(f"\t - Image uploaded to S3 : {datetime.now() - start_time}")
 
     logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
 
