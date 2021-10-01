@@ -28,7 +28,7 @@ conda config --env --set channel_priority strict
 conda activate geo
 
 # install lots of geo packages
-echo "y" | conda install -c conda-forge gdal pygeos geopandas psycopg2 geoalchemy2 rasterio
+echo "y" | conda install -c conda-forge gdal pygeos geopandas psycopg2 geoalchemy2 rasterio rio-cogeo
 
 
 # --------------------------
