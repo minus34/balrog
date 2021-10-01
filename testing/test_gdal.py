@@ -27,7 +27,8 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-input_file_path = "/Users/s57405/git/iag_geo/balrog/data_prep/output/Sydney-DEM-AHD_56_5m.asc"
+# input_file_path = "/Users/s57405/git/iag_geo/balrog/data_prep/output/Sydney-DEM-AHD_56_5m.asc"
+input_filepath = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
 
 # # This needs to be refreshed every 12 hours
 # gic_auth_token = ""
@@ -88,7 +89,9 @@ def main():
                          geom as point_geom
                   from {gnaf_table}
                   where coalesce(primary_secondary, 'P') = 'P'
-                      and locality_name = 'WAHROONGA'
+                      and gnaf_pid in ('GANSW706440716', 'GANSW716504168', 'GANSW716543216')
+--                       and gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
+--                       and locality_name = 'WAHROONGA'
               )
               select cad.cad_pid,
                      gnaf.*,
@@ -100,7 +103,6 @@ def main():
     pg_cur.execute(sql)
     # print(sql)
 
-#     --and gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
 # --                       and st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
 
     # TODO: remove property bdys and use a line projected from the GNAF point in the direction of the aspect
