@@ -100,7 +100,7 @@ def main():
                       and locality_name like '%WAHROONGA%'
               )
               select pr.pr_pid,
-                     gnaf.*,
+                         gnaf.*,
                      st_asgeojson(st_transform(pr.geom, 28356), 1)::jsonb as geometry,
                      st_asgeojson(st_buffer(st_transform(pr.geom, 28356), 100.0), 1)::jsonb as buffer,
                      pr.geom
@@ -133,16 +133,26 @@ def main():
     while not mp_results.ready():
         print(f"\rProperties remaining : {mp_results._number_left}", end="")
         sys.stdout.flush()
-        time.sleep(1)
+        time.sleep(10)
 
     print(f"\r\n", end="")
     real_results = mp_results.get()
     mp_pool.close()
     mp_pool.join()
 
+    success_count = 0
+    fail_count = 0
+
     for result in real_results:
-        if result != "SUCCESS!":
+        if result is None:
             logger.warning("A multiprocessing process failed!")
+        elif result == "SUCCESS!":
+            success_count += 1
+        else:
+            fail_count += 1
+
+    logger.info(f"]t - {success_count} properties got data")
+    logger.info(f"]t - {fail_count} properties got NO data")
 
     # clean up postgres connection
     pg_cur.close()
@@ -172,60 +182,65 @@ def process_property(job):
 
     with rasterio.Env(aws_session):
         with rasterio.open(input_file) as raster:
-                for geom_field in ["geometry", "buffer"]:
-                    # create mask
-                    masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
+            for geom_field in ["geometry", "buffer"]:
+                # create mask
+                masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
 
-                    # get rid of nodata values and flatten array
-                    flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+                # get rid of nodata values and flatten array
+                flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
 
-                    # only proceed if there's data
-                    if flat_array.size != 0:
-                        # get stats across the masked image
-                        min_value = numpy.min(flat_array)
-                        max_value = numpy.max(flat_array)
+                # only proceed if there's data
+                if flat_array.size != 0:
+                    # get stats across the masked image
+                    min_value = numpy.min(flat_array)
+                    max_value = numpy.max(flat_array)
 
-                        # aspect is a special case - values could be on either side of 360 degrees
-                        if image_type == "aspect":
-                            if min_value < 90 and max_value > 270:
-                                flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
+                    # aspect is a special case - values could be on either side of 360 degrees
+                    if image_type == "aspect":
+                        if min_value < 90 and max_value > 270:
+                            flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
 
-                            avg_value = numpy.mean(flat_array)
-                            std_value = numpy.std(flat_array)
+                        avg_value = numpy.mean(flat_array)
+                        std_value = numpy.std(flat_array)
 
-                            if avg_value > 360.0:
-                                avg_value -= 360.0
-                        else:
-                            avg_value = numpy.mean(flat_array)
-                            std_value = numpy.std(flat_array)
+                        if avg_value > 360.0:
+                            avg_value -= 360.0
+                    else:
+                        avg_value = numpy.mean(flat_array)
+                        std_value = numpy.std(flat_array)
 
-                        med_value = numpy.median(flat_array)
+                    med_value = numpy.median(flat_array)
 
-                        # assign results to output
-                        if geom_field == "geometry":
-                            geom_name = "bdy"
-                        else:
-                            geom_name = "100m"
+                    # assign results to output
+                    if geom_field == "geometry":
+                        geom_name = "bdy"
+                    else:
+                        geom_name = "100m"
 
-                        output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
-                        output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
-                        output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
-                        output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
-                        output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
+                    output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
+                    output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
+                    output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
+                    output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
+                    output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
 
-                        # # output image (optional)
-                        # raster_metadata.update(driver="GTiff",
-                        #                        height=int(masked_image.shape[1]),
-                        #                        width=int(masked_image.shape[2]),
-                        #                        nodata=-9999, transform=masked_transform, compress='lzw')
-                        #
-                        # with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
-                        #     masked_raster.write(masked_image)
+                    # # output image (optional)
+                    # raster_metadata.update(driver="GTiff",
+                    #                        height=int(masked_image.shape[1]),
+                    #                        width=int(masked_image.shape[2]),
+                    #                        nodata=-9999, transform=masked_transform, compress='lzw')
+                    #
+                    # with rasterio.open(output_file, "w", **raster_metadata) as masked_raster:
+                    #     masked_raster.write(masked_image)
+
+                    result = "SUCCESS!"
+                else:
+                    # print(f"\t\t - {gnaf_pid} has no data")
+                    result = gnaf_pid
 
         # export result to Postgres
         insert_row(output_table, output_dict)
 
-    return "SUCCESS!"
+    return result
 
 
 # def nan_if(arr, value):
