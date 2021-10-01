@@ -77,6 +77,24 @@ def main():
     dem_file_path = input_file_path
     image_type = "dem"
 
+    # get extents of raster (minus 100m to avoid masking issues at the edges)
+    minx = None
+    maxy = None
+    maxx = None
+    miny = None
+
+    with rasterio.open(input_file_path) as raster:
+        meta = raster.profile.data
+
+        transform = meta["transform"]
+
+        minx = transform.c + 100.0
+        maxy = transform.f - 100.0
+        maxx = minx + transform.a * meta["width"] - 100.0
+        miny = maxy + transform.e * meta["height"] + 100.0
+        # print([minx, miny, maxx, maxy])
+
+
     # get postgres connection from pool
     pg_conn = pg_pool.getconn()
     pg_conn.autocommit = True
@@ -95,9 +113,10 @@ def main():
                          geom as point_geom
                   from {gnaf_table}
                   where coalesce(primary_secondary, 'P') = 'P'
+                    and st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
 --                       and gnaf_pid in ('GANSW706440716', 'GANSW716504168', 'GANSW716543216')
 --                       and gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
-                      and locality_name like '%WAHROONGA%'
+--                       and locality_name like '%WAHROONGA%'
               )
               select pr.pr_pid,
                          gnaf.*,
@@ -109,7 +128,7 @@ def main():
     pg_cur.execute(sql)
     # print(sql)
 
-# --                       and st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
+    # and st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
 
     # TODO: remove property bdys and use a line projected from the GNAF point in the direction of the aspect
 
@@ -151,8 +170,9 @@ def main():
         else:
             fail_count += 1
 
-    logger.info(f"]t - {success_count} properties got data")
-    logger.info(f"]t - {fail_count} properties got NO data")
+    logger.info(f"\t\t - {success_count} properties got data")
+    if fail_count > 0:
+        logger.info(f"\t\t - {fail_count} properties got NO data")
 
     # clean up postgres connection
     pg_cur.close()
