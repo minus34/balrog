@@ -28,7 +28,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # ------------------------------------------------------------------------------------------------------------------
 
 # input_file_path = "/Users/s57405/git/iag_geo/balrog/data_prep/output/Sydney-DEM-AHD_56_5m.asc"
-input_filepath = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
+input_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
 
 # # This needs to be refreshed every 12 hours
 # gic_auth_token = ""
