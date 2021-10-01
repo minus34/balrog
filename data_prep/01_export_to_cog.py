@@ -9,6 +9,7 @@ import rasterio.mask
 import requests
 import zipfile
 
+from boto3.session import Session as boto3_session
 from datetime import datetime
 from rasterio.io import MemoryFile
 from rio_cogeo import cog_translate
@@ -51,20 +52,26 @@ def main():
     file_list = list(download_extract_zip(url))
 
     # get the raster image and it's coordinate system
-    image, crs, output_file_path = get_raster_and_crs(file_list)
+    image, crs, output_file_name = get_raster_and_crs(file_list)
 
     logger.info(f"\t - File unzipped & saved to memory : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # convert to COG image
-    cog_image = convert_to_cog(crs, image)
-
-    # DEBUGGING
-    with open(os.path.join(output_path, output_file_path), "wb") as f:
-        f.write(cog_image.read())
+    cog_image = convert_to_cog(image, crs)
+    # cog_image = convert_to_cog(image, crs, output_file_name)
 
     logger.info(f"\t - Raster dataset created : {datetime.now() - start_time}")
     start_time = datetime.now()
+
+
+    # upload to AWS S3
+    s3_file_path = f"{s3_path}/dem/{output_file_name}"
+
+    client = boto3_session.client("s3")
+    client.upload_fileobj(cog_image, s3_bucket, s3_file_path)
+
+    logger.info(f"\t - IMage uploaded to S3 : {datetime.now() - start_time}")
 
     logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
 
@@ -72,7 +79,7 @@ def main():
 def get_raster_and_crs(file_list):
     image = None
     crs = None
-    output_file_path = None
+    output_file_name = None
 
     # get the raster and it's coordinate system
     for file in file_list:
@@ -82,17 +89,17 @@ def get_raster_and_crs(file_list):
         # get raster as an in-memory file
         if file_name.endswith(".asc"):
             image = MemoryFile(file_obj)
-            output_file_path = file_name.replace(".asc", ".tif")
+            output_file_name = file_name.replace(".asc", ".tif")
 
         # get well known text coordinate system
         if file_name.endswith(".prj"):
             proj_string = file_obj.decode("utf-8")
             crs = rasterio.crs.CRS.from_wkt(proj_string)
 
-    return image, crs, output_file_path
+    return image, crs, output_file_name
 
 
-def convert_to_cog(crs, input_image):
+def convert_to_cog(input_image, crs, output_file_name=None):
     """Takes a raster file & it's coordinate system and outputs a cloud optimised tiff (COG) image"""
 
     # create COG profile and add coordinate system
@@ -100,18 +107,23 @@ def convert_to_cog(crs, input_image):
     dst_profile.update({"crs": str(crs)})
 
     # Create the COG in-memory
-    with input_image.open() as dataset:
-        with MemoryFile() as output_image:
-            cog_translate(
-                dataset,
-                output_image.name,
-                dst_profile,
-                in_memory=True,
-                nodata=-9999,
-            )
+    dataset = input_image.open()
+    output_image = MemoryFile()
 
-            # return byte array of new raster
-            return output_image
+    # give the image a name
+    if output_file_name is not None:
+        image_name = output_file_name
+    else:
+        image_name = output_image.name
+
+    cog_translate(dataset, image_name, dst_profile, in_memory=True, nodata=-9999)
+
+    # DEBUGGING
+    if output_file_name is not None:
+        with open(os.path.join(output_path, output_file_name), "wb") as f:
+            f.write(output_image.read())
+
+    return output_image
 
 
 def download_extract_zip(url: str):
