@@ -1,21 +1,12 @@
 
-import glob
-# import json
 import io
 import logging
-import math
 import multiprocessing
 import os
-import numpy
 import pathlib
-import platform
-import psycopg2
-import psycopg2.extras
 import rasterio.crs
 import rasterio.mask
 import requests
-import sys
-import time
 import zipfile
 
 from datetime import datetime
@@ -30,13 +21,14 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-
 output_path = os.path.join(script_dir, "output")
+
+s3_bucket = "bushfire-rasters"
+s3_path = "nsw_dcs_spatial_services"
 
 # ------------------------------------------------------------------------------------------------------------------
 # END: edit settings
 # ------------------------------------------------------------------------------------------------------------------
-
 
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
 max_processes = multiprocessing.cpu_count()
@@ -56,155 +48,70 @@ def main():
     url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
 
     # download zip file and get list of compressed files
-    files = list(download_extract_zip(url))
+    file_list = list(download_extract_zip(url))
 
-    crs = None
-    raster_bytes = None
-    input_file = None
-    output_file = None
-
-    # get the raster and it's coordinate system
-    for file in files:
-        file_path = os.path.join(output_path, file[0])
-        file_obj = file[1]
-
-        # get raster as a byte array
-        if file_path.endswith(".asc"):
-            raster_bytes = file_obj
-            # input_file = file_path
-            output_file = file_path.replace(".asc", ".tif")
-
-        # get well known text coordinate system
-        if file_path.endswith(".prj"):
-            proj_string = file_obj.decode("utf-8")
-            crs = rasterio.crs.CRS.from_wkt(proj_string)
-
-        # # save file to disk
-        # with open(file_path, "wb") as f:
-        #     f.write(file_obj)
+    # get the raster image and it's coordinate system
+    image, crs, output_file_path = get_raster_and_crs(file_list)
 
     logger.info(f"\t - File unzipped & saved to memory : {datetime.now() - start_time}")
     start_time = datetime.now()
+
+    # convert to COG image
+    cog_image = convert_to_cog(crs, image)
+
+    # DEBUGGING
+    with open(os.path.join(output_path, output_file_path), "wb") as f:
+        f.write(cog_image.read())
+
+    logger.info(f"\t - Raster dataset created : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+    logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
+
+
+def get_raster_and_crs(file_list):
+    image = None
+    crs = None
+    output_file_path = None
+
+    # get the raster and it's coordinate system
+    for file in file_list:
+        file_name = file[0]
+        file_obj = file[1]
+
+        # get raster as an in-memory file
+        if file_name.endswith(".asc"):
+            image = MemoryFile(file_obj)
+            output_file_path = file_name.replace(".asc", ".tif")
+
+        # get well known text coordinate system
+        if file_name.endswith(".prj"):
+            proj_string = file_obj.decode("utf-8")
+            crs = rasterio.crs.CRS.from_wkt(proj_string)
+
+    return image, crs, output_file_path
+
+
+def convert_to_cog(crs, input_image):
+    """Takes a raster file & it's coordinate system and outputs a cloud optimised tiff (COG) image"""
 
     # create COG profile and add coordinate system
     dst_profile = cog_profiles.get("deflate")
     dst_profile.update({"crs": str(crs)})
 
     # Create the COG in-memory
-    with MemoryFile(raster_bytes) as mem_src:
-        with mem_src.open() as dataset:
-            with MemoryFile() as mem_dst:
-                cog_translate(
-                    dataset,
-                    output_file,
-                    # mem_dst.name,
-                    dst_profile,
-                    in_memory=False,
-                    nodata=-9999,
-                )
+    with input_image.open() as dataset:
+        with MemoryFile() as output_image:
+            cog_translate(
+                dataset,
+                output_image.name,
+                dst_profile,
+                in_memory=True,
+                nodata=-9999,
+            )
 
-                mem_dst.write(output_file)
-
-                # print(str(mem_dst.crs))
-                #
-                # print(len(mem_dst))
-
-
-
-
-
-    # if input_file is not None:
-    #     with rasterio.open(input_file) as dataset:
-
-    # if raster_bytes is not None and crs is not None:
-    #     # kwargs = {'crs': str(crs)}
-    #
-    #     # with open(raster_bytes, 'rb') as f, MemoryFile(f) as memfile:
-    #
-    #     with MemoryFile(raster_bytes) as memfile:
-    #         with memfile.open() as dataset:
-                # raster = src.read()
-                # kwargs = src.meta.copy()
-                # kwargs.update({
-                #     'crs': str(crs)
-                # })
-                #
-                # with MemoryFile(raster, **kwargs) as memfile2:
-
-                # dataset.crs = crs
-
-                # data_array = dataset.read()
-                #
-                # print(str(dataset.crs))
-                # print(f"file size is {len(data_array)}")
-
-    logger.info(f"\t - Raster dataset created : {datetime.now() - start_time}")
-    start_time = datetime.now()
-
-
-
-
-
-
-
-    # if input_file is not None:
-    #     with rasterio.open(input_file) as raster:
-    #         raster_metadata = raster.meta.copy()
-
-
-
-
-
-    # in_data = f"/vsigzip//vsicurl/{url}"
-    #
-    # with MemoryFile() as mem_dst:
-    #     # Creating the COG, with a memory cache and no download. Shiny.
-    #     cog_translate(
-    #         in_data,
-    #         mem_dst.name,
-    #         cog_profiles.get("deflate"),
-    #         in_memory=True,
-    #         nodata=-9999,
-    #     )
-    #
-    #     print(len(mem_dst))
-
-
-
-
-
-    # with rasterio.open(f"_{output_type}") as dataset:
-    #     slope=dataset.read(1)
-    # return slope
-
-
-    # # test download of GIC DTM tiles
-    # latitude = -34.024461
-    # longitude = 151.051168
-    # zoom = 16
-    # dtm_tile = download_gic_dtm(latitude, longitude, zoom)
-    #
-    # with open(os.path.join(output_path, "test_dtm_tile.tif"), "wb") as f:
-    #     f.write(bytes(dtm_tile))
-
-    # # Test processing of DEM to get slope and aspect
-    # for file_path in glob.glob(input_path):
-    #     # process_dem(file_path, "hillshade")
-    #     # process_dem(file_path, "color-relief")
-    #     process_dem(file_path, "slope")
-    #     process_dem(file_path, "aspect")
-    #
-    #     print(f"Processed : {os.path.basename(file_path)}")
-
-    #     slope = calculate_slope(dem_file_path)
-    #     aspect = calculate_aspect(dem_file_path)
-
-    # print(type(slope))
-    # print(slope.dtype)
-    # print(slope.shape)
-
-
-    logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
+            # return byte array of new raster
+            return output_image
 
 
 def download_extract_zip(url: str):
