@@ -61,6 +61,7 @@ def main():
     crs = None
     raster_bytes = None
     input_file = None
+    output_file = None
 
     # get the raster and it's coordinate system
     for file in files:
@@ -69,23 +70,51 @@ def main():
 
         # get raster as a byte array
         if file_path.endswith(".asc"):
-            # raster_bytes = file_obj
-            input_file = file_path
+            raster_bytes = file_obj
+            # input_file = file_path
+            output_file = file_path.replace(".asc", ".tif")
 
-        # # get well known text coordinate system
-        # if file_path.endswith(".prj"):
-        #     proj_string = file_obj.decode("utf-8")
-        #     crs = rasterio.crs.CRS.from_wkt(proj_string)
+        # get well known text coordinate system
+        if file_path.endswith(".prj"):
+            proj_string = file_obj.decode("utf-8")
+            crs = rasterio.crs.CRS.from_wkt(proj_string)
 
-        # save file to disk
-        with open(file_path, "wb") as f:
-            f.write(file_obj)
+        # # save file to disk
+        # with open(file_path, "wb") as f:
+        #     f.write(file_obj)
 
     logger.info(f"\t - File unzipped & saved to memory : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    if input_file is not None:
-        with rasterio.open(input_file) as dataset:
+    # create COG profile and add coordinate system
+    dst_profile = cog_profiles.get("deflate")
+    dst_profile.update({"crs": str(crs)})
+
+    # Create the COG in-memory
+    with MemoryFile(raster_bytes) as mem_src:
+        with mem_src.open() as dataset:
+            with MemoryFile() as mem_dst:
+                cog_translate(
+                    dataset,
+                    output_file,
+                    # mem_dst.name,
+                    dst_profile,
+                    in_memory=False,
+                    nodata=-9999,
+                )
+
+                mem_dst.write(output_file)
+
+                # print(str(mem_dst.crs))
+                #
+                # print(len(mem_dst))
+
+
+
+
+
+    # if input_file is not None:
+    #     with rasterio.open(input_file) as dataset:
 
     # if raster_bytes is not None and crs is not None:
     #     # kwargs = {'crs': str(crs)}
@@ -104,10 +133,10 @@ def main():
 
                 # dataset.crs = crs
 
-                data_array = dataset.read()
-
-                print(str(dataset.crs))
-                print(f"file size is {len(data_array)}")
+                # data_array = dataset.read()
+                #
+                # print(str(dataset.crs))
+                # print(f"file size is {len(data_array)}")
 
     logger.info(f"\t - Raster dataset created : {datetime.now() - start_time}")
     start_time = datetime.now()
