@@ -16,7 +16,7 @@ select * from bushfire.nsw_elevation_index;
 
 
 
-
+select * from geo_propertyloc.rf_aus_property_parcel_polygon
 
 
 
