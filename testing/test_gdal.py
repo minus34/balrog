@@ -27,22 +27,13 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-# test_dem_path = "/Users/s57405/Downloads/PortHacking-DEM-AHD_56_5m/PortHacking-DEM-AHD_56_5m.asc"
-# test_aspect_path = "/Users/s57405/Downloads/PortHacking-ASP-AHD_56_5m/PortHacking-ASP-AHD_56_5m.asc"
-# test_slope_path = "/Users/s57405/Downloads/PortHacking-SLP-AHD_56_5m/PortHacking-SLP-AHD_56_5m.asc"
+input_file_path = "/Users/s57405/git/iag_geo/balrog/data_prep/output/Sydney-DEM-AHD_56_5m.asc"
 
 # # This needs to be refreshed every 12 hours
 # gic_auth_token = ""
 
-test_image_prefix = "PortHacking202004-LID1-AHD_3206234_56_0002_0002_1m"
-image_types = ["aspect", "slope", "dem"]
-
 # The flag below determines if slope and aspect values will be applied to GNAF address IDs
 use_address_data = True
-
-# input dem files path
-input_path = os.path.join(script_dir, "input")
-output_path = os.path.join(script_dir, "output")
 
 output_table = "bushfire.bal_factors"
 
@@ -76,19 +67,8 @@ def main():
 
     logger.info(f"START : Create BAL Factors - aspect, slope & elevation : {full_start_time}")
 
-    dem_file_path = os.path.join(input_path, test_image_prefix + ".asc")
-
-    # get bounding box of raster to filter properties by
-    raster = gdal.Open(dem_file_path)
-    geoTransform = raster.GetGeoTransform()
-
-    minx = geoTransform[0]
-    maxy = geoTransform[3]
-    maxx = minx + geoTransform[1] * raster.RasterXSize
-    miny = maxy + geoTransform[5] * raster.RasterYSize
-    # print([minx, miny, maxx, maxy])
-
-    raster = None
+    dem_file_path = input_file_path
+    image_type = "dem"
 
     # get postgres connection from pool
     pg_conn = pg_pool.getconn()
@@ -108,8 +88,7 @@ def main():
                          geom as point_geom
                   from {gnaf_table}
                   where coalesce(primary_secondary, 'P') = 'P'
-                      --and gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
-                      and st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
+                      and locality_name = 'WAHROONGA'
               )
               select cad.cad_pid,
                      gnaf.*,
@@ -121,6 +100,9 @@ def main():
     pg_cur.execute(sql)
     # print(sql)
 
+#     --and gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
+# --                       and st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
+
     # TODO: remove property bdys and use a line projected from the GNAF point in the direction of the aspect
 
     # get the rows as a list of dicts
@@ -130,19 +112,12 @@ def main():
     logger.info(f"\t - got {feature_count} properties to process : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    # get aspect and slope rasters
-    process_dem(dem_file_path, "slope")
-    process_dem(dem_file_path, "aspect")
-
-    logger.info(f"\t - created aspect & slope rasters : {datetime.now() - start_time}")
-    # start_time = datetime.now()
-
     # create job list and process properties in parallel
     mp_job_list = list()
 
     if feature_list is not None:
         for feature in feature_list:
-            mp_job_list.append([dem_file_path, feature, image_types, test_image_prefix])
+            mp_job_list.append([dem_file_path, feature, image_type])
 
     mp_pool = multiprocessing.Pool(max_processes)
     mp_results = mp_pool.map_async(process_property, mp_job_list, chunksize=1)
@@ -157,43 +132,9 @@ def main():
     mp_pool.close()
     mp_pool.join()
 
-    # mp_results = mp_pool.imap_unordered(process_property, mp_job_list)
-    # mp_pool.close()
-    # mp_pool.join()
-
     for result in real_results:
         if result != "SUCCESS!":
             logger.warning("A multiprocessing process failed!")
-
-    # with rasterio.open(f"_{output_type}") as dataset:
-    #     slope=dataset.read(1)
-    # return slope
-
-
-    # # test download of GIC DTM tiles
-    # latitude = -34.024461
-    # longitude = 151.051168
-    # zoom = 16
-    # dtm_tile = download_gic_dtm(latitude, longitude, zoom)
-    #
-    # with open(os.path.join(output_path, "test_dtm_tile.tif"), "wb") as f:
-    #     f.write(bytes(dtm_tile))
-
-    # # Test processing of DEM to get slope and aspect
-    # for file_path in glob.glob(input_path):
-    #     # process_dem(file_path, "hillshade")
-    #     # process_dem(file_path, "color-relief")
-    #     process_dem(file_path, "slope")
-    #     process_dem(file_path, "aspect")
-    #
-    #     print(f"Processed : {os.path.basename(file_path)}")
-
-    #     slope = calculate_slope(dem_file_path)
-    #     aspect = calculate_aspect(dem_file_path)
-
-    # print(type(slope))
-    # print(slope.dtype)
-    # print(slope.shape)
 
     # clean up postgres connection
     pg_cur.close()
@@ -203,12 +144,12 @@ def main():
 
 
 def process_property(job):
-    start_time = datetime.now()
 
-    dem_file_path = job[0]
+    input_file = job[0]
     feature = job[1]
-    image_types = job[2]
-    test_image_prefix = job[3]
+    image_type = job[2]
+    # image_types = job[2]
+    # test_image_prefix = job[3]
 
     gnaf_pid = feature["gnaf_pid"]
 
@@ -221,21 +162,8 @@ def process_property(job):
     output_dict["point_geom"] = feature["point_geom"]
     output_dict["geom"] = feature["geom"]
 
-    for image_type in image_types:
-        if image_type == "dem":
-            input_file = dem_file_path
-        else:
-            input_file = os.path.join(output_path, image_type, test_image_prefix + f"_{image_type}.tif")
-
-        with rasterio.open(input_file) as raster:
-            raster_metadata = raster.meta.copy()
-
+    with rasterio.open(input_file) as raster:
             for geom_field in ["geometry", "buffer"]:
-                if image_type == "dem":
-                    output_file = input_file.replace(".asc", f"_{gnaf_pid}_{geom_field}.tif")
-                else:
-                    output_file = input_file.replace(".tif", f"_{gnaf_pid}_{geom_field}.tif")
-
                 # create mask
                 masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
 
@@ -285,10 +213,6 @@ def process_property(job):
 
     # export result to Postgres
     insert_row(output_table, output_dict)
-    # print(output_dict)
-
-    # # faux logging due to being in a separate process
-    # print(f"root        : INFO     \t\t - processed {gnaf_pid} : {datetime.now() - start_time}")
 
     return "SUCCESS!"
 
@@ -332,24 +256,24 @@ def process_property(job):
 #     return response.content
 
 
-def process_dem(dem_file, output_type):
-    # create path if it doesn't exist
-    pathlib.Path(os.path.join(output_path, output_type)).mkdir(parents=True, exist_ok=True)
-
-    output_file = os.path.join(output_path, output_type,
-                               os.path.basename(dem_file).replace(".asc", f"_{output_type}.tif"))
-
-    if output_type == "color-relief":
-        gdal.DEMProcessing(output_file, dem_file, output_type,
-                           colorFilename=os.path.join(script_dir, "colour_palette.txt"))
-    else:
-        gdal.DEMProcessing(output_file, dem_file, output_type)
-
-# "COMPRESS=LZW"
-
-    # with rasterio.open(f"_{output_type}") as dataset:
-    #     slope=dataset.read(1)
-    # return slope
+# def process_dem(dem_file, output_type):
+#     # create path if it doesn't exist
+#     pathlib.Path(os.path.join(output_path, output_type)).mkdir(parents=True, exist_ok=True)
+#
+#     output_file = os.path.join(output_path, output_type,
+#                                os.path.basename(dem_file).replace(".asc", f"_{output_type}.tif"))
+#
+#     if output_type == "color-relief":
+#         gdal.DEMProcessing(output_file, dem_file, output_type,
+#                            colorFilename=os.path.join(script_dir, "colour_palette.txt"))
+#     else:
+#         gdal.DEMProcessing(output_file, dem_file, output_type)
+#
+# # "COMPRESS=LZW"
+#
+#     # with rasterio.open(f"_{output_type}") as dataset:
+#     #     slope=dataset.read(1)
+#     # return slope
 
 
 def insert_row(table_name, row):

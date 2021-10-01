@@ -23,6 +23,8 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
+debug = True
+
 output_path = os.path.join(script_dir, "output")
 
 s3_bucket = "bushfire-rasters"
@@ -43,8 +45,9 @@ def main():
 
     logger.info(f"START : Export to COG : {full_start_time}")
 
-    # create temp output directory
-    pathlib.Path(output_path).mkdir(parents=True, exist_ok=True)
+    # create debug output directory
+    if debug:
+        pathlib.Path(output_path).mkdir(parents=True, exist_ok=True)
 
     # DEBUGGING
     url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
@@ -53,13 +56,13 @@ def main():
     file_list = list(download_extract_zip(url))
 
     # get the raster image and it's coordinate system
-    image, crs, output_file_name = get_raster_and_crs(file_list)
+    image, crs, output_file_name = get_raster_and_crs(file_list, debug)
 
     logger.info(f"\t - File unzipped & saved to memory : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # convert to COG image
-    cog_image = convert_to_cog(image, crs)
+    cog_image = convert_to_cog(image, crs, output_file_name, debug)
     # cog_image = convert_to_cog(image, crs, output_file_name)
 
     logger.info(f"\t - Raster dataset created : {datetime.now() - start_time}")
@@ -79,7 +82,7 @@ def main():
     logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
 
 
-def get_raster_and_crs(file_list):
+def get_raster_and_crs(file_list, debug=False):
     image = None
     crs = None
     output_file_name = None
@@ -99,10 +102,14 @@ def get_raster_and_crs(file_list):
             proj_string = file_obj.decode("utf-8")
             crs = rasterio.crs.CRS.from_wkt(proj_string)
 
+        if debug:
+            with open(os.path.join(output_path, file_name), "wb") as f:
+                f.write(file_obj)
+
     return image, crs, output_file_name
 
 
-def convert_to_cog(input_image, crs, output_file_name=None):
+def convert_to_cog(input_image, crs, output_file_name, debug=False):
     """Takes a raster file & it's coordinate system and outputs a cloud optimised tiff (COG) image"""
 
     # create COG profile and add coordinate system
@@ -114,15 +121,15 @@ def convert_to_cog(input_image, crs, output_file_name=None):
     output_image = MemoryFile()
 
     # give the image a name
-    if output_file_name is not None:
-        image_name = output_file_name
-    else:
-        image_name = output_image.name
+    # if output_file_name is not None:
+    image_name = output_file_name.replace(".tif","")
+    # else:
+    #     image_name = output_image.name
 
     cog_translate(dataset, image_name, dst_profile, in_memory=True, nodata=-9999)
 
     # DEBUGGING
-    if output_file_name is not None:
+    if debug:
         with open(os.path.join(output_path, output_file_name), "wb") as f:
             f.write(output_image.read())
 
