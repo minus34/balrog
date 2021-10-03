@@ -65,8 +65,7 @@ def main():
     start_time = datetime.now()
 
     # convert to COG image
-    cog_image = convert_to_cog(image, crs, output_file_name, debug)
-    # cog_image = convert_to_cog(image, crs, output_file_name)
+    convert_to_cog(image, crs, output_file_name, debug)
 
     logger.info(f"\t - Raster dataset created & uploaded to S3: {datetime.now() - start_time}")
     # start_time = datetime.now()
