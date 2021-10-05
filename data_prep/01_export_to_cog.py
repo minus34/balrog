@@ -12,6 +12,8 @@ import multiprocessing
 import os
 import pathlib
 import rasterio
+import sys
+import time
 
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
@@ -27,9 +29,13 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-debug = False
+debug = True
+debug_map_title = "KOSCIUSKO"
 
 base_image_url = "https://portal.spatial.nsw.gov.au/download"
+
+# DEBUGGING
+# url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
 
 elevation_index_zipfile = os.path.join(script_dir, "data/input/nsw_elevation_index.zip")
 elevation_index_shapefile = "nsw_elevation_index.shp"
@@ -54,6 +60,7 @@ s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 10MB
 
 def main():
     full_start_time = datetime.now()
+    start_time = datetime.now()
 
     logger.info(f"START : Export to COG : {full_start_time}")
 
@@ -61,24 +68,61 @@ def main():
     if debug:
         pathlib.Path(output_path).mkdir(parents=True, exist_ok=True)
 
-    # DEBUGGING
-    url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
+    # get list of files to convert
+    url_list = get_download_list()
 
+    logger.info(f"\t - {len(url_list)} images to convert: {datetime.now() - start_time}")
 
+    # download & convert files - then upload to S3 - using multiprocessing
+    mp_pool = multiprocessing.Pool(max_processes)
+    mp_results = mp_pool.map_async(convert_to_cog, url_list, chunksize=1)
 
+    while not mp_results.ready():
+        print(f"\rProperties remaining : {mp_results._number_left}", end="")
+        sys.stdout.flush()
+        time.sleep(10)
+
+    print(f"\r\n", end="")
+    real_results = mp_results.get()
+    mp_pool.close()
+    mp_pool.join()
+
+    success_count = 0
+    fail_count = 0
+
+    for result in real_results:
+        if result is None:
+            logger.warning("A multiprocessing process failed!")
+        elif result == "SUCCESS!":
+            success_count += 1
+        else:
+            fail_count += 1
+
+    logger.info(f"\t\t - {success_count} images converted")
+    if fail_count > 0:
+        logger.warning(f"\t\t - {fail_count} failed")
+
+    logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
+
+def get_download_list():
     # get list of files to download and convert
     file_list = list()
     for feature in fiona.open(f"zip://{elevation_index_zipfile}!{elevation_index_shapefile}"):
-    # for feature in fiona.open("/nsw_elevation_index.shp", vfs=f"zip://{elevation_index_shapefile}"):
         properties = feature["properties"]
 
-        file_list.append(properties["dems5mid"])
-        file_list.append(properties["slope5mid"])
-        file_list.append(properties["aspect5mid"])
+        # DEBUGGING - only append files with the chosen map title
+        if debug:
+            if properties["maptitle"] == debug_map_title:
+                file_list.append(properties["dems5mid"])
+                file_list.append(properties["slope5mid"])
+                file_list.append(properties["aspect5mid"])
+        else:
+            file_list.append(properties["dems5mid"])
+            file_list.append(properties["slope5mid"])
+            file_list.append(properties["aspect5mid"])
 
-    # convert file names into URLs
+    # convert file names into URLs, need to extract the image type and it's Map Grid of Australia (MGA) zone
     url_list = list()
-
     for file_name in file_list:
         # get image type
         if "-DEM-" in file_name:
@@ -97,19 +141,15 @@ def main():
             mga_zone = None
             print(f"What is this rubbish MGA zone? : {file_name}")
 
-        if image_type is not None or mga_zone is not None:
+        if image_type is not None and mga_zone is not None:
             url = f"{base_image_url}/{image_type}/{mga_zone}/{file_name}.zip"
-
             url_list.append(url)
 
-    # download & convert file; then upload to S3
-    convert_to_cog(url, debug)
-
-    logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
+    return url_list
 
 
-def convert_to_cog(url, debug=False):
-    """Takes a raster file URL, downloads it and outputs a cloud optimised tiff (COG) image to AWS S3"""
+def convert_to_cog(url):
+    """Takes an image file URL, downloads it and outputs a cloud optimised tiff (COG) image to AWS S3"""
 
     start_time = datetime.now()
 
@@ -152,6 +192,8 @@ def convert_to_cog(url, debug=False):
                 print("\t\t - WARNING: {} copy to S3 problem : {}".format(output_file_name, aws_response))
 
             logger.info(f"\t - {input_file_name} uploaded to S3: {datetime.now() - start_time}")
+
+    return "SUCCESS!"
 
 
 if __name__ == "__main__":
