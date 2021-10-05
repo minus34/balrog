@@ -6,6 +6,7 @@
 # ------------------------------------------------------------------------------------------------------------------
 
 import boto3
+import fiona
 import logging
 import multiprocessing
 import os
@@ -27,6 +28,11 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # ------------------------------------------------------------------------------------------------------------------
 
 debug = False
+
+base_image_url = "https://portal.spatial.nsw.gov.au/download"
+
+elevation_index_zipfile = os.path.join(script_dir, "data/input/nsw_elevation_index.zip")
+elevation_index_shapefile = "nsw_elevation_index.shp"
 
 output_path = os.path.join(script_dir, "data/output")
 
@@ -57,6 +63,44 @@ def main():
 
     # DEBUGGING
     url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
+
+
+
+    # get list of files to download and convert
+    file_list = list()
+    for feature in fiona.open(f"zip://{elevation_index_zipfile}!{elevation_index_shapefile}"):
+    # for feature in fiona.open("/nsw_elevation_index.shp", vfs=f"zip://{elevation_index_shapefile}"):
+        properties = feature["properties"]
+
+        file_list.append(properties["dems5mid"])
+        file_list.append(properties["slope5mid"])
+        file_list.append(properties["aspect5mid"])
+
+    # convert file names into URLs
+    url_list = list()
+
+    for file_name in file_list:
+        # get image type
+        if "-DEM-" in file_name:
+            image_type = "dem"
+        elif "-SLP-" in file_name:
+            image_type = "slope"
+        elif "-ASP-" in file_name:
+            image_type = "aspect"
+        else:
+            image_type = None
+            print(f"What is this rubbish file name? : {file_name}")
+
+        mga_zone = file_name.split("_")[1]
+
+        if mga_zone not in ["54", "55", "56"]:
+            mga_zone = None
+            print(f"What is this rubbish MGA zone? : {file_name}")
+
+        if image_type is not None or mga_zone is not None:
+            url = f"{base_image_url}/{image_type}/{mga_zone}/{file_name}.zip"
+
+            url_list.append(url)
 
     # download & convert file; then upload to S3
     convert_to_cog(url, debug)
@@ -92,7 +136,7 @@ def convert_to_cog(url, debug=False):
             logger.info(f"\t - {input_file_name} downloaded & converted to COG: {datetime.now() - start_time}")
             start_time = datetime.now()
 
-        # DEBUGGING
+            # DEBUGGING
             if debug:
                 with open(os.path.join(output_path, output_file_name), "wb") as f:
                     f.write(output_image.read())
