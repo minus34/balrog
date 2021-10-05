@@ -1,3 +1,9 @@
+# ------------------------------------------------------------------------------------------------------------------
+#
+# Script downloads zipped ASCII Grid files, unzips them in-memory, converts them to a Cloud Optimised GeoTIFF (COG)
+#    and uploads them to AWS S3
+#
+# ------------------------------------------------------------------------------------------------------------------
 
 import boto3
 import io
@@ -6,7 +12,6 @@ import multiprocessing
 import os
 import pathlib
 import rasterio.crs
-import rasterio.mask
 import requests
 import zipfile
 
@@ -15,6 +20,7 @@ from datetime import datetime
 from rasterio.io import MemoryFile
 from rio_cogeo import cog_translate
 from rio_cogeo.profiles import cog_profiles
+from urllib.parse import urlparse
 
 # the directory of this script
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -23,9 +29,9 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-debug = True
+debug = False
 
-output_path = os.path.join(script_dir, "output")
+output_path = os.path.join(script_dir, "data/output")
 
 s3_bucket = "bushfire-rasters"
 s3_path = "nsw_dcs_spatial_services"
@@ -60,50 +66,36 @@ def main():
     logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
 
 
-def get_raster_and_crs(file_list, debug=False):
-    image = None
-    crs = None
-    output_file_name = None
+def convert_to_cog(url, debug=False):
+    """Takes a raster file URL, downloads it and outputs a cloud optimised tiff (COG) image to AWS S3"""
 
-    # get the raster and it's coordinate system
-    for file in file_list:
-        file_name = file[0]
-        file_obj = file[1]
+    start_time = datetime.now()
 
-        # get raster as an in-memory file
-        if file_name.endswith(".asc"):
-            image = MemoryFile(file_obj)
-            output_file_name = file_name.replace(".asc", ".tif")
+    # get the Virtual File System (vfs) URL - to enable Rasterio to load the image from the downloaded .zip file
+    # example URL: 'zip+https://example.com/files.zip!/folder/file.tif'
+    parsed_url = urlparse(url)
+    input_file_name = os.path.basename(parsed_url.path).replace(".zip", ".asc")
+    output_file_name = input_file_name.replace(".asc", ".tif")
+    vfs_url = f"zip+{url}!{input_file_name}"
 
-        # get well known text coordinate system
-        if file_name.endswith(".prj"):
-            proj_string = file_obj.decode("utf-8")
-            crs = rasterio.crs.CRS.from_wkt(proj_string)
-
-        if debug:
-            with open(os.path.join(output_path, file_name), "wb") as f:
-                f.write(file_obj)
-
-    return image, crs, output_file_name
-
-
-def convert_to_cog(input_image, crs, output_file_name, debug=False):
-    """Takes a raster file & it's coordinate system and outputs a cloud optimised tiff (COG) image"""
-
-    # create COG profile and add coordinate system
+    # create COG profile to set compression on the output file
     dst_profile = cog_profiles.get("deflate")
-    dst_profile.update({"crs": str(crs)})
 
-    # Create the COG in-memory
-    with input_image.open() as dataset:
+    # Create the COG in-memory and save to S3
+    with rasterio.open(vfs_url) as input_image:
         with MemoryFile() as output_image:
-            cog_translate(dataset, output_image.name, dst_profile, in_memory=True, nodata=-9999)
+            cog_translate(input_image, output_image.name, dst_profile, in_memory=True, nodata=-9999)
 
-            # DEBUGGING
+            logger.info(f"\t - {input_file_name} downloaded & converted to COG: {datetime.now() - start_time}")
+            start_time = datetime.now()
+
+        # DEBUGGING
             if debug:
                 with open(os.path.join(output_path, output_file_name), "wb") as f:
                     f.write(output_image.read())
-                    output_image.seek(0)
+
+                logger.info(f"\t - {output_file_name} saved locally: {datetime.now() - start_time}")
+                start_time = datetime.now()
 
             # upload to AWS S3
             s3_file_path = f"{s3_path}/dem/{output_file_name}"
@@ -112,19 +104,7 @@ def convert_to_cog(input_image, crs, output_file_name, debug=False):
             if aws_response is not None:
                 print("\t\t - WARNING: {} copy to S3 problem : {}".format(output_file_name, aws_response))
 
-
-
-def download_extract_zip(url: str):
-    """
-    Download a ZIP file and extract its contents in memory
-    yields (filename, file-like object) pairs
-    """
-    response = requests.get(url)
-    with zipfile.ZipFile(io.BytesIO(response.content)) as thezip:
-        for zipinfo in thezip.infolist():
-            with thezip.open(zipinfo) as thefile:
-                yield zipinfo.filename, thefile.read()
-
+            logger.info(f"\t - {input_file_name} uploaded to S3: {datetime.now() - start_time}")
 
 
 if __name__ == "__main__":
