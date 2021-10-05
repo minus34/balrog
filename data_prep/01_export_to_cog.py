@@ -185,6 +185,7 @@ def convert_to_cog(url):
                 print(f"root        : INFO     \t - {output_file_name} saved locally: {datetime.now() - start_time}")
                 start_time = datetime.now()
 
+            # TODO: move this duplicate code into a method
             # get image type
             if "-DEM-" in input_file_name:
                 image_type = "dem"
