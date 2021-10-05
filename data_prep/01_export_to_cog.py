@@ -78,7 +78,7 @@ def main():
     mp_results = mp_pool.map_async(convert_to_cog, url_list, chunksize=1)
 
     while not mp_results.ready():
-        print(f"\rProperties remaining : {mp_results._number_left}", end="")
+        print(f"\rImages remaining : {mp_results._number_left}", end="")
         sys.stdout.flush()
         time.sleep(10)
 
@@ -103,6 +103,7 @@ def main():
         logger.warning(f"\t\t - {fail_count} failed")
 
     logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
+
 
 def get_download_list():
     # get list of files to download and convert
@@ -173,7 +174,7 @@ def convert_to_cog(url):
         with MemoryFile() as output_image:
             cog_translate(input_image, output_image.name, dst_profile, in_memory=True, nodata=-9999)
 
-            logger.info(f"\t - {input_file_name} downloaded & converted to COG: {datetime.now() - start_time}")
+            print(f"root        : INFO     \t - {input_file_name} downloaded & converted to COG: {datetime.now() - start_time}")
             start_time = datetime.now()
 
             # DEBUGGING
@@ -181,7 +182,7 @@ def convert_to_cog(url):
                 with open(os.path.join(output_path, output_file_name), "wb") as f:
                     f.write(output_image.read())
 
-                logger.info(f"\t - {output_file_name} saved locally: {datetime.now() - start_time}")
+                print(f"root        : INFO     \t - {output_file_name} saved locally: {datetime.now() - start_time}")
                 start_time = datetime.now()
 
             # upload to AWS S3
@@ -189,9 +190,9 @@ def convert_to_cog(url):
             aws_response = s3_client.upload_fileobj(output_image, s3_bucket, s3_file_path, Config=s3_config)
 
             if aws_response is not None:
-                print("\t\t - WARNING: {} copy to S3 problem : {}".format(output_file_name, aws_response))
-
-            logger.info(f"\t - {input_file_name} uploaded to S3: {datetime.now() - start_time}")
+                print(f"root        : WARNING     \t - {output_file_name} copy to S3 problem : {aws_response}")
+            else:
+                print(f"root        : INFO     \t - {output_file_name} uploaded to S3: {datetime.now() - start_time}")
 
     return "SUCCESS!"
 
