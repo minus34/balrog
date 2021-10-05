@@ -174,16 +174,17 @@ def convert_to_cog(url):
         with MemoryFile() as output_image:
             cog_translate(input_image, output_image.name, dst_profile, in_memory=True, nodata=-9999)
 
-            print(f"root        : INFO     \t - {input_file_name} downloaded & converted to COG: {datetime.now() - start_time}")
-            start_time = datetime.now()
+            # print(f"root        : INFO     \t - {input_file_name} downloaded & converted to COG: {datetime.now() - start_time}")
+            # start_time = datetime.now()
 
             # DEBUGGING
             if debug:
                 with open(os.path.join(output_path, output_file_name), "wb") as f:
                     f.write(output_image.read())
+                    output_image.seek(0)
 
-                print(f"root        : INFO     \t - {output_file_name} saved locally: {datetime.now() - start_time}")
-                start_time = datetime.now()
+                # print(f"root        : INFO     \t - {output_file_name} saved locally: {datetime.now() - start_time}")
+                # start_time = datetime.now()
 
             # TODO: move this duplicate code into a method
             # get image type
@@ -200,8 +201,8 @@ def convert_to_cog(url):
 
             if aws_response is not None:
                 print(f"root        : WARNING     \t - {output_file_name} copy to S3 problem : {aws_response}")
-            else:
-                print(f"root        : INFO     \t - {output_file_name} uploaded to S3: {datetime.now() - start_time}")
+            # else:
+            #     print(f"root        : INFO     \t - {output_file_name} uploaded to S3: {datetime.now() - start_time}")
 
     return "SUCCESS!"
 
