@@ -6,14 +6,11 @@
 # ------------------------------------------------------------------------------------------------------------------
 
 import boto3
-import io
 import logging
 import multiprocessing
 import os
 import pathlib
-import rasterio.crs
-import requests
-import zipfile
+import rasterio
 
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
@@ -44,13 +41,13 @@ s3_path = "nsw_dcs_spatial_services"
 max_processes = multiprocessing.cpu_count()
 max_postgres_connections = max_processes + 1
 
+# setup connection to AWS S3
 s3_client = boto3.client("s3")
 s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 10MB
 
 
 def main():
     full_start_time = datetime.now()
-    start_time = datetime.now()
 
     logger.info(f"START : Export to COG : {full_start_time}")
 
@@ -61,6 +58,7 @@ def main():
     # DEBUGGING
     url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
 
+    # download & convert file; then upload to S3
     convert_to_cog(url, debug)
 
     logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
@@ -71,18 +69,23 @@ def convert_to_cog(url, debug=False):
 
     start_time = datetime.now()
 
-    # get the Virtual File System (vfs) URL - to enable Rasterio to load the image from the downloaded .zip file
-    # example URL: 'zip+https://example.com/files.zip!/folder/file.tif'
+    # create a Virtual File System (VFS) URL if it's a .zip file
+    #   this enables Rasterio to load the image from the downloaded .zip file directly
+    #   example URL: 'zip+https://example.com/files.zip!/folder/file.tif'
     parsed_url = urlparse(url)
-    input_file_name = os.path.basename(parsed_url.path).replace(".zip", ".asc")
-    output_file_name = input_file_name.replace(".asc", ".tif")
-    vfs_url = f"zip+{url}!{input_file_name}"
+    if url.endswith(".zip"):
+        input_file_name = os.path.basename(parsed_url.path).replace(".zip", ".asc")
+        url = f"zip+{url}!{input_file_name}"
+    else:
+        input_file_name = os.path.basename(parsed_url.path)
 
-    # create COG profile to set compression on the output file
+    output_file_name = input_file_name.replace(".asc", ".tif")
+
+    # create a COG profile to set compression on the output file
     dst_profile = cog_profiles.get("deflate")
 
     # Create the COG in-memory and save to S3
-    with rasterio.open(vfs_url) as input_image:
+    with rasterio.open(url) as input_image:
         with MemoryFile() as output_image:
             cog_translate(input_image, output_image.name, dst_profile, in_memory=True, nodata=-9999)
 
