@@ -185,8 +185,16 @@ def convert_to_cog(url):
                 print(f"root        : INFO     \t - {output_file_name} saved locally: {datetime.now() - start_time}")
                 start_time = datetime.now()
 
+            # get image type
+            if "-DEM-" in input_file_name:
+                image_type = "dem"
+            elif "-SLP-" in input_file_name:
+                image_type = "slope"
+            elif "-ASP-" in input_file_name:
+                image_type = "aspect"
+
             # upload to AWS S3
-            s3_file_path = f"{s3_path}/dem/{output_file_name}"
+            s3_file_path = f"{s3_path}/{image_type}/{output_file_name}"
             aws_response = s3_client.upload_fileobj(output_image, s3_bucket, s3_file_path, Config=s3_config)
 
             if aws_response is not None:
