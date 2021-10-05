@@ -73,3 +73,15 @@ CREATE INDEX bal_factors_gnaf_pid_idx ON bushfire.bal_factors USING btree (gnaf_
 CREATE INDEX bal_factors_point_geom_idx ON bushfire.bal_factors USING gist (point_geom);
 CREATE INDEX bal_factors_geom_idx ON bushfire.bal_factors USING gist (geom);
 ALTER TABLE bushfire.bal_factors CLUSTER ON bal_factors_geom_idx;
+
+
+-- -- create backup table for testing
+-- drop table if exists bushfire.bal_factors_test_sydney;
+-- create table bushfire.bal_factors_test_sydney as
+-- select * from bushfire.bal_factors;
+-- analyse bushfire.bal_factors_test_sydney;
+--
+-- CREATE INDEX bal_factors_test_sydney_gnaf_pid_idx ON bushfire.bal_factors_test_sydney USING btree (gnaf_pid);
+-- CREATE INDEX bal_factors_test_sydney_point_geom_idx ON bushfire.bal_factors_test_sydney USING gist (point_geom);
+-- CREATE INDEX bal_factors_test_sydney_geom_idx ON bushfire.bal_factors_test_sydney USING gist (geom);
+-- ALTER TABLE bushfire.bal_factors_test_sydney CLUSTER ON bal_factors_test_sydney_geom_idx;
