@@ -29,10 +29,14 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-debug = True
+debug = False
 debug_map_title = "KOSCIUSKO"
 
 base_image_url = "https://portal.spatial.nsw.gov.au/download"
+
+
+# https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/waz50.zip
+
 
 # DEBUGGING
 # url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
@@ -50,8 +54,7 @@ s3_path = "nsw_dcs_spatial_services"
 # ------------------------------------------------------------------------------------------------------------------
 
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
-max_processes = multiprocessing.cpu_count()
-max_postgres_connections = max_processes + 1
+max_processes = 8
 
 # setup connection to AWS S3
 s3_client = boto3.client("s3")

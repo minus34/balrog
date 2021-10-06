@@ -108,6 +108,12 @@ scp -F ${SSH_CONFIG} -r ${HOME}/.aws/credentials ${USER}@${INSTANCE_ID}:~/.aws/c
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_export_to_cog.py ${USER}@${INSTANCE_ID}:~/
 
+# copy data
+ssh -F ${SSH_CONFIG} -o StrictHostKeyChecking=no ${INSTANCE_ID} "mkdir -p ~/data/input"
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/data/input/nsw_elevation_index.zip ${USER}@${INSTANCE_ID}:~/data/input/
+
+
+
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then
   # set proxy permanently if required

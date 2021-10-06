@@ -3,16 +3,17 @@
 # installs Python packages to enable converting images to Cloud Optimised GeoTIFFs (COGs)
 
 PYTHON_VERSION="3.9"
-NVIDIA_DRIVER_VERSION="470.57.02"  # CUDA 11.4
 
-# check if proxy server required
-while getopts ":p:" opt; do
-  case $opt in
-  p)
-    PROXY=$OPTARG
-    ;;
-  esac
-done
+## check if proxy server required
+#while getopts ":p:" opt; do
+#  case $opt in
+#  p)
+#    PROXY=$OPTARG
+#    ;;
+#  esac
+#done
+
+sudo yum install -y tmux
 
 # Install Conda to create a Python 3.9 environment (AWS yum repos stop at Python 3.7)
 echo "-------------------------------------------------------------------------"
