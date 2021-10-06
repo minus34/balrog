@@ -155,7 +155,8 @@ def convert_to_cog(image, output_file_name, s3_bucket, s3_path):
                     start_time = datetime.now()
 
                 # upload to AWS S3
-                aws_response = s3_client.upload_fileobj(output_image, s3_bucket, s3_path, Config=s3_config)
+                s3_file_path = s3_path + output_file_name
+                aws_response = s3_client.upload_fileobj(output_image, s3_bucket, s3_file_path, Config=s3_config)
 
                 if aws_response is not None:
                     logger.warning(f"\t - {output_file_name} copy to S3 problem : {aws_response}")
