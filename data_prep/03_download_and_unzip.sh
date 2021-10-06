@@ -8,12 +8,11 @@ rm nationalz56_ag.zip
 cd ~
 
 
-gdal_translate nationalz56_ag.tif ./cog/nationalz56_ag.tif -of COG -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
+gdal_translate nationalz56_ag.tif ./cog/nationalz56_ag.tif -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
 
 aws s3 sync /data/tmp/cog s3://bushfire-rasters/geoscience_australia/5m-dem/
 
 
-mkdir -p /data/tmp/cog
 cd /data/tmp
 curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/1sec-dem/70715.zip --progress-bar
 unzip -o 70715.zip
