@@ -68,6 +68,18 @@ echo "-------------------------------------------------------------------------"
 
 echo "y" | conda install -c conda-forge rasterio[s3] rio-cogeo requests boto3
 
+echo "-------------------------------------------------------------------------"
+echo " Mount storage"
+echo "-------------------------------------------------------------------------"
+
+sudo mkfs -t xfs /dev/nvme1n1
+sudo mkdir /data
+sudo mount /dev/nvme1n1 /data
+
+sudo mkdir /data/s3_files
+sudo chmod 777 /data/s3_files
+
+
 # remove proxy if set
 if [ -n "${PROXY}" ];
   then
@@ -77,4 +89,9 @@ if [ -n "${PROXY}" ];
     unset HTTPS_PROXY
     unset no_proxy
     unset NO_PROXY
+
+    echo "-------------------------------------------------------------------------"
+    echo " Proxy removed"
+    echo "-------------------------------------------------------------------------"
+
 fi
