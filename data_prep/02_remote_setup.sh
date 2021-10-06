@@ -66,7 +66,7 @@ echo "-------------------------------------------------------------------------"
 echo " Installing Python packages"
 echo "-------------------------------------------------------------------------"
 
-echo "y" | conda install -c conda-forge rasterio[s3] rio-cogeo requests boto3
+echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo requests boto3
 
 echo "-------------------------------------------------------------------------"
 echo " Mount storage"
@@ -76,8 +76,13 @@ sudo mkfs -t xfs /dev/nvme1n1
 sudo mkdir /data
 sudo mount /dev/nvme1n1 /data
 
-sudo mkdir /data/tmp
-sudo chmod 777 /data/tmp
+sudo chown -R ec2-user:ec2-user /data
+mkdir -p /data/tmp/cog
+
+cd /data/tmp
+curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip --progress-bar
+unzip -o nationalz56_ag.zip
+rm nationalz56_ag.zip
 
 
 # remove proxy if set
