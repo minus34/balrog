@@ -47,20 +47,20 @@ source ${HOME}/.bashrc
 # update Python packages
 echo "y" | conda update conda
 
-echo "-------------------------------------------------------------------------"
-echo " Creating new Conda Environment 'cog'"
-echo "-------------------------------------------------------------------------"
-
-# Create Conda environment
-echo "y" | conda create -n cog python=${PYTHON_VERSION}
-
-# activate and setup env
-conda activate cog
-conda config --env --add channels conda-forge
-conda config --env --set channel_priority strict
-
-# reactivate for changes to take effect
-conda activate cog
+#echo "-------------------------------------------------------------------------"
+#echo " Creating new Conda Environment 'cog'"
+#echo "-------------------------------------------------------------------------"
+#
+## Create Conda environment
+#echo "y" | conda create -n cog python=${PYTHON_VERSION}
+#
+## activate and setup env
+#conda activate cog
+#conda config --env --add channels conda-forge
+#conda config --env --set channel_priority strict
+#
+## reactivate for changes to take effect
+#conda activate cog
 
 echo "-------------------------------------------------------------------------"
 echo " Installing Python packages"
