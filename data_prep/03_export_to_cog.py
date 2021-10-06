@@ -1,14 +1,13 @@
 # ------------------------------------------------------------------------------------------------------------------
 #
-# Script downloads zipped ASCII Grid files, unzips them in-memory, converts them to a Cloud Optimised GeoTIFF (COG)
+# Script downloads zipped GeoTIFFs, unzips them in-memory, converts them to a Cloud Optimised GeoTIFF (COG)
 #    and uploads them to AWS S3
 #
 # ------------------------------------------------------------------------------------------------------------------
 
 import boto3
-import fiona
+import json
 import logging
-import multiprocessing
 import os
 import pathlib
 import rasterio
@@ -29,32 +28,15 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
+urls_file = os.path.join(script_dir, "data/input/ga_dem_urls.json")
+
 debug = False
-debug_map_title = "KOSCIUSKO"
-
-base_image_url = "https://portal.spatial.nsw.gov.au/download"
-
-
-# https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/waz50.zip
-
-
-# DEBUGGING
-# url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
-
-elevation_index_zipfile = os.path.join(script_dir, "data/input/nsw_elevation_index.zip")
-elevation_index_shapefile = "nsw_elevation_index.shp"
 
 output_path = os.path.join(script_dir, "data/output")
-
-s3_bucket = "bushfire-rasters"
-s3_path = "nsw_dcs_spatial_services"
 
 # ------------------------------------------------------------------------------------------------------------------
 # END: edit settings
 # ------------------------------------------------------------------------------------------------------------------
-
-# how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
-max_processes = 8
 
 # setup connection to AWS S3
 s3_client = boto3.client("s3")
@@ -72,87 +54,17 @@ def main():
         pathlib.Path(output_path).mkdir(parents=True, exist_ok=True)
 
     # get list of files to convert
-    url_list = get_download_list()
+    url_list = json.loads(open(urls_file, "r").read())
 
-    logger.info(f"\t - {len(url_list)} images to convert: {datetime.now() - start_time}")
+    logger.info(f"\t - {len(url_list)} images to download & convert: {datetime.now() - start_time}")
 
-    # download & convert files - then upload to S3 - using multiprocessing
-    mp_pool = multiprocessing.Pool(max_processes)
-    mp_results = mp_pool.map_async(convert_to_cog, url_list, chunksize=1)
-
-    while not mp_results.ready():
-        print(f"\rImages remaining : {mp_results._number_left}", end="")
-        sys.stdout.flush()
-        time.sleep(10)
-
-    print(f"\r\n", end="")
-    real_results = mp_results.get()
-    mp_pool.close()
-    mp_pool.join()
-
-    success_count = 0
-    fail_count = 0
-
-    for result in real_results:
-        if result is None:
-            logger.warning("A multiprocessing process failed!")
-        elif result == "SUCCESS!":
-            success_count += 1
-        else:
-            fail_count += 1
-
-    logger.info(f"\t\t - {success_count} images converted")
-    if fail_count > 0:
-        logger.warning(f"\t\t - {fail_count} failed")
+    for file in url_list:
+        convert_to_cog(file["url"], file["s3_bucket"], file["s3_path"])
 
     logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
 
 
-def get_download_list():
-    # get list of files to download and convert
-    file_list = list()
-    for feature in fiona.open(f"zip://{elevation_index_zipfile}!{elevation_index_shapefile}"):
-        properties = feature["properties"]
-
-        # DEBUGGING - only append files with the chosen map title
-        if debug:
-            if properties["maptitle"] == debug_map_title:
-                file_list.append(properties["dems5mid"])
-                file_list.append(properties["slope5mid"])
-                file_list.append(properties["aspect5mid"])
-        else:
-            file_list.append(properties["dems5mid"])
-            file_list.append(properties["slope5mid"])
-            file_list.append(properties["aspect5mid"])
-
-    # convert file names into URLs, need to extract the image type and it's Map Grid of Australia (MGA) zone
-    url_list = list()
-    for file_name in file_list:
-        # get image type
-        if "-DEM-" in file_name:
-            image_type = "dem"
-        elif "-SLP-" in file_name:
-            image_type = "slope"
-        elif "-ASP-" in file_name:
-            image_type = "aspect"
-        else:
-            image_type = None
-            print(f"What is this rubbish file name? : {file_name}")
-
-        mga_zone = file_name.split("_")[1]
-
-        if mga_zone not in ["54", "55", "56"]:
-            mga_zone = None
-            print(f"What is this rubbish MGA zone? : {file_name}")
-
-        if image_type is not None and mga_zone is not None:
-            url = f"{base_image_url}/{image_type}/{mga_zone}/{file_name}.zip"
-            url_list.append(url)
-
-    return url_list
-
-
-def convert_to_cog(url):
+def convert_to_cog(url, s3_bucket, s3_path):
     """Takes an image file URL, downloads it and outputs a cloud optimised tiff (COG) image to AWS S3"""
 
     start_time = datetime.now()
@@ -162,52 +74,45 @@ def convert_to_cog(url):
     #   example URL: 'zip+https://example.com/files.zip!/folder/file.tif'
     parsed_url = urlparse(url)
     if url.endswith(".zip"):
-        input_file_name = os.path.basename(parsed_url.path).replace(".zip", ".asc")
+        input_file_name = os.path.basename(parsed_url.path).replace(".zip", ".tif")
         url = f"zip+{url}!{input_file_name}"
     else:
         input_file_name = os.path.basename(parsed_url.path)
 
-    output_file_name = input_file_name.replace(".asc", ".tif")
+    # output_file_name = input_file_name.replace(".asc", ".tif")
+    output_file_name = input_file_name
 
     # create a COG profile to set compression on the output file
     dst_profile = cog_profiles.get("deflate")
 
     # Create the COG in-memory and save to S3
-    with rasterio.open(url) as input_image:
-        with MemoryFile() as output_image:
-            cog_translate(input_image, output_image.name, dst_profile, in_memory=True, nodata=-9999)
+    try:
+        with rasterio.open(url) as input_image:
+            with MemoryFile() as output_image:
+                cog_translate(input_image, output_image.name, dst_profile, in_memory=True, nodata=-9999)
 
-            # print(f"root        : INFO     \t - {input_file_name} downloaded & converted to COG: {datetime.now() - start_time}")
-            # start_time = datetime.now()
+                logger.info(f"\t - {input_file_name} downloaded & converted to COG: {datetime.now() - start_time}")
+                start_time = datetime.now()
 
-            # DEBUGGING
-            if debug:
-                with open(os.path.join(output_path, output_file_name), "wb") as f:
-                    f.write(output_image.read())
-                    output_image.seek(0)
+                # DEBUGGING
+                if debug:
+                    with open(os.path.join(output_path, output_file_name), "wb") as f:
+                        f.write(output_image.read())
+                        output_image.seek(0)
 
-                # print(f"root        : INFO     \t - {output_file_name} saved locally: {datetime.now() - start_time}")
-                # start_time = datetime.now()
+                    logger.info(f"\t - {output_file_name} saved locally: {datetime.now() - start_time}")
+                    start_time = datetime.now()
 
-            # TODO: move this duplicate code into a method
-            # get image type
-            if "-DEM-" in input_file_name:
-                image_type = "dem"
-            elif "-SLP-" in input_file_name:
-                image_type = "slope"
-            elif "-ASP-" in input_file_name:
-                image_type = "aspect"
+                # upload to AWS S3
+                aws_response = s3_client.upload_fileobj(output_image, s3_bucket, s3_path, Config=s3_config)
 
-            # upload to AWS S3
-            s3_file_path = f"{s3_path}/{image_type}/{output_file_name}"
-            aws_response = s3_client.upload_fileobj(output_image, s3_bucket, s3_file_path, Config=s3_config)
+                if aws_response is not None:
+                    logger.warning(f"\t - {output_file_name} copy to S3 problem : {aws_response}")
+                else:
+                    logger.info(f"\t - {output_file_name} uploaded to S3: {datetime.now() - start_time}")
 
-            if aws_response is not None:
-                print(f"root        : WARNING     \t - {output_file_name} copy to S3 problem : {aws_response}")
-            # else:
-            #     print(f"root        : INFO     \t - {output_file_name} uploaded to S3: {datetime.now() - start_time}")
-
-    return "SUCCESS!"
+    except Exception as ex:
+        logger.warning(f"\t - {output_file_name} - convert failed : {ex}")
 
 
 if __name__ == "__main__":

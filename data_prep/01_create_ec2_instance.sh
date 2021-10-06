@@ -109,30 +109,29 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_export_to_cog.py ${USER}@${INSTANCE_ID}:~/
 
 # copy data
-ssh -F ${SSH_CONFIG} -o StrictHostKeyChecking=no ${INSTANCE_ID} "mkdir -p ~/data/input"
-scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/data/input/nsw_elevation_index.zip ${USER}@${INSTANCE_ID}:~/data/input/
-
-
+ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "mkdir -p ~/data/input"
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/data/input/ga_dem_urls.json ${USER}@${INSTANCE_ID}:~/data/input/
+#scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/data/input/nsw_elevation_index.zip ${USER}@${INSTANCE_ID}:~/data/input/
 
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then
-  # set proxy permanently if required
-  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} \
-  'cat << EOF > ~/environment
-  no_proxy="169.254.169.254,localhost,127.0.0.1,:11"
-  http_proxy="'"${PROXY}"'"
-  https_proxy="'"${PROXY}"'"
-  proxy="'"${PROXY}"'"
-  HTTP_PROXY="'"${PROXY}"'"
-  HTTPS_PROXY="'"${PROXY}"'"
-  PROXY="'"${PROXY}"'"
-  NO_PROXY="169.254.169.254,localhost,127.0.0.1,:11"
-  EOF'
-  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sudo cp ~/environment /etc/environment"
+#  # set proxy permanently if required
+#  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} \
+#  'cat << EOF > ~/environment
+#  no_proxy="169.254.169.254,localhost,127.0.0.1,:11"
+#  http_proxy="'"${PROXY}"'"
+#  https_proxy="'"${PROXY}"'"
+#  proxy="'"${PROXY}"'"
+#  HTTP_PROXY="'"${PROXY}"'"
+#  HTTPS_PROXY="'"${PROXY}"'"
+#  PROXY="'"${PROXY}"'"
+#  NO_PROXY="169.254.169.254,localhost,127.0.0.1,:11"
+#  EOF'
+#  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sudo cp ~/environment /etc/environment"
 
   ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sh ./02_remote_setup.sh -p ${PROXY}"
-else
-  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sh ./02_remote_setup.sh"
+#else
+#  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sh ./02_remote_setup.sh"
 fi
 
 echo "-------------------------------------------------------------------------"
