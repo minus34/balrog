@@ -76,8 +76,8 @@ sudo mkfs -t xfs /dev/nvme1n1
 sudo mkdir /data
 sudo mount /dev/nvme1n1 /data
 
-sudo mkdir /data/s3_files
-sudo chmod 777 /data/s3_files
+sudo mkdir /data/tmp
+sudo chmod 777 /data/tmp
 
 
 # remove proxy if set

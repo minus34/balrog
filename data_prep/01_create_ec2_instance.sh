@@ -140,6 +140,8 @@ echo " End time : $(date)"
 echo " Build took $((duration / 60)) mins"
 echo "----------------------------------------------------------------------------------------------------------------"
 
+ssh -F ${SSH_CONFIG} ${INSTANCE_ID}
+
 
 # HANDY STUFF BELOW
 

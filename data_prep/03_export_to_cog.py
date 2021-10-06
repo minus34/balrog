@@ -74,7 +74,7 @@ def main():
         start_time = datetime.now()
 
         # get list of compressed files
-        file_list = list(download_extract_zip(response))
+        file_list = download_extract_zip(response)
         logger.info(f"\t - {input_file_name} files extracted: {datetime.now() - start_time}")
         start_time = datetime.now()
 
@@ -95,10 +95,18 @@ def main():
 
 def download_extract_zip(response):
     """Extracts a zip file's contents in memory. Yields (filename, file-like object) pairs"""
-    with zipfile.ZipFile(io.BytesIO(response.content)) as thezip:
-        for zipinfo in thezip.infolist():
-            with thezip.open(zipinfo) as thefile:
-                yield zipinfo.filename, thefile.read()
+
+    input_zip = zipfile.ZipFile(io.BytesIO(response.content))
+
+    print("got zipfile")
+
+    return {name: input_zip.read(name) for name in input_zip.namelist()}
+
+
+    # with zipfile.ZipFile(io.BytesIO(response.content)) as thezip:
+    #     for zipinfo in thezip.infolist():
+    #         with thezip.open(zipinfo) as thefile:
+    #             yield zipinfo.filename, thefile.read()
 
 
 def get_raster_in_memory(file_list):

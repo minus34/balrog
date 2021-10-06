@@ -1,6 +1,7 @@
 [
     { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/christmasislandz48.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"},
     { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/cocosislandz47.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"},
+    { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"},
     { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz55_ag.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"},
     { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz54ag.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"},
     { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/ntz53.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"},
@@ -10,6 +11,5 @@
     { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/1sec-dem/70715.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/1sec-dem/"},
     { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/mdbaz56_qg.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"},
     { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/mdbaz55_qg.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"},
-    { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/mdbaz54_qg.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"},
-    { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"}
+    { "url": "https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/mdbaz54_qg.zip", "s3_bucket": "bushfire-rasters", "s3_path" : "geoscience_australia/5m-dem/"}
 ]
