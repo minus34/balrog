@@ -34,6 +34,19 @@ cd ~
 
 
 
+gdaldem slope input_dem output_slope_map
+            [-p use percent slope (default=degrees)] [-s scale* (default=1)]
+            [-alg Horn|ZevenbergenThorne]
+            [-compute_edges] [-b Band (default=1)] [-of format] [-co "NAME=VALUE"]* [-q]
+
+
+gdaldem slope ./cog/srtm_1sec_dem_s.tif ./cog/srtm_1sec_slope.tif -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
+
+gdaldem aspect ./cog/srtm_1sec_dem_s.tif ./cog/srtm_1sec_aspect.tif -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
+
+
+
+
 
 #
 ## nope!

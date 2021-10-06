@@ -79,10 +79,15 @@ sudo mount /dev/nvme1n1 /data
 sudo chown -R ec2-user:ec2-user /data
 mkdir -p /data/tmp/cog
 
+
 #cd /data/tmp
 #curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip --progress-bar
 #unzip -o nationalz56_ag.zip
 #rm nationalz56_ag.zip
+
+
+# copy elevation files from S3
+aws s3 sync s3://bushfire-rasters/geoscience_australia/5m-dem /data/tmp/cog/
 
 
 # remove proxy if set
