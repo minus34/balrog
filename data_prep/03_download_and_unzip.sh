@@ -18,6 +18,15 @@ curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/1sec-
 unzip -o 70715.zip
 rm 70715.zip
 
+gdal_translate ./aac46307-fce8-449d-e044-00144fdd4fa6/hdr.adf ./cog/srtm_1sec_dem_s.tif -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
+
+aac46307-fce8-449d-e044-00144fdd4fa6/hdr.adf
+
+aws s3 sync /data/tmp s3://bushfire-rasters/geoscience_australia/1sec-dem/raw/
+
+
+
+
 gdal_translate nationalz56_ag.tif ./cog/nationalz56_ag.tif -of COG -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
 
 cd ~
