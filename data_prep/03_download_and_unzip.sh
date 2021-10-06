@@ -3,10 +3,12 @@
 sudo chown -R ec2-user:ec2-user /data
 
 sudo mkdir -p /data/tmp
-cd /data
+cd /data/tmp
 curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip --progress-bar
-cd tmp
-unzip /data/nationalz56_ag.zip
+unzip -o nationalz56_ag.zip
+rm nationalz56_ag.zip
+cd ~
+
 
 
 

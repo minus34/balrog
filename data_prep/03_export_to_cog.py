@@ -61,34 +61,36 @@ def main():
 
     logger.info(f"\t - {len(url_list)} images to download & convert: {datetime.now() - start_time}")
 
-    for file in url_list:
-        image_start_time = datetime.now()
+    convert_to_cog("/data/tmp/nationalz56_ag.tif", "nationalz56_ag.tif", "bushfire-rasters", "geoscience_australia/5m-dem/")
 
-        url = file["url"]
-        input_file_name = os.path.basename(urlparse(url).path)
-        logger.info(f"Processing {input_file_name}")
-
-        # download zip file
-        response = requests.get(url)
-        logger.info(f"\t - {input_file_name} downloaded: {datetime.now() - start_time}")
-        start_time = datetime.now()
-
-        # get list of compressed files
-        file_list = download_extract_zip(response)
-        logger.info(f"\t - {input_file_name} files extracted: {datetime.now() - start_time}")
-        start_time = datetime.now()
-
-        # get the raster image
-        image, output_file_name = get_raster_in_memory(file_list)
-        logger.info(f"\t - {output_file_name} saved to memory : {datetime.now() - start_time}")
-        start_time = datetime.now()
-
-        # convert image to COG and upload to S3
-        convert_to_cog(image, output_file_name, file["s3_bucket"], file["s3_path"])
-        logger.info(f"\t - {input_file_name} converted to COG : {datetime.now() - start_time}")
-        start_time = datetime.now()
-
-        logger.info(f"{input_file_name} finished : {datetime.now() - image_start_time}")
+    # for file in url_list:
+    #     image_start_time = datetime.now()
+    #
+    #     url = file["url"]
+    #     input_file_name = os.path.basename(urlparse(url).path)
+    #     logger.info(f"Processing {input_file_name}")
+    #
+    #     # download zip file
+    #     response = requests.get(url)
+    #     logger.info(f"\t - {input_file_name} downloaded: {datetime.now() - start_time}")
+    #     start_time = datetime.now()
+    #
+    #     # get list of compressed files
+    #     file_list = download_extract_zip(response)
+    #     logger.info(f"\t - {input_file_name} files extracted: {datetime.now() - start_time}")
+    #     start_time = datetime.now()
+    #
+    #     # get the raster image
+    #     image, output_file_name = get_raster_in_memory(file_list)
+    #     logger.info(f"\t - {output_file_name} saved to memory : {datetime.now() - start_time}")
+    #     start_time = datetime.now()
+    #
+    #     # convert image to COG and upload to S3
+    #     convert_to_cog(image, output_file_name, file["s3_bucket"], file["s3_path"])
+    #     logger.info(f"\t - {input_file_name} converted to COG : {datetime.now() - start_time}")
+    #     start_time = datetime.now()
+    #
+    #     logger.info(f"{input_file_name} finished : {datetime.now() - image_start_time}")
 
     logger.info(f"FINISHED : Export to COG : {datetime.now() - full_start_time}")
 
@@ -138,7 +140,7 @@ def get_raster_in_memory(file_list):
     return image, output_file_name
 
 
-def convert_to_cog(image, output_file_name, s3_bucket, s3_path):
+def convert_to_cog(image_path, output_file_name, s3_bucket, s3_path):
     """Takes an image file URL, downloads it and outputs a cloud optimised tiff (COG) image to AWS S3"""
 
     start_time = datetime.now()
@@ -161,7 +163,7 @@ def convert_to_cog(image, output_file_name, s3_bucket, s3_path):
 
     # Create the COG in-memory and save to S3
     try:
-        with image.open() as input_image:
+        with rasterio.open(image_path) as input_image:
             with MemoryFile() as output_image:
                 cog_translate(input_image, output_image.name, dst_profile, in_memory=True, nodata=-9999)
 
