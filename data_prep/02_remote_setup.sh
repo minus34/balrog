@@ -111,7 +111,7 @@ pg_ctl -D postgres -l logfile start
 createdb --owner=ec2-user geo
 
 # add PostGIS extension to database, create schema and tables
-psql -d geo -f ${HOME}/03_create_tables.sql
+psql -d geo -f ${HOME}/02_create_tables.sql
 
 # restore GNAF table (ignore the ALTER TABLE error)
 pg_restore -Fc -d geo -p 5432 -U ec2-user ${HOME}/gnaf-sydney.dmp
