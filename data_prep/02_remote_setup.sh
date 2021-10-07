@@ -2,7 +2,7 @@
 
 # installs Python packages to enable converting images to Cloud Optimised GeoTIFFs (COGs)
 
-PYTHON_VERSION="3.9"
+#PYTHON_VERSION="3.9"
 
 # required to keep long running sessions active
 sudo yum install -y tmux
@@ -66,7 +66,7 @@ echo "-------------------------------------------------------------------------"
 echo " Installing Python packages"
 echo "-------------------------------------------------------------------------"
 
-echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo requests boto3
+echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis requests boto3
 
 # remove proxy if set
 if [ -n "${PROXY}" ];
@@ -113,7 +113,7 @@ createdb --owner=ec2-user geo
 # add PostGIS extension to database, create schema and tables
 psql -d geo -f ${HOME}/03_create_tables.sql
 
-# restore GNAF & Cad tables (ignore the 2 ALTER TABLE errors)
+# restore GNAF table (ignore the ALTER TABLE error)
 pg_restore -Fc -d geo -p 5432 -U ec2-user ${HOME}/gnaf-sydney.dmp
 
 
@@ -127,4 +127,4 @@ echo " Copy elevation data from S3"
 echo "-------------------------------------------------------------------------"
 
 # copy elevation files from S3
-aws s3 sync s3://bushfire-rasters/geoscience_australia/5m-dem /data/tmp/cog/
+aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/

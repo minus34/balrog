@@ -113,6 +113,11 @@ ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "mkdir -p ~/data/input"
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/data/input/ga_dem_urls.json ${USER}@${INSTANCE_ID}:~/data/input/
 #scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/data/input/nsw_elevation_index.zip ${USER}@${INSTANCE_ID}:~/data/input/
 
+# copy scripts to run
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/02_create_tables.sql ${USER}@${INSTANCE_ID}:~/data/input/
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/test_gdal.py ${USER}@${INSTANCE_ID}:~/data/input/
+
+
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then
 #  # set proxy permanently if required

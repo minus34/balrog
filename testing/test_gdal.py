@@ -32,7 +32,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # ------------------------------------------------------------------------------------------------------------------
 
 # input_file_path = "/Users/s57405/git/iag_geo/balrog/data_prep/output/Sydney-DEM-AHD_56_5m.tif"
-input_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
+# input_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
 input_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
 
 image_srid = 4326  # WGS84 lat/long

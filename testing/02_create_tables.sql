@@ -4,7 +4,7 @@ create extension if not exists postgis;
 
 -- create schema
 create schema if not exists bushfire;
-alter schema bushfire owner to "postgres";
+alter schema bushfire owner to "ec2-user";
 
 -- create image & label tables for both training and inference
 
@@ -65,11 +65,11 @@ create table bushfire.bal_factors (
     geom geometry(Multipolygon, 4283) NULL
 );
 
-alter table bushfire.bal_factors owner to "postgres";
+alter table bushfire.bal_factors owner to "ec2-user";
 
 -- TODO: move these to after data import if this needs to scale
--- ALTER TABLE bushfire.bal_factors ADD CONSTRAINT bal_factors_pkey PRIMARY KEY (gnaf_pid);
-CREATE INDEX bal_factors_gnaf_pid_idx ON bushfire.bal_factors USING btree (gnaf_pid);
-CREATE INDEX bal_factors_point_geom_idx ON bushfire.bal_factors USING gist (point_geom);
-CREATE INDEX bal_factors_geom_idx ON bushfire.bal_factors USING gist (geom);
-ALTER TABLE bushfire.bal_factors CLUSTER ON bal_factors_geom_idx;
+-- -- ALTER TABLE bushfire.bal_factors ADD CONSTRAINT bal_factors_pkey PRIMARY KEY (gnaf_pid);
+-- CREATE INDEX bal_factors_gnaf_pid_idx ON bushfire.bal_factors USING btree (gnaf_pid);
+-- CREATE INDEX bal_factors_point_geom_idx ON bushfire.bal_factors USING gist (point_geom);
+-- CREATE INDEX bal_factors_geom_idx ON bushfire.bal_factors USING gist (geom);
+-- ALTER TABLE bushfire.bal_factors CLUSTER ON bal_factors_geom_idx;

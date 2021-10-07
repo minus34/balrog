@@ -14,8 +14,8 @@
 
 
 
-drop view if exists bushfire.gnaf_sydney;
-create view bushfire.gnaf_sydney as
+drop table if exists bushfire.gnaf_sydney;
+create table bushfire.gnaf_sydney as
 select pr_pid,
        gnaf_pid,
        address,
@@ -27,7 +27,7 @@ select pr_pid,
        geom
 from bushfire.bal_factors_test_sydney
 ;
-
+analyse bushfire.bal_factors_test_sydney;
 
 
 
