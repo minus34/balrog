@@ -1,26 +1,42 @@
 
+-- -- create backup table for testing
+-- drop table if exists bushfire.bal_factors_test_sydney;
+-- create table bushfire.bal_factors_test_sydney as
+-- select * from bushfire.bal_factors;
+-- analyse bushfire.bal_factors_test_sydney;
+--
+-- CREATE INDEX bal_factors_test_sydney_gnaf_pid_idx ON bushfire.bal_factors_test_sydney USING btree (gnaf_pid);
+-- CREATE INDEX bal_factors_test_sydney_point_geom_idx ON bushfire.bal_factors_test_sydney USING gist (point_geom);
+-- CREATE INDEX bal_factors_test_sydney_geom_idx ON bushfire.bal_factors_test_sydney USING gist (geom);
+-- ALTER TABLE bushfire.bal_factors_test_sydney CLUSTER ON bal_factors_test_sydney_geom_idx;
 
 
 
 
--- https://portal.spatial.nsw.gov.au/download/contours/56/StAlbans-CONT-AHD_56_2m.zip
--- https://portal.spatial.nsw.gov.au/download/dem/56/StAlbans-DEM-AHD_56_5m.zip
--- https://portal.spatial.nsw.gov.au/download/slope/56/StAlbans-SLP-AHD_56_5m.zip
--- https://portal.spatial.nsw.gov.au/download/aspect/56/StAlbans-ASP-AHD_56_5m.zip
+
+drop view if exists bushfire.gnaf_sydney;
+create view bushfire.gnaf_sydney as
+select pr_pid,
+       gnaf_pid,
+       address,
+       latitude,
+       longitude,
+       point_geom,
+       st_asgeojson(st_transform(geom, 4326), 6)::jsonb as geometry,
+       st_asgeojson(st_transform(st_buffer(geom::geography, 100)::geometry, 4326), 6)::jsonb as buffer,
+       geom
+from bushfire.bal_factors_test_sydney
+;
+
+
+
 
 
 select * from bushfire.nsw_elevation_index;
 
 
 
-
-
-
-select * from geo_propertyloc.rf_aus_property_parcel_polygon
-
-
-
-
+select * from geo_propertyloc.rf_aus_property_parcel_polygon;
 
 
 

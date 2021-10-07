@@ -68,28 +68,6 @@ echo "-------------------------------------------------------------------------"
 
 echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo requests boto3
 
-echo "-------------------------------------------------------------------------"
-echo " Mount storage"
-echo "-------------------------------------------------------------------------"
-
-sudo mkfs -t xfs /dev/nvme1n1
-sudo mkdir /data
-sudo mount /dev/nvme1n1 /data
-
-sudo chown -R ec2-user:ec2-user /data
-mkdir -p /data/tmp/cog
-
-
-#cd /data/tmp
-#curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip --progress-bar
-#unzip -o nationalz56_ag.zip
-#rm nationalz56_ag.zip
-
-
-# copy elevation files from S3
-aws s3 sync s3://bushfire-rasters/geoscience_australia/5m-dem /data/tmp/cog/
-
-
 # remove proxy if set
 if [ -n "${PROXY}" ];
   then
@@ -103,5 +81,50 @@ if [ -n "${PROXY}" ];
     echo "-------------------------------------------------------------------------"
     echo " Proxy removed"
     echo "-------------------------------------------------------------------------"
-
+    echo ""
 fi
+
+echo "-------------------------------------------------------------------------"
+echo " Mount storage"
+echo "-------------------------------------------------------------------------"
+
+sudo mkfs -t xfs /dev/nvme1n1
+sudo mkdir /data
+sudo mount /dev/nvme1n1 /data
+
+sudo chown -R ec2-user:ec2-user /data
+mkdir -p /data/tmp/cog
+
+# GNAF table
+aws s3 cp s3://bushfire-rasters/geoscape/gnaf-sydney.dmp ${HOME} --no-progress --quiet
+echo "Postgres dump file copied"
+
+echo "-------------------------------------------------------------------------"
+echo " Setup Postgres Database"
+echo "-------------------------------------------------------------------------"
+
+# start postgres
+initdb -D postgres
+pg_ctl -D postgres -l logfile start
+
+# create new database
+createdb --owner=ec2-user geo
+
+# add PostGIS extension to database, create schema and tables
+psql -d geo -f ${HOME}/03_create_tables.sql
+
+# restore GNAF & Cad tables (ignore the 2 ALTER TABLE errors)
+pg_restore -Fc -d geo -p 5432 -U ec2-user ${HOME}/gnaf-sydney.dmp
+
+
+#cd /data/tmp
+#curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip --progress-bar
+#unzip -o nationalz56_ag.zip
+#rm nationalz56_ag.zip
+
+echo "-------------------------------------------------------------------------"
+echo " Copy elevation data from S3"
+echo "-------------------------------------------------------------------------"
+
+# copy elevation files from S3
+aws s3 sync s3://bushfire-rasters/geoscience_australia/5m-dem /data/tmp/cog/

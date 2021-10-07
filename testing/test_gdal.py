@@ -33,6 +33,10 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 
 # input_file_path = "/Users/s57405/git/iag_geo/balrog/data_prep/output/Sydney-DEM-AHD_56_5m.tif"
 input_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
+input_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
+
+image_srid = 4326  # WGS84 lat/long
+# image_srid = 28356  # MGA (aka UTM South) Zone 56
 
 # # This needs to be refreshed every 12 hours
 # gic_auth_token = ""
@@ -105,26 +109,28 @@ def main():
 
     # TODO: this creates duplicate gnaf_pids - need to fix/avoid this
     # select rows with a GeoJSON geometry in teh same coordinate system as the rasters (MGA Zone 56)
-    sql = f"""with gnaf as (
-                  select gnaf_pid,
-                         concat(address, ', ', locality_name, ' ', state, ' ', postcode) as address,
-                         latitude,
-                         longitude,
-                         geom as point_geom
-                  from {gnaf_table}
-                  where coalesce(primary_secondary, 'P') = 'P'
-                    and st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
---                       and gnaf_pid in ('GANSW706440716', 'GANSW716504168', 'GANSW716543216')
---                       and gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
---                       and locality_name like '%WAHROONGA%'
-              )
-              select pr.pr_pid,
-                         gnaf.*,
-                     st_asgeojson(st_transform(pr.geom, 28356), 1)::jsonb as geometry,
-                     st_asgeojson(st_buffer(st_transform(pr.geom, 28356), 100.0), 1)::jsonb as buffer,
-                     pr.geom
-              from {cad_table} as pr
-              inner join gnaf on st_intersects(gnaf.point_geom, pr.geom)"""
+#     sql = f"""with gnaf as (
+#                   select gnaf_pid,
+#                          concat(address, ', ', locality_name, ' ', state, ' ', postcode) as address,
+#                          latitude,
+#                          longitude,
+#                          geom as point_geom
+#                   from {gnaf_table}
+#                   where coalesce(primary_secondary, 'P') = 'P'
+#                     and st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
+# --                       and gnaf_pid in ('GANSW706440716', 'GANSW716504168', 'GANSW716543216')
+# --                       and gnaf_pid in ('GANSW705023300', 'GANSW705012493', 'GANSW705023298')
+# --                       and locality_name like '%WAHROONGA%'
+#               )
+#               select pr.pr_pid,
+#                          gnaf.*,
+#                      st_asgeojson(st_transform(pr.geom, {image_srid}), 1)::jsonb as geometry,
+#                      st_asgeojson(st_buffer(st_transform(pr.geom, {image_srid}), 100.0), 1)::jsonb as buffer,
+#                      pr.geom
+#               from {cad_table} as pr
+#               inner join gnaf on st_intersects(gnaf.point_geom, pr.geom)"""
+
+    sql = f"""select * from bushfire.gnaf_sydney"""
     pg_cur.execute(sql)
     # print(sql)
 
