@@ -11,9 +11,66 @@
 -- ALTER TABLE bushfire.bal_factors_test_sydney CLUSTER ON bal_factors_test_sydney_geom_idx;
 
 
+-- drop table if exists bushfire.bal_factors_test_sydney_srtm;
+-- create table bushfire.bal_factors_test_sydney_srtm as
+-- select * from bushfire.bal_factors;
+-- analyse bushfire.bal_factors_test_sydney_srtm;
+
+CREATE INDEX bal_factors_test_sydney_srtm_gnaf_pid_idx ON bushfire.bal_factors_test_sydney_srtm USING btree (gnaf_pid);
+CREATE INDEX bal_factors_test_sydney_srtm_point_geom_idx ON bushfire.bal_factors_test_sydney_srtm USING gist (point_geom);
+CREATE INDEX bal_factors_test_sydney_srtm_geom_idx ON bushfire.bal_factors_test_sydney_srtm USING gist (geom);
+ALTER TABLE bushfire.bal_factors_test_sydney_srtm CLUSTER ON bal_factors_test_sydney_srtm_geom_idx;
 
 
 
+
+-- dare to compare - NSW 5m DEM vs SRTM 1 sec DEM smoothed
+drop table if exists bushfire.bal_factors_test_sydney_deltas;
+create table bushfire.bal_factors_test_sydney_deltas as
+with hmm as (
+    select nsw.gnaf_pid,
+           nsw.address,
+           nsw.pr_pid,
+           nsw.dem_bdy_min,
+           nsw.dem_bdy_max,
+           nsw.dem_bdy_avg,
+           nsw.dem_bdy_std,
+           nsw.dem_bdy_med,
+           nsw.dem_100m_min,
+           nsw.dem_100m_max,
+           nsw.dem_100m_avg,
+           nsw.dem_100m_std,
+           nsw.dem_100m_med,
+           nsw.point_geom,
+           nsw.geom,
+           nsw.dem_bdy_avg - srtm.dem_bdy_avg   as dem_bdy_avg_delta,
+           nsw.dem_bdy_std - srtm.dem_bdy_std   as dem_bdy_std_delta,
+           nsw.dem_bdy_med - srtm.dem_bdy_med   as dem_bdy_med_delta,
+           nsw.dem_100m_avg - srtm.dem_100m_avg as dem_100m_avg_delta,
+           nsw.dem_100m_std - srtm.dem_100m_std as dem_100m_std_delta,
+           nsw.dem_100m_med - srtm.dem_100m_med as dem_100m_med_delta
+    from bushfire.bal_factors_test_sydney as nsw
+             inner join bushfire.bal_factors_test_sydney_srtm as srtm on nsw.gnaf_pid = srtm.gnaf_pid
+)
+select *
+from hmm where abs(dem_100m_med) > 5
+;
+analyse bushfire.bal_factors_test_sydney_deltas;
+
+CREATE INDEX bal_factors_test_sydney_deltas_gnaf_pid_idx ON bushfire.bal_factors_test_sydney_deltas USING btree (gnaf_pid);
+CREATE INDEX bal_factors_test_sydney_deltas_point_geom_idx ON bushfire.bal_factors_test_sydney_deltas USING gist (point_geom);
+CREATE INDEX bal_factors_test_sydney_deltas_geom_idx ON bushfire.bal_factors_test_sydney_deltas USING gist (geom);
+ALTER TABLE bushfire.bal_factors_test_sydney_deltas CLUSTER ON bal_factors_test_sydney_deltas_geom_idx;
+
+
+
+
+
+
+
+
+
+-- create copy of GNAF + properties being used for testing
 drop table if exists bushfire.gnaf_sydney;
 create table bushfire.gnaf_sydney as
 select pr_pid,
