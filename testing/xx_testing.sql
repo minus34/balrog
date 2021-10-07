@@ -28,7 +28,7 @@ ALTER TABLE bushfire.bal_factors_test_sydney_srtm CLUSTER ON bal_factors_test_sy
 drop table if exists bushfire.bal_factors_test_sydney_deltas;
 create table bushfire.bal_factors_test_sydney_deltas as
 with hmm as (
-    select nsw.gnaf_pid,
+    select distinct nsw.gnaf_pid,
            nsw.address,
            nsw.pr_pid,
            nsw.dem_bdy_min,

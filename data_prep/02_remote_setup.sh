@@ -95,13 +95,13 @@ sudo mount /dev/nvme1n1 /data
 sudo chown -R ec2-user:ec2-user /data
 mkdir -p /data/tmp/cog
 
-# GNAF table
-aws s3 cp s3://bushfire-rasters/geoscape/gnaf-sydney.dmp ${HOME} --no-progress --quiet
-echo "Postgres dump file copied"
-
 echo "-------------------------------------------------------------------------"
 echo " Setup Postgres Database"
 echo "-------------------------------------------------------------------------"
+
+# GNAF table
+aws s3 cp s3://bushfire-rasters/geoscape/gnaf-sydney.dmp ${HOME} --no-progress --quiet
+echo "Postgres dump file copied"
 
 # start postgres
 initdb -D postgres
@@ -127,4 +127,4 @@ echo " Copy elevation data from S3"
 echo "-------------------------------------------------------------------------"
 
 # copy elevation files from S3
-aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/
+aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem/data/tmp/cog/
