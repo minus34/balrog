@@ -27,4 +27,4 @@ gdaldem slope ./aac46307-fce8-449d-e044-00144fdd4fa6/hdr.adf ./cog/srtm_1sec_slo
 gdaldem aspect ./aac46307-fce8-449d-e044-00144fdd4fa6/hdr.adf ./cog/srtm_1sec_aspect.tif -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
 
 # copy COG files to S3
-aws s3 sync /data/tmp/cog s3://bushfire-rasters/geoscience_australia/1sec-dem/
+aws s3 sync /data/tmp/cog s3://bushfire-rasters/geoscience_australia/1sec-dem/ --exclude "*" --include "*.tif"
