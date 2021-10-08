@@ -50,3 +50,42 @@ alter table bushfire.bal_factors owner to "ec2-user";
 -- CREATE INDEX bal_factors_point_geom_idx ON bushfire.bal_factors USING gist (point_geom);
 -- CREATE INDEX bal_factors_geom_idx ON bushfire.bal_factors USING gist (geom);
 -- ALTER TABLE bushfire.bal_factors CLUSTER ON bal_factors_geom_idx;
+
+
+
+
+-- -- convert to polygons (they aren't multipolygons!) -- 15,841,377 rows affected in 4 m 35 s 202 ms
+-- drop table if exists bushfire.temp_buildings;
+-- create table bushfire.temp_buildings as
+-- with bld as (
+--     select bld_pid,
+--            (st_dump(geom)).geom as geom
+--     from geo_propertyloc.aus_buildings_polygons
+-- )
+-- select bld_pid,
+--        geom,
+--        geom::geography as geog,
+--        st_transform(geom, 28356) as geom_mga56
+-- from bld
+-- ;
+-- analyse bushfire.temp_buildings;
+
+-- WGA84 lat/long buildings with a 100m buffer
+drop table if exists bushfire.buildings;
+create table bushfire.buildings as
+select bld_pid,
+       st_asgeojson(geom, 6, 0)::jsonb as geom,
+       st_asgeojson(st_buffer(geom::geography, 100, 8), 6, 0)::jsonb as buffer
+from bushfire.temp_buildings
+;
+analyse bushfire.buildings;
+
+-- MGA Zone 56 buildings with a 100m buffer
+drop table if exists bushfire.buildings_mga56;
+create table bushfire.buildings_mga56 as
+select bld_pid,
+       st_asgeojson(st_transform(geom, 28356), 1, 0)::jsonb as geom,
+       st_asgeojson(st_transform(st_buffer(geom::geography, 100.0, 8)::geometry, 28356), 1, 0)::jsonb as buffer
+from bushfire.temp_buildings
+;
+analyse bushfire.buildings_mga56;
