@@ -122,6 +122,12 @@ pg_restore -Fc -d geo -p 5432 -U ec2-user ${HOME}/buildings.dmp
 psql -d geo -f ${HOME}/02_create_tables.sql
 
 
+# TODO: remove this
+# one off dump to S3
+pg_dump -Fc -d geo -t bushfire.buildings -t bushfire.buildings_mga56 -p 5432 -U postgres -f "/data/buildings_json.dmp" --no-owner
+aws s3 sync /data s3://bushfire-rasters/geoscape/ --exclude "*" --include "*.dmp"
+
+
 #cd /data/tmp
 #curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip --progress-bar
 #unzip -o nationalz56_ag.zip
