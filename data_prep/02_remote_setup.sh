@@ -99,10 +99,6 @@ echo "-------------------------------------------------------------------------"
 echo " Setup Postgres Database"
 echo "-------------------------------------------------------------------------"
 
-# GNAF table
-aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp ${HOME} --no-progress --quiet
-echo "Postgres dump file copied"
-
 # start postgres
 initdb -D postgres
 pg_ctl -D postgres -l logfile start
@@ -116,7 +112,8 @@ psql -d geo -c "CREATE TABLESPACE bushfirespace OWNER \"ec2-user\" LOCATION '/da
 psql -d geo -c "ALTER DATABASE geo SET TABLESPACE bushfirespace;"
 
 # restore GNAF table (ignore the ALTER TABLE error)
-pg_restore -Fc -d geo -p 5432 -U ec2-user ${HOME}/buildings.dmp
+aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
+pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp
 
 # add PostGIS extension to database, create schema and tables
 psql -d geo -f ${HOME}/02_create_tables.sql
