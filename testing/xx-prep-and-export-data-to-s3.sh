@@ -23,8 +23,8 @@ echo "dump postgres tables to a local folder"
 echo "---------------------------------------------------------------------------------------------------------------------"
 
 mkdir -p "${OUTPUT_FOLDER}"
-/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -t bushfire.gnaf_sydney -p 5432 -U postgres -f "${OUTPUT_FOLDER}/gnaf-sydney.dmp" --no-owner
-echo "GNAF Sydney exported to dump file"
+/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -t bushfire.buildings -t bushfire.buildings_mga56 -p 5432 -U postgres -f "${OUTPUT_FOLDER}/buildings.dmp" --no-owner
+echo "Buildings exported to dump file"
 
 echo "---------------------------------------------------------------------------------------------------------------------"
 echo "copy training data & Postgres dump file to AWS S3"

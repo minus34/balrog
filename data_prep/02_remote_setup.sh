@@ -100,7 +100,7 @@ echo " Setup Postgres Database"
 echo "-------------------------------------------------------------------------"
 
 # GNAF table
-aws s3 cp s3://bushfire-rasters/geoscape/gnaf-sydney.dmp ${HOME} --no-progress --quiet
+aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp ${HOME} --no-progress --quiet
 echo "Postgres dump file copied"
 
 # start postgres
@@ -114,7 +114,7 @@ createdb --owner=ec2-user geo
 psql -d geo -f ${HOME}/02_create_tables.sql
 
 # restore GNAF table (ignore the ALTER TABLE error)
-pg_restore -Fc -d geo -p 5432 -U ec2-user ${HOME}/gnaf-sydney.dmp
+pg_restore -Fc -d geo -p 5432 -U ec2-user ${HOME}/buildings.dmp
 
 
 #cd /data/tmp
