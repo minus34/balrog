@@ -109,9 +109,13 @@ createdb --owner=ec2-user geo
 # set the tablespace to the mounted drive (main drive is waaaaay too small)
 mkdir -p /data/postgres
 psql -d geo -c "CREATE TABLESPACE bushfirespace OWNER \"ec2-user\" LOCATION '/data/postgres';"
-psql -d geo -c "ALTER DATABASE geo SET TABLESPACE bushfirespace;"
+#psql -d geo -c "ALTER DATABASE geo SET TABLESPACE bushfirespace;"
 
-# restore GNAF table (ignore the ALTER TABLE error)
+# add PostGIS and create schema
+psql -d geo -c "create extension if not exists postgis;"
+psql -d geo -c "create schema if not exists bushfire;alter schema bushfire owner to \"ec2-user\";"
+
+# restore buildings table(s) (ignore the ALTER TABLE errors)
 aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
 pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp
 
@@ -119,10 +123,10 @@ pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp
 psql -d geo -f ${HOME}/02_create_tables.sql
 
 
-# TODO: remove this
-# one off dump to S3
-pg_dump -Fc -d geo -t bushfire.buildings -t bushfire.buildings_mga56 -p 5432 -U postgres -f "/data/buildings_json.dmp" --no-owner
-aws s3 sync /data s3://bushfire-rasters/geoscape/ --exclude "*" --include "*.dmp"
+## TODO: remove this
+## one off dump to S3
+#pg_dump -Fc -d geo -t bushfire.buildings -t bushfire.buildings_mga56 -p 5432 -U "ec2-user" -f "/data/buildings_json.dmp" --no-owner
+#aws s3 sync /data s3://bushfire-rasters/geoscape/ --exclude "*" --include "*.dmp"
 
 
 #cd /data/tmp

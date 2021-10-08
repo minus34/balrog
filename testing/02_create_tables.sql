@@ -7,8 +7,7 @@
 create extension if not exists postgis;
 
 -- create schema
-create schema if not exists bushfire;
-alter schema bushfire owner to "ec2-user";
+create schema if not exists bushfire;alter schema bushfire owner to "ec2-user";
 
 -- create image & label tables for both training and inference
 
@@ -45,7 +44,8 @@ create table bushfire.bal_factors (
     dem_100m_avg smallint,
     dem_100m_std smallint,
     dem_100m_med smallint
-);
+)
+TABLESPACE bushfirespace;
 alter table bushfire.bal_factors owner to "ec2-user";
 
 -- TODO: move these to after data import if this needs to scale
@@ -76,7 +76,7 @@ alter table bushfire.bal_factors owner to "ec2-user";
 
 -- WGA84 lat/long buildings with a 100m buffer
 drop table if exists bushfire.buildings;
-create table bushfire.buildings as
+create table bushfire.buildings TABLESPACE bushfirespace as
 select bld_pid,
        st_asgeojson(geom, 6, 0)::jsonb as geom,
        st_asgeojson(st_buffer(geom::geography, 100, 8), 6, 0)::jsonb as buffer
@@ -86,7 +86,7 @@ analyse bushfire.buildings;
 
 -- MGA Zone 56 buildings with a 100m buffer
 drop table if exists bushfire.buildings_mga56;
-create table bushfire.buildings_mga56 as
+create table bushfire.buildings_mga56 TABLESPACE bushfirespace as
 select bld_pid,
        st_asgeojson(st_transform(geom, 28356), 1, 0)::jsonb as geom,
        st_asgeojson(st_transform(st_buffer(geom::geography, 100.0, 8)::geometry, 28356), 1, 0)::jsonb as buffer
