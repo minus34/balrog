@@ -92,12 +92,35 @@ analyse bushfire.bal_factors_test_sydney;
 
 
 
+-- create Geoscape building buffer table
+drop table if exists bushfire.buildings;
+create table bushfire.buildings as
+with bld as (
+    select bld_pid,
+           (st_dump(geom)).geom as geom
+    from geo_propertyloc.aus_buildings_polygons
+)
+select bld_pid,
+       st_asgeojson(st_transform(geom, 4326), 6)::jsonb as geom,
+       st_asgeojson(st_transform(st_buffer(geom::geography, 100)::geometry, 4326), 6)::jsonb as buffer
+from bld
+;
+analyse bushfire.buildings;
 
-select bld104a955da1c9,
-
-from geo_propertyloc.aus_buildings_polygons;
-
-
+-- create Geoscape building buffer table with MGA 56 geometries
+drop table if exists bushfire.buildings_mga56;
+create table bushfire.buildings_mga56 as
+with bld as (
+    select bld_pid,
+           (st_dump(geom)).geom as geom
+    from geo_propertyloc.aus_buildings_polygons
+)
+select bld_pid,
+       st_asgeojson(st_transform(geom, 28356), 1)::jsonb as geom,
+       st_asgeojson(st_buffer(st_transform(geom, 28356), 100.0), 1)::jsonb as buffer
+from bld
+;
+analyse bushfire.buildings_mga56;
 
 
 
