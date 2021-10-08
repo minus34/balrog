@@ -53,7 +53,7 @@ with hmm as (
              inner join bushfire.bal_factors_test_sydney_srtm as srtm on nsw.gnaf_pid = srtm.gnaf_pid
 )
 select *
-from hmm where abs(dem_100m_med) > 5
+from hmm where abs(dem_100m_med_delta) > 5
 ;
 analyse bushfire.bal_factors_test_sydney_deltas;
 
@@ -63,6 +63,10 @@ CREATE INDEX bal_factors_test_sydney_deltas_geom_idx ON bushfire.bal_factors_tes
 ALTER TABLE bushfire.bal_factors_test_sydney_deltas CLUSTER ON bal_factors_test_sydney_deltas_geom_idx;
 
 
+
+-- buildings -- 15841377
+select count(*) from geo_propertyloc.aus_buildings_polygons
+    where area > 50
 
 
 
@@ -85,6 +89,21 @@ select pr_pid,
 from bushfire.bal_factors_test_sydney
 ;
 analyse bushfire.bal_factors_test_sydney;
+
+
+
+
+select bld104a955da1c9,
+
+from geo_propertyloc.aus_buildings_polygons;
+
+
+
+
+
+
+
+
 
 
 

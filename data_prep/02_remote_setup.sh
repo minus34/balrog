@@ -127,4 +127,5 @@ echo " Copy elevation data from S3"
 echo "-------------------------------------------------------------------------"
 
 # copy elevation files from S3
-aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem/data/tmp/cog/
+aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/
+#aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/tmp/cog/

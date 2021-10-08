@@ -35,7 +35,8 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # input_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
 
 # input_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-input_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
+# input_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
+# input_file_path = "/data/tmp/cog/dem/Sydney-DEM-AHD_56_5m.tif"
 
 image_srid = 4326  # WGS84 lat/long
 # image_srid = 28356  # MGA (aka UTM South) Zone 56
