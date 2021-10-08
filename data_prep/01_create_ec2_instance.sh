@@ -116,6 +116,7 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/data/input/ga_dem_urls.json ${USER}@${INSTANC
 # copy scripts to run
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/02_create_tables.sql ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/test_gdal.py ${USER}@${INSTANCE_ID}:~/
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/get_elevation_aspect_slope.py ${USER}@${INSTANCE_ID}:~/
 
 
 # setup proxy (if required) install packages & environment and import data

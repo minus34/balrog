@@ -1,4 +1,8 @@
 
+-- -- create tablespace to use mounted EC2 drive
+-- CREATE TABLESPACE bushfirespace OWNER "ec2-user" LOCATION '/data/postgres';
+-- ALTER DATABASE geo SET TABLESPACE bushfirespace;
+
 -- add postgis to database
 create extension if not exists postgis;
 

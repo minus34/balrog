@@ -110,11 +110,16 @@ pg_ctl -D postgres -l logfile start
 # create new database
 createdb --owner=ec2-user geo
 
-# add PostGIS extension to database, create schema and tables
-psql -d geo -f ${HOME}/02_create_tables.sql
+# set the tablespace to the mounted drive (main drive is waaaaay too small)
+mkdir -p /data/postgres
+psql -d geo -c "CREATE TABLESPACE bushfirespace OWNER \"ec2-user\" LOCATION '/data/postgres';"
+psql -d geo -c "ALTER DATABASE geo SET TABLESPACE bushfirespace;"
 
 # restore GNAF table (ignore the ALTER TABLE error)
 pg_restore -Fc -d geo -p 5432 -U ec2-user ${HOME}/buildings.dmp
+
+# add PostGIS extension to database, create schema and tables
+psql -d geo -f ${HOME}/02_create_tables.sql
 
 
 #cd /data/tmp
