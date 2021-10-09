@@ -33,12 +33,12 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
-slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
-# dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
-# aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
-# slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
+# dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
+# aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
+# slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
+aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
+slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
 image_srid = 4326  # WGS84 lat/long
 input_table = "bushfire.buildings"
 
@@ -99,7 +99,7 @@ def main():
     pg_cur.execute(f"truncate table {output_table}")
 
     # get input geometries & building ID
-    sql = f"""select * from {input_table} LIMIT 100"""
+    sql = f"""select * from {input_table}"""
     # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
     pg_cur.execute(sql)
 
@@ -158,7 +158,7 @@ def process_building(feature):
 
     bld_pid = feature["bld_pid"]
 
-    # TODO: this is bodge!
+    # TODO: this is bodge but it's supposedly the Pythonic way
     output_dict = dict()
     output_dict["bld_pid"] = bld_pid
     output_dict = get_data(output_dict, feature, dem_file_path, "dem")
@@ -168,7 +168,7 @@ def process_building(feature):
     # export result to Postgres
     insert_row(output_table, output_dict)
 
-    return "SUCCESS!!"
+    return "SUCCESS!"
 
 
 # mask the image and get data from the non-masked area

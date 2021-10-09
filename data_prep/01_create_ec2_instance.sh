@@ -107,6 +107,7 @@ scp -F ${SSH_CONFIG} -r ${HOME}/.aws/credentials ${USER}@${INSTANCE_ID}:~/.aws/c
 # copy required scripts
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_export_to_cog.py ${USER}@${INSTANCE_ID}:~/
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_create_dem_aspect_slope_rasters.sh ${USER}@${INSTANCE_ID}:~/
 
 # copy data
 ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "mkdir -p ~/data/input"

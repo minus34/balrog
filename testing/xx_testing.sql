@@ -140,9 +140,9 @@ select count(*) from bushfire.buildings_mga56;
 
 
 
+-- TODO: problem with slope values -- looks like 90 is horizontal
 
-
-select * from bushfire.nsw_elevation_index;
+select * from bushfire.bal_factors;
 
 
 
