@@ -39,7 +39,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
 aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
 slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
-image_srid = 4326  # WGS84 lat/long
+# image_srid = 4326  # WGS84 lat/long
 input_table = "bushfire.buildings"
 
 
@@ -179,10 +179,14 @@ def process_building(feature):
 # mask the image and get data from the non-masked area
 def get_data(output_dict, feature, input_file, image_type):
     with rasterio.Env(aws_session):
-        with rasterio.open(input_file) as raster:
+        with rasterio.open(input_file, "r") as raster:
             for geom_field in ["geom", "buffer"]:
+                print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[geom_field]}")
+
                 # create mask
-                masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
+                masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], pad=True, crop=True)
+
+                # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : got mask")
 
                 # get rid of nodata values and flatten array
                 flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
