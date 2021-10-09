@@ -142,7 +142,7 @@ def main():
             success_count += 1
         else:
             fail_count += 1
-            logger.warn(result)
+            logger.warning(result)
 
     logger.info(f"\t\t - {success_count} properties got data")
     if fail_count > 0:
