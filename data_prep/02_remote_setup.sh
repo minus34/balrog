@@ -118,8 +118,8 @@ psql -d geo -c "create extension if not exists postgis;"
 psql -d geo -c "create schema if not exists bushfire;alter schema bushfire owner to \"ec2-user\";"
 
 # restore buildings table(s) (ignore the ALTER TABLE errors)
-aws s3 cp s3://bushfire-rasters/geoscape/buildings_json.dmp /data/
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings_json.dmp
+aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
+pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp
 
 # add PostGIS extension to database, create schema and tables
 psql -d geo -f ${HOME}/02_create_tables.sql

@@ -94,7 +94,7 @@ analyse bushfire.bal_factors_test_sydney;
 
 -- create Geoscape building buffer table
 
--- convert to 2D polygons (they aren't multipolygons!) -- 15,841,377 rows affected in 4 m 35 s 202 ms
+-- convert to 2D polygons (they aren't multipolygons!) -- 15,841,377 rows affected in 5 mins
 drop table if exists bushfire.temp_buildings;
 create table bushfire.temp_buildings as
 select bld_pid,
@@ -105,7 +105,7 @@ analyse bushfire.temp_buildings;
 
 -- WGA84 lat/long buildings with a 100m buffer
 drop table if exists bushfire.buildings;
-create table bushfire.buildings TABLESPACE bushfirespace as
+create table bushfire.buildings as
 select bld_pid,
        st_asgeojson(geom, 6, 0)::jsonb as geom,
        st_asgeojson(st_buffer(geom::geography, 100, 8), 6, 0)::jsonb as buffer
@@ -115,7 +115,7 @@ analyse bushfire.buildings;
 
 -- MGA Zone 56 buildings with a 100m buffer
 drop table if exists bushfire.buildings_mga56;
-create table bushfire.buildings_mga56 TABLESPACE bushfirespace as
+create table bushfire.buildings_mga56 as
 select bld_pid,
        st_asgeojson(st_transform(geom, 28356), 1, 0)::jsonb as geom,
        st_asgeojson(st_transform(st_buffer(geom::geography, 100.0, 8)::geometry, 28356), 1, 0)::jsonb as buffer

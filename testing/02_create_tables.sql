@@ -74,22 +74,22 @@ alter table bushfire.bal_factors owner to "ec2-user";
 -- ;
 -- analyse bushfire.temp_buildings;
 
--- WGA84 lat/long buildings with a 100m buffer
-drop table if exists bushfire.buildings;
-create table bushfire.buildings TABLESPACE bushfirespace as
-select bld_pid,
-       st_asgeojson(geom, 6, 0)::jsonb as geom,
-       st_asgeojson(st_buffer(geom::geography, 100, 8), 6, 0)::jsonb as buffer
-from bushfire.temp_buildings
-;
-analyse bushfire.buildings;
-
--- MGA Zone 56 buildings with a 100m buffer
-drop table if exists bushfire.buildings_mga56;
-create table bushfire.buildings_mga56 TABLESPACE bushfirespace as
-select bld_pid,
-       st_asgeojson(st_transform(geom, 28356), 1, 0)::jsonb as geom,
-       st_asgeojson(st_transform(st_buffer(geom::geography, 100.0, 8)::geometry, 28356), 1, 0)::jsonb as buffer
-from bushfire.temp_buildings
-;
-analyse bushfire.buildings_mga56;
+-- -- WGA84 lat/long buildings with a 100m buffer
+-- drop table if exists bushfire.buildings;
+-- create table bushfire.buildings TABLESPACE bushfirespace as
+-- select bld_pid,
+--        st_asgeojson(geom, 6, 0)::jsonb as geom,
+--        st_asgeojson(st_buffer(geom::geography, 100, 8), 6, 0)::jsonb as buffer
+-- from bushfire.temp_buildings
+-- ;
+-- analyse bushfire.buildings;
+--
+-- -- MGA Zone 56 buildings with a 100m buffer
+-- drop table if exists bushfire.buildings_mga56;
+-- create table bushfire.buildings_mga56 TABLESPACE bushfirespace as
+-- select bld_pid,
+--        st_asgeojson(st_transform(geom, 28356), 1, 0)::jsonb as geom,
+--        st_asgeojson(st_transform(st_buffer(geom::geography, 100.0, 8)::geometry, 28356), 1, 0)::jsonb as buffer
+-- from bushfire.temp_buildings
+-- ;
+-- analyse bushfire.buildings_mga56;
