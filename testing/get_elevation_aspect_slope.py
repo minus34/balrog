@@ -16,13 +16,15 @@ import rasterio.mask
 import sys
 import time
 
-
 from osgeo import gdal
 from datetime import datetime
 from psycopg2 import pool
 from psycopg2.extensions import AsIs
 
 from rasterio.session import AWSSession
+
+# create AWS session object
+aws_session = AWSSession(boto3.Session())
 
 # the directory of this script
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -31,9 +33,12 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
-aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
-slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
+dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
+aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
+slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+# dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
+# aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
+# slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
 image_srid = 4326  # WGS84 lat/long
 input_table = "bushfire.buildings"
 
@@ -94,7 +99,7 @@ def main():
     pg_cur.execute(f"truncate table {output_table}")
 
     # get input geometries & building ID
-    sql = f"""select * from {input_table}"""
+    sql = f"""select * from {input_table} LIMIT 100"""
     # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
     pg_cur.execute(sql)
 
@@ -168,51 +173,52 @@ def process_building(feature):
 
 # mask the image and get data from the non-masked area
 def get_data(output_dict, feature, input_file, image_type):
-    with rasterio.open(input_file) as raster:
-        for geom_field in ["geom", "buffer"]:
-            # create mask
-            masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
+    with rasterio.Env(aws_session):
+        with rasterio.open(input_file) as raster:
+            for geom_field in ["geom", "buffer"]:
+                # create mask
+                masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
 
-            # get rid of nodata values and flatten array
-            flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+                # get rid of nodata values and flatten array
+                flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
 
-            # only proceed if there's data
-            if flat_array.size != 0:
-                # get stats across the masked image
-                min_value = numpy.min(flat_array)
-                max_value = numpy.max(flat_array)
+                # only proceed if there's data
+                if flat_array.size != 0:
+                    # get stats across the masked image
+                    min_value = numpy.min(flat_array)
+                    max_value = numpy.max(flat_array)
 
-                # aspect is a special case - values could be on either side of 360 degrees
-                if image_type == "aspect":
-                    if min_value < 90 and max_value > 270:
-                        flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
+                    # aspect is a special case - values could be on either side of 360 degrees
+                    if image_type == "aspect":
+                        if min_value < 90 and max_value > 270:
+                            flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
 
-                    avg_value = numpy.mean(flat_array)
-                    std_value = numpy.std(flat_array)
-                    med_value = numpy.median(flat_array)
+                        avg_value = numpy.mean(flat_array)
+                        std_value = numpy.std(flat_array)
+                        med_value = numpy.median(flat_array)
 
-                    if avg_value > 360.0:
-                        avg_value -= 360.0
+                        if avg_value > 360.0:
+                            avg_value -= 360.0
 
-                    if med_value > 360.0:
-                        med_value -= 360.0
+                        if med_value > 360.0:
+                            med_value -= 360.0
 
-                else:
-                    avg_value = numpy.mean(flat_array)
-                    std_value = numpy.std(flat_array)
-                    med_value = numpy.median(flat_array)
+                    else:
+                        avg_value = numpy.mean(flat_array)
+                        std_value = numpy.std(flat_array)
+                        med_value = numpy.median(flat_array)
 
-                # assign results to output
-                if geom_field == "geom":
-                    geom_name = "bldg"
-                else:
-                    geom_name = "100m"
+                    # assign results to output
+                    if geom_field == "geom":
+                        geom_name = "bldg"
+                    else:
+                        geom_name = "100m"
 
-                output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
-                output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
-                output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
-                output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
-                output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
+                    output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
+                    output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
+                    output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
+                    output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
+                    output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
 
     return output_dict
 
@@ -245,7 +251,7 @@ if __name__ == "__main__":
 
     # set logger
     log_file = os.path.abspath(__file__).replace(".py", ".log")
-    logging.basicConfig(filename=log_file, level=logging.DEBUG, format="%(asctime)s %(message)s",
+    logging.basicConfig(filename=log_file, level=logging.INFO, format="%(asctime)s %(message)s",
                         datefmt="%m/%d/%Y %I:%M:%S %p")
 
     # setup logger to write to screen as well as writing to log file

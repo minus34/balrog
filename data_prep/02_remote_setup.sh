@@ -109,6 +109,8 @@ createdb --owner=ec2-user geo
 # set the tablespace to the mounted drive (main drive is waaaaay too small)
 mkdir -p /data/postgres
 psql -d geo -c "CREATE TABLESPACE bushfirespace OWNER \"ec2-user\" LOCATION '/data/postgres';"
+
+# TODO: "close" database to allow tablespace to be moved
 #psql -d geo -c "ALTER DATABASE geo SET TABLESPACE bushfirespace;"
 
 # add PostGIS and create schema
