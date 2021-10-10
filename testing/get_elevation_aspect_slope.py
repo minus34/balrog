@@ -185,7 +185,7 @@ def get_data(output_dict, feature, input_file, image_type):
                 # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[geom_field]}")
 
                 # create mask
-                masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], pad=True, crop=True)
+                masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
 
                 # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : got mask")
 
