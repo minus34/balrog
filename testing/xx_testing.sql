@@ -124,8 +124,8 @@ from bushfire.temp_buildings
 analyse bushfire.buildings_mga56;
 
 
-vacuum analyse bushfire.buildings;
-vacuum analyse bushfire.buildings_mga56;
+-- vacuum analyse bushfire.buildings;
+-- vacuum analyse bushfire.buildings_mga56;
 
 -- 15841377
 select count(*) from bushfire.buildings_mga56;
