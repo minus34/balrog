@@ -119,27 +119,27 @@ psql -d geo -c "create schema if not exists bushfire;alter schema bushfire owner
 
 # restore buildings table(s) (ignore the ALTER TABLE errors)
 aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp
-
-# add PostGIS extension to database, create schema and tables
-psql -d geo -f ${HOME}/02_create_tables.sql
-
-
-## TODO: remove this
-## one off dump to S3
-#pg_dump -Fc -d geo -t bushfire.buildings -t bushfire.buildings_mga56 -p 5432 -U "ec2-user" -f "/data/buildings_json.dmp" --no-owner
-#aws s3 sync /data s3://bushfire-rasters/geoscape/ --exclude "*" --include "*.dmp"
-
-
-#cd /data/tmp
-#curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip --progress-bar
-#unzip -o nationalz56_ag.zip
-#rm nationalz56_ag.zip
-
-echo "-------------------------------------------------------------------------"
-echo " Copy elevation data from S3"
-echo "-------------------------------------------------------------------------"
-
-# copy elevation files from S3
-aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/
-aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/tmp/cog/
+#pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp
+#
+## add PostGIS extension to database, create schema and tables
+#psql -d geo -f ${HOME}/02_create_tables.sql
+#
+#
+### TODO: remove this
+### one off dump to S3
+##pg_dump -Fc -d geo -t bushfire.buildings -t bushfire.buildings_mga56 -p 5432 -U "ec2-user" -f "/data/buildings_json.dmp" --no-owner
+##aws s3 sync /data s3://bushfire-rasters/geoscape/ --exclude "*" --include "*.dmp"
+#
+#
+##cd /data/tmp
+##curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/5m-dem/national_utm_mosaics/nationalz56_ag.zip --progress-bar
+##unzip -o nationalz56_ag.zip
+##rm nationalz56_ag.zip
+#
+#echo "-------------------------------------------------------------------------"
+#echo " Copy elevation data from S3"
+#echo "-------------------------------------------------------------------------"
+#
+## copy elevation files from S3
+#aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/
+#aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/tmp/cog/

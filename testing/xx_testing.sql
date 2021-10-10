@@ -103,30 +103,29 @@ from geo_propertyloc.aus_buildings_polygons
 ;
 analyse bushfire.temp_buildings;
 
--- WGA84 lat/long buildings with a 100m buffer
+-- WGA84 lat/long buildings with a 100m buffer -- 15,841,377 rows affected in 39 m 55 s 332 ms
 drop table if exists bushfire.buildings;
 create table bushfire.buildings as
 select bld_pid,
-       st_asgeojson(geom, 6, 0)::jsonb as geom,
+--        st_asgeojson(geom, 6, 0)::jsonb as geom,
        st_asgeojson(st_buffer(geom::geography, 100, 8), 6, 0)::jsonb as buffer
 from bushfire.temp_buildings
 ;
 analyse bushfire.buildings;
 
--- MGA Zone 56 buildings with a 100m buffer
+-- MGA Zone 56 buildings with a 100m buffer -- 15,841,377 rows affected in 44 m 23 s 966 ms
 drop table if exists bushfire.buildings_mga56;
 create table bushfire.buildings_mga56 as
 select bld_pid,
-       st_asgeojson(st_transform(geom, 28356), 1, 0)::jsonb as geom,
+--        st_asgeojson(st_transform(geom, 28356), 1, 0)::jsonb as geom,
        st_asgeojson(st_transform(st_buffer(geom::geography, 100.0, 8)::geometry, 28356), 1, 0)::jsonb as buffer
 from bushfire.temp_buildings
 ;
 analyse bushfire.buildings_mga56;
--- analyse bushfire.buildings_mga56;
 
 
-
-
+vacuum analyse bushfire.buildings;
+vacuum analyse bushfire.buildings_mga56;
 
 -- 15841377
 select count(*) from bushfire.buildings_mga56;
