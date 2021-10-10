@@ -71,7 +71,7 @@ def main():
     full_start_time = datetime.now()
     start_time = datetime.now()
 
-    logger.info(f"START : Create BAL Factors - aspect, slope & elevation : {full_start_time}")
+    logger.info(f"START : Create BAL Factors - aspect, slope & elevation : using {max_processes} processes : {full_start_time}")
 
     # # get extents of raster (minus 100m to avoid masking issues at the edges)
     # minx = None
@@ -99,7 +99,7 @@ def main():
     pg_cur.execute(f"truncate table {output_table}")
 
     # get input geometries & building ID
-    sql = f"""select * from {input_table} limit 100"""
+    sql = f"""select * from {input_table}"""
     # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
     pg_cur.execute(sql)
 
@@ -109,8 +109,12 @@ def main():
     feature_list = list(pg_cur.fetchall())
     feature_count = len(feature_list)
 
+    # clean up postgres connection
+    pg_cur.close()
+    pg_pool.putconn(pg_conn)
+
     logger.info(f"\t - got {feature_count} buildings to process : {datetime.now() - start_time}")
-    start_time = datetime.now()
+    # start_time = datetime.now()
 
     # create job list and process properties in parallel
     mp_job_list = list()
@@ -148,10 +152,6 @@ def main():
     if fail_count > 0:
         logger.info(f"\t\t - {fail_count} properties got NO data")
 
-    # clean up postgres connection
-    pg_cur.close()
-    pg_pool.putconn(pg_conn)
-
     logger.info(f"FINISHED : Create BAL Factors - aspect, slope & elevation : {datetime.now() - full_start_time}")
 
 
@@ -180,8 +180,9 @@ def process_building(feature):
 def get_data(output_dict, feature, input_file, image_type):
     with rasterio.Env(aws_session):
         with rasterio.open(input_file, "r") as raster:
-            for geom_field in ["geom", "buffer"]:
-                print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[geom_field]}")
+            # for geom_field in ["geom", "buffer"]:
+            for geom_field in ["buffer"]:
+                # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[geom_field]}")
 
                 # create mask
                 masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], pad=True, crop=True)
