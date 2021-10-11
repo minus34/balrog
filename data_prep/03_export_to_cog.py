@@ -61,7 +61,9 @@ def main():
 
     logger.info(f"\t - {len(url_list)} images to download & convert: {datetime.now() - start_time}")
 
-    convert_to_cog("/data/tmp/nationalz56_ag.tif", "nationalz56_ag.tif", "bushfire-rasters", "geoscience_australia/5m-dem/")
+    convert_to_cog("/Users/s57405/Downloads/Sydney-DEM-AHD_56_5m/Sydney-DEM-AHD_56_5m.asc", "Sydney-DEM-AHD_56_5m.tif", "bushfire-rasters", "nsw_dcs_spatial_services/dem/")
+    convert_to_cog("/Users/s57405/Downloads/Sydney-ASP-AHD_56_5m/Sydney-ASP-AHD_56_5m.asc", "Sydney-ASP-AHD_56_5m.tif", "bushfire-rasters", "nsw_dcs_spatial_services/aspect/")
+    convert_to_cog("/Users/s57405/Downloads/Sydney-SLP-AHD_56_5m/Sydney-SLP-AHD_56_5m.asc", "Sydney-SLP-AHD_56_5m.tif", "bushfire-rasters", "nsw_dcs_spatial_services/slope/")
 
     # for file in url_list:
     #     image_start_time = datetime.now()

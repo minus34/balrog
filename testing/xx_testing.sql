@@ -103,6 +103,10 @@ from geo_propertyloc.aus_buildings_polygons
 ;
 analyse bushfire.temp_buildings;
 
+CREATE INDEX temp_buildings_geom_idx ON bushfire.temp_buildings USING gist (geom);
+ALTER TABLE bushfire.temp_buildings CLUSTER ON temp_buildings_geom_idx;
+
+
 -- WGA84 lat/long buildings with a 100m buffer -- 15,841,377 rows affected in 39 m 55 s 332 ms
 drop table if exists bushfire.buildings;
 create table bushfire.buildings as
@@ -122,6 +126,41 @@ select bld_pid,
 from bushfire.temp_buildings
 ;
 analyse bushfire.buildings_mga56;
+
+
+
+-- WGA84 lat/long buildings with a 100m buffer within the Sydney Map Grid --
+drop table if exists bushfire.buildings_sydney;
+create table bushfire.buildings_sydney as
+with nsw as (
+    select st_transform(geom, 4326) as geom
+    from bushfire.nsw_elevation_index
+    where maptitle = 'SYDNEY'
+)
+select bld.bld_pid,
+--        st_asgeojson(geom, 6, 0)::jsonb as geom,
+       st_asgeojson(st_buffer(bld.geom::geography, 100, 8), 6, 0)::jsonb as buffer
+from bushfire.temp_buildings as bld
+         inner join nsw on st_intersects(bld.geom, nsw.geom)
+;
+analyse bushfire.buildings_sydney;
+
+-- MGA Zone 56 buildings with a 100m buffer within the Sydney Map Grid --
+drop table if exists bushfire.buildings_mga56_sydney;
+create table bushfire.buildings_mga56_sydney as
+with nsw as (
+    select st_transform(geom, 4326) as geom
+    from bushfire.nsw_elevation_index
+    where maptitle = 'SYDNEY'
+)
+select bld.bld_pid,
+--        st_asgeojson(st_transform(geom, 28356), 1, 0)::jsonb as geom,
+       st_asgeojson(st_transform(st_buffer(bld.geom::geography, 100.0, 8)::geometry, 28356), 1, 0)::jsonb as buffer
+from bushfire.temp_buildings as bld
+inner join nsw on st_intersects(bld.geom, nsw.geom)
+;
+analyse bushfire.buildings_mga56_sydney;
+
 
 
 -- vacuum analyse bushfire.buildings;
