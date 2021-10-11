@@ -133,7 +133,7 @@ analyse bushfire.buildings_mga56;
 drop table if exists bushfire.buildings_sydney;
 create table bushfire.buildings_sydney as
 with nsw as (
-    select st_transform(geom, 4326) as geom
+    select geom as geom
     from bushfire.nsw_elevation_index
     where maptitle = 'SYDNEY'
 )
@@ -149,7 +149,7 @@ analyse bushfire.buildings_sydney;
 drop table if exists bushfire.buildings_mga56_sydney;
 create table bushfire.buildings_mga56_sydney as
 with nsw as (
-    select st_transform(geom, 4326) as geom
+    select geom as geom
     from bushfire.nsw_elevation_index
     where maptitle = 'SYDNEY'
 )
