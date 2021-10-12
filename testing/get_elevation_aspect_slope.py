@@ -34,18 +34,18 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-bulk_insert_row_count = 100
+bulk_insert_row_count = 100000
 
 image_types = ["dem", "aspect", "slope"]
 
-dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
-slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
-# dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
-# aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
-# slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
+# dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
+# aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
+# slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
+aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
+slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
 # image_srid = 4326  # WGS84 lat/long
-input_table = "bushfire.buildings_sydney"
+input_table = "bushfire.buildings"
 
 # dem_file_path = "/data/tmp/cog/dem/Sydney-DEM-AHD_56_5m.tif"
 # image_srid = 28356  # MGA (aka UTM South) Zone 56
@@ -104,7 +104,7 @@ def main():
             pg_cur.execute(f"truncate table {output_table}")
 
             # get input geometries & building ID
-            sql = f"""select * from {input_table} limit 1015"""
+            sql = f"""select * from {input_table}"""
             # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
             pg_cur.execute(sql)
 
@@ -132,7 +132,8 @@ def main():
     mp_results = mp_pool.map_async(process_building, mp_job_list, chunksize=1)
 
     while not mp_results.ready():
-        print(f"\rProperties remaining : {mp_results._number_left}", end="")
+        # TODO: this will initially show too many records being processed - ignore
+        print(f"\rProperties remaining : {mp_results._number_left * bulk_insert_row_count}", end="")
         sys.stdout.flush()
         time.sleep(10)
 
@@ -147,11 +148,9 @@ def main():
     for result in real_results:
         if result is None:
             logger.warning("A multiprocessing process failed!")
-        elif result == "SUCCESS!":
-            success_count += 1
         else:
-            fail_count += 1
-            logger.warning(result)
+            success_count += result[0]
+            fail_count += result[1]
 
     logger.info(f"\t\t - {success_count} properties got data")
     if fail_count > 0:
@@ -166,33 +165,11 @@ def split_list(lst, n):
         yield lst[i:i + n]
 
 
-# def process_building(features):
-#
-#     for feature in features:
-#
-#         bld_pid = feature["bld_pid"]
-#
-#         # TODO: this is bodge but it's supposedly the Pythonic way
-#         output_dict = dict()
-#         output_dict["bld_pid"] = bld_pid
-#
-#         try:
-#             output_dict = get_data(output_dict, feature, dem_file_path, "dem")
-#             output_dict = get_data(output_dict, feature, aspect_file_path, "aspect")
-#             output_dict = get_data(output_dict, feature, slope_file_path, "slope")
-#
-#             # # export result to Postgres
-#             # insert_row(output_table, output_dict)
-#
-#             return "SUCCESS!"
-#         except Exception as ex:
-#             return f"{bld_pid} FAILED! : {ex}"
-#
-#     # export results to Postgres
-
-
 def process_building(features):
     """for a set of features and a set of input rasters - mask using each geometry and return min/max/median values"""
+
+    success_count = 0
+    fail_count = 0
 
     output_list = list()
 
@@ -203,80 +180,85 @@ def process_building(features):
         raster_slope = rasterio.open(slope_file_path, "r")
 
         for feature in features:
-            bld_pid = feature["bld_pid"]
+            try:
+                bld_pid = feature["bld_pid"]
 
-            output_dict = dict()
-            output_dict["bld_pid"] = bld_pid
+                output_dict = dict()
+                output_dict["bld_pid"] = bld_pid
 
-            for image_type in image_types:
-                # get input image filepath
-                if image_type == "dem":
-                    raster = raster_dem
-                elif image_type == "aspect":
-                    raster = raster_aspect
-                elif image_type == "slope":
-                    raster = raster_slope
-                else:
-                    print(f"FAILED! : Invalid image type")
-                    exit()
+                for image_type in image_types:
+                    # set input to use
+                    if image_type == "dem":
+                        raster = raster_dem
+                    elif image_type == "aspect":
+                        raster = raster_aspect
+                    elif image_type == "slope":
+                        raster = raster_slope
+                    else:
+                        print(f"FAILED! : Invalid image type")
+                        exit()
 
-                # for geom_field in ["geom", "buffer"]:
-                for geom_field in ["buffer"]:
-                    # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[geom_field]}")
+                    # for geom_field in ["geom", "buffer"]:
+                    for geom_field in ["buffer"]:
+                        # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[geom_field]}")
 
-                    # create mask
-                    masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
+                        # create mask
+                        masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
 
-                    # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : got mask")
+                        # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : got mask")
 
-                    # get rid of nodata values and flatten array
-                    flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
-                    del masked_image, masked_transform
+                        # get rid of nodata values and flatten array
+                        flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+                        del masked_image, masked_transform
 
-                    # only proceed if there's data
-                    if flat_array.size != 0:
-                        # get stats across the masked image
-                        min_value = numpy.min(flat_array)
-                        max_value = numpy.max(flat_array)
+                        # only proceed if there's data
+                        if flat_array.size != 0:
+                            # get stats across the masked image
+                            min_value = numpy.min(flat_array)
+                            max_value = numpy.max(flat_array)
 
-                        # aspect is a special case - values could be on either side of 360 degrees
-                        if image_type == "aspect":
-                            if min_value < 90 and max_value > 270:
-                                flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
+                            # aspect is a special case - values could be on either side of 360 degrees
+                            if image_type == "aspect":
+                                if min_value < 90 and max_value > 270:
+                                    flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
 
-                            avg_value = numpy.mean(flat_array)
-                            std_value = numpy.std(flat_array)
-                            med_value = numpy.median(flat_array)
+                                avg_value = numpy.mean(flat_array)
+                                std_value = numpy.std(flat_array)
+                                med_value = numpy.median(flat_array)
 
-                            if avg_value > 360.0:
-                                avg_value -= 360.0
+                                if avg_value > 360.0:
+                                    avg_value -= 360.0
 
-                            if med_value > 360.0:
-                                med_value -= 360.0
+                                if med_value > 360.0:
+                                    med_value -= 360.0
 
-                        else:
-                            avg_value = numpy.mean(flat_array)
-                            std_value = numpy.std(flat_array)
-                            med_value = numpy.median(flat_array)
+                            else:
+                                avg_value = numpy.mean(flat_array)
+                                std_value = numpy.std(flat_array)
+                                med_value = numpy.median(flat_array)
 
-                        # assign results to output
-                        if geom_field == "geom":
-                            geom_name = "bldg"
-                        else:
-                            geom_name = "100m"
+                            # assign results to output
+                            if geom_field == "geom":
+                                geom_name = "bldg"
+                            else:
+                                geom_name = "100m"
 
-                        output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
-                        output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
-                        output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
-                        output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
-                        output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
+                            output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
+                            output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
+                            output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
+                            output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
+                            output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
 
-            output_list.append(output_dict)
+                output_list.append(output_dict)
+                success_count += 1
+            except Exception as ex:
+                print(f"{bld_pid} FAILED! : {ex}")
+                fail_count += 1
 
     # copy results to Postgres table
     bulk_insert(output_list)
 
-    return "SUCCESS!"
+    return (success_count, fail_count)
 
 
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
@@ -292,12 +274,9 @@ def bulk_insert(results):
             for result in results:
                 csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
 
-            # print(csv_file_like_object.read())
-
             csv_file_like_object.seek(0)
 
-
-            # required for bug workaround
+            # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
             pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
             pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
 
