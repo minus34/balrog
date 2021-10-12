@@ -35,18 +35,9 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-bulk_insert_row_count = 100000
-
 image_types = ["dem", "aspect", "slope"]
 
-# dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-# aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
-# slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
-dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
-aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
-slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
 # image_srid = 4326  # WGS84 lat/long
-input_table = "bushfire.buildings"
 
 # dem_file_path = "/data/tmp/cog/dem/Sydney-DEM-AHD_56_5m.tif"
 # image_srid = 28356  # MGA (aka UTM South) Zone 56
@@ -56,8 +47,24 @@ output_table = "bushfire.bal_factors"
 
 # auto-select model & postgres settings to allow testing on both MocBook and EC2 GPU (G4) instances
 if platform.system() == "Darwin":
+    bulk_insert_row_count = 10000
+
+    input_table = "bushfire.buildings_sydney"
+
+    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
+    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
+    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+
     pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
 else:
+    bulk_insert_row_count = 100000
+
+    input_table = "bushfire.buildings"
+
+    dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
+    aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
+    slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
+
     pg_connect_string = "dbname=geo host=localhost port=5432 user='ec2-user' password='ec2-user'"
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -66,7 +73,7 @@ else:
 
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
 max_processes = multiprocessing.cpu_count()
-max_postgres_connections = max_processes + 1
+max_postgres_connections = max_processes * 2 + 1
 
 # create postgres connection pool (accessible across multiple processes)
 pg_pool = psycopg2.pool.SimpleConnectionPool(1, max_postgres_connections, pg_connect_string)
@@ -272,9 +279,13 @@ def process_building(features):
                 fail_count += 1
 
     # copy results to Postgres table
-    bulk_insert(output_list)
+    copy_result = bulk_insert(output_list)
 
-    return (success_count, fail_count)
+    if copy_result:
+        return (success_count, fail_count)
+    else:
+        # if the copy failed flag all features as failed
+        return (0, success_count + fail_count)
 
 
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
@@ -293,9 +304,18 @@ def bulk_insert(results):
             csv_file_like_object.seek(0)
 
             # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
-            pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
-            pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
+            try:
+                pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
+                pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
 
+                return True
+            except Exception as ex:
+                print(f"Copy to Postgres FAILED! : {ex}")
+
+                pg_cur.close()
+                pg_pool.putconn(pg_conn)
+
+                return False
 
 def clean_csv_value(value: Optional[Any]) -> str:
     if value is None:
