@@ -171,13 +171,27 @@ select count(*) from bushfire.buildings_mga56;
 
 
 
-drop view if exists bushfire.vw_bal_factors;
-create view bushfire.vw_bal_factors as
+drop table if exists bushfire.bal_factors_sydney_srtm_1sec;
+create table bushfire.bal_factors_sydney_srtm_1sec as
 select bal.*,
        geo.geom
 from bushfire.bal_factors as bal
 inner join geo_propertyloc.aus_buildings_polygons as geo on bal.bld_pid = geo.bld_pid
 ;
+analyse bushfire.bal_factors_sydney_srtm_1sec;
+
+CREATE INDEX bal_factors_sydney_srtm_1sec_geom_idx ON bushfire.bal_factors_sydney_srtm_1sec USING gist (geom);
+ALTER TABLE bushfire.bal_factors_sydney_srtm_1sec CLUSTER ON bal_factors_sydney_srtm_1sec_geom_idx;
+
+select count(*) from bushfire.bal_factors_sydney_srtm_1sec;
+
+
+select * from bushfire.bal_factors_sydney_srtm_1sec
+where bld_pid = 'bld34e8a3234b24';
+
+
+select * from bushfire.bal_factors
+where bld_pid = 'bld34e8a3234b24';
 
 
 

@@ -108,8 +108,10 @@ def main():
     input_file_object = io.StringIO()
 
     # get postgres connection from pool
-    global pg_pool
-    pg_conn = pg_pool.getconn()
+    # global pg_pool
+    # pg_conn = pg_pool.getconn()
+    pg_conn = psycopg2.connect(pg_connect_string)
+    pg_conn.autocommit = True
     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     # clean out target table
@@ -122,7 +124,8 @@ def main():
     pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
 
     pg_cur.close()
-    pg_pool.putconn(pg_conn, close=False)
+    pg_conn.close()
+    # pg_pool.putconn(pg_conn, close=False)
 
     logger.info(f"\t - got data from Postgres : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -134,6 +137,9 @@ def main():
     input_file_object.seek(0)
     feature_list = list()
     for line in input_file_object.readlines():
+        # # DEBUGGING
+        # bld_pid = line.split("|")[0]
+        # if bld_pid == 'bld34e8a3234b24':
         feature_list.append(line.split("|"))
         # list(map(int, stringValue.split(' ')))
 
@@ -162,7 +168,7 @@ def main():
     mp_pool.join()
 
     # close all Postgres connections
-    pg_pool.closeall()
+    # pg_pool.closeall()
 
     success_count = 0
     fail_count = 0
@@ -310,8 +316,9 @@ def bulk_insert(results):
     """creates a CSV like file object of the results to insert many rows into Postgres very quickly"""
 
     # get postgres connection from pool
-    global pg_pool
-    pg_conn = pg_pool.getconn()
+    # global pg_pool
+    # pg_conn = pg_pool.getconn()
+    pg_conn = psycopg2.connect(pg_connect_string)
     pg_conn.autocommit = True
     pg_cur = pg_conn.cursor()
 
@@ -333,10 +340,10 @@ def bulk_insert(results):
         output = False
 
     pg_cur.close()
-    pg_pool.putconn(pg_conn, close=False)
+    pg_conn.close()
+    # pg_pool.putconn(pg_conn, close=False)
 
     return output
-
 
 
 def clean_csv_value(value: Optional[Any]) -> str:
