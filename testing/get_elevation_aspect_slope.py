@@ -1,8 +1,9 @@
 
 import boto3
+import csv
 import glob
-# import json
 import io
+# import json
 import logging
 import math
 import multiprocessing
@@ -34,7 +35,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-bulk_insert_row_count = 100000
+bulk_insert_row_count = 10000
 
 image_types = ["dem", "aspect", "slope"]
 
@@ -45,7 +46,7 @@ dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
 aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
 slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
 # image_srid = 4326  # WGS84 lat/long
-input_table = "bushfire.buildings"
+input_table = "bushfire.buildings_sydney"
 
 # dem_file_path = "/data/tmp/cog/dem/Sydney-DEM-AHD_56_5m.tif"
 # image_srid = 28356  # MGA (aka UTM South) Zone 56
@@ -96,6 +97,8 @@ def main():
 
     # feature_list = None
 
+    input_file_object = io.StringIO()
+
     # get postgres connection from pool
     with pg_pool.getconn() as pg_conn:
         pg_conn.autocommit = True
@@ -103,30 +106,40 @@ def main():
             # clean out target table
             pg_cur.execute(f"truncate table {output_table}")
 
-            # get input geometries & building ID
-            sql = f"""select * from {input_table}"""
-            # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
-            pg_cur.execute(sql)
+            # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
+            pg_cur.execute(f"SET search_path TO {input_table.split('.')[0]}, public")
 
-            # TODO: remove property bdys and use a line projected from the GNAF point in the direction of the aspect
+            # get input geometries & building IDs (copy_to used for speed)
+            pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
 
-            # get the rows as a list of dicts
-            feature_list = list(pg_cur.fetchall())
+            # # get input geometries & building ID
+            # sql = f"""select * from {input_table}"""
+            # # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
+            # pg_cur.execute(sql)
+            #
+            # # get the rows as a list of dicts
+            # feature_list = list(pg_cur.fetchall())
+
+    logger.info(f"\t - got data from Postgres : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+    # # convert CSV rows to as list (using json.loads as it's fast)
+    # feature_list = json.loads(input_file_object.read())
+
+    # convert file object to list
+    input_file_object.seek(0)
+    feature_list = list()
+    for line in input_file_object.readlines():
+        feature_list.append(line.split("|"))
+        # list(map(int, stringValue.split(' ')))
+
+    # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
+    mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
 
     feature_count = len(feature_list)
 
     logger.info(f"\t - got {feature_count} buildings to process : {datetime.now() - start_time}")
-    # start_time = datetime.now()
-
-    # # create job list and process properties in parallel
-    # mp_job_list = list()
-    #
-    # if feature_list is not None:
-    #     for feature in feature_list:
-    #         mp_job_list.append(feature)
-
-    # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
-    mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
+    start_time = datetime.now()
 
     mp_pool = multiprocessing.Pool(max_processes)
     mp_results = mp_pool.map_async(process_building, mp_job_list, chunksize=1)
@@ -285,27 +298,6 @@ def clean_csv_value(value: Optional[Any]) -> str:
     if value is None:
         return r'\N'
     return str(value).replace('\n', '\\n')
-
-# def insert_row(table_name, row):
-#     """Inserts a python dictionary as a new row into a database table.
-#     Allows for any number of columns and types; but column names and types MUST match existing columns"""
-#
-#     # get postgres connection from pool
-#     pg_conn = pg_pool.getconn()
-#     pg_conn.autocommit = True
-#     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-#
-#     # get column names & values (dict keys must match existing table columns)
-#     columns = list(row.keys())
-#     values = [row[column] for column in columns]
-#
-#     insert_statement = f"INSERT INTO {table_name} (%s) VALUES %s"
-#     sql = pg_cur.mogrify(insert_statement, (AsIs(','.join(columns)), tuple(values))).decode("utf-8")
-#     pg_cur.execute(sql)
-#
-#     # clean up postgres connection
-#     pg_cur.close()
-#     pg_pool.putconn(pg_conn)
 
 
 if __name__ == "__main__":
