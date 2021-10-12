@@ -279,7 +279,8 @@ def process_building(features):
     return "SUCCESS!"
 
 
-def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
+# def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
+def bulk_insert(results):
     """creates a CSV like file object of the results to insert many rows into Postgres very quickly"""
 
     # get postgres connection from pool
@@ -289,11 +290,16 @@ def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
             csv_file_like_object = io.StringIO()
 
             for result in results:
-                csv_file_like_object.write('|'.join(map(clean_csv_value, (*result,))) + '\n')
+                csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
+
+            # print(csv_file_like_object.read())
 
             csv_file_like_object.seek(0)
 
-            pg_cur.copy_from(csv_file_like_object, output_table, sep='|')
+
+            # required for bug workaround
+            pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
+            pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
 
 
 def clean_csv_value(value: Optional[Any]) -> str:
