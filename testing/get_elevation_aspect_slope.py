@@ -73,6 +73,8 @@ else:
 
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
 max_processes = multiprocessing.cpu_count()
+
+# TODO: work out why connections are leaking - this is a workaround
 max_postgres_connections = max_processes * 2 + 1
 
 # create postgres connection pool (accessible across multiple processes)
@@ -188,6 +190,8 @@ def split_list(lst, n):
 def process_building(features):
     """for a set of features and a set of input rasters - mask using each geometry and return min/max/median values"""
 
+    record_count = features
+
     success_count = 0
     fail_count = 0
 
@@ -272,20 +276,33 @@ def process_building(features):
                             output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
                             output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
 
+                        else:
+                            output_dict[f"{image_type}_{geom_name}_min"] = -9999
+                            output_dict[f"{image_type}_{geom_name}_max"] = -9999
+                            output_dict[f"{image_type}_{geom_name}_avg"] = -9999
+                            output_dict[f"{image_type}_{geom_name}_std"] = -9999
+                            output_dict[f"{image_type}_{geom_name}_med"] = -9999
+
                 output_list.append(output_dict)
                 success_count += 1
             except Exception as ex:
-                print(f"{bld_pid} FAILED! : {ex}")
+                error_message = str(ex)
+                if error_message != "Input shapes do not overlap raster.":
+                    print(f"{bld_pid} FAILED! : {error_message}")
                 fail_count += 1
 
     # copy results to Postgres table
-    copy_result = bulk_insert(output_list)
+    if len(output_list) > 0:
+        copy_result = bulk_insert(output_list)
 
-    if copy_result:
-        return (success_count, fail_count)
+        if copy_result:
+            return (success_count, fail_count)
+        else:
+            # if the copy failed flag all features as failed
+            return (0, record_count)
     else:
-        # if the copy failed flag all features as failed
-        return (0, success_count + fail_count)
+        # total failure!?
+        return (0, record_count)
 
 
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
@@ -298,13 +315,13 @@ def bulk_insert(results):
         with pg_conn.cursor() as pg_cur:
             csv_file_like_object = io.StringIO()
 
-            for result in results:
-                csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
-
-            csv_file_like_object.seek(0)
-
-            # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
             try:
+                for result in results:
+                    csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
+
+                csv_file_like_object.seek(0)
+
+                # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
                 pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
                 pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
 
@@ -316,6 +333,7 @@ def bulk_insert(results):
                 pg_pool.putconn(pg_conn)
 
                 return False
+
 
 def clean_csv_value(value: Optional[Any]) -> str:
     if value is None:
