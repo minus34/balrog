@@ -171,22 +171,31 @@ select count(*) from bushfire.buildings_mga56;
 
 
 
-drop table if exists bushfire.bal_factors_sydney_srtm_1sec;
-create table bushfire.bal_factors_sydney_srtm_1sec as
+drop table if exists bushfire.bal_factors_srtm_1sec;
+create table bushfire.bal_factors_srtm_1sec as -- 15,839,641 rows affected in 3 m 18 s 964 ms
 select bal.*,
        geo.geom
 from bushfire.bal_factors as bal
 inner join geo_propertyloc.aus_buildings_polygons as geo on bal.bld_pid = geo.bld_pid
 ;
-analyse bushfire.bal_factors_sydney_srtm_1sec;
+analyse bushfire.bal_factors_srtm_1sec;
 
-CREATE INDEX bal_factors_sydney_srtm_1sec_geom_idx ON bushfire.bal_factors_sydney_srtm_1sec USING gist (geom);
-ALTER TABLE bushfire.bal_factors_sydney_srtm_1sec CLUSTER ON bal_factors_sydney_srtm_1sec_geom_idx;
+CREATE INDEX bal_factors_srtm_1sec_geom_idx ON bushfire.bal_factors_srtm_1sec USING gist (geom);
+ALTER TABLE bushfire.bal_factors_srtm_1sec CLUSTER ON bal_factors_srtm_1sec_geom_idx;
 
-select count(*) from bushfire.bal_factors_sydney_srtm_1sec;
+select count(*) from bushfire.bal_factors_srtm_1sec;
 
 
-select * from bushfire.bal_factors_sydney_srtm_1sec
+-- 511 missing dome data - these are islands outside the SRTM DEM
+select * from bushfire.bal_factors_srtm_1sec
+where dem_100m_med = -9999
+    or aspect_100m_med = -9999
+    or slope_100m_med = -9999
+;
+
+
+
+select * from bushfire.bal_factors_srtm_1sec
 where bld_pid = 'bld34e8a3234b24';
 
 

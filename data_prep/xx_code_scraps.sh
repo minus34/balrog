@@ -15,5 +15,5 @@ psql -d geo -c "drop table bushfire.bal_factors"
 
 
 
-# nope!
-aws s3 sync s3://elevation-direct-downloads/5m-dem/national_utm_mosaics s3://bushfire-rasters/geoscience_australia/5m-dem/national_utm_mosaics/
+## nope!
+#aws s3 sync s3://elevation-direct-downloads/5m-dem/national_utm_mosaics s3://bushfire-rasters/geoscience_australia/5m-dem/national_utm_mosaics/
