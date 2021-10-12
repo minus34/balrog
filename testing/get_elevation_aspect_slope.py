@@ -73,9 +73,7 @@ else:
 
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
 max_processes = multiprocessing.cpu_count()
-
-# TODO: work out why connections are leaking - this is a workaround
-max_postgres_connections = max_processes * 2 + 1
+max_postgres_connections = max_processes + 1
 
 # create postgres connection pool (accessible across multiple processes)
 pg_pool = psycopg2.pool.SimpleConnectionPool(1, max_postgres_connections, pg_connect_string)
@@ -109,25 +107,23 @@ def main():
     input_file_object = io.StringIO()
 
     # get postgres connection from pool
-    with pg_pool.getconn() as pg_conn:
-        pg_conn.autocommit = True
-        with pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as pg_cur:
-            # clean out target table
-            pg_cur.execute(f"truncate table {output_table}")
+    with get_cursor() as pg_cur:
+        # clean out target table
+        pg_cur.execute(f"truncate table {output_table}")
 
-            # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
-            pg_cur.execute(f"SET search_path TO {input_table.split('.')[0]}, public")
+        # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
+        pg_cur.execute(f"SET search_path TO {input_table.split('.')[0]}, public")
 
-            # get input geometries & building IDs (copy_to used for speed)
-            pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
+        # get input geometries & building IDs (copy_to used for speed)
+        pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
 
-            # # get input geometries & building ID
-            # sql = f"""select * from {input_table}"""
-            # # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
-            # pg_cur.execute(sql)
-            #
-            # # get the rows as a list of dicts
-            # feature_list = list(pg_cur.fetchall())
+        # # get input geometries & building ID
+        # sql = f"""select * from {input_table}"""
+        # # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
+        # pg_cur.execute(sql)
+        #
+        # # get the rows as a list of dicts
+        # feature_list = list(pg_cur.fetchall())
 
     logger.info(f"\t - got data from Postgres : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -310,30 +306,44 @@ def bulk_insert(results):
     """creates a CSV like file object of the results to insert many rows into Postgres very quickly"""
 
     # get postgres connection from pool
-    with pg_pool.getconn() as pg_conn:
-        pg_conn.autocommit = True
-        with pg_conn.cursor() as pg_cur:
-            csv_file_like_object = io.StringIO()
+    # pg_conn = pg_pool.getconn()
+    # pg_conn.autocommit = True
 
-            try:
-                for result in results:
-                    csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
+    with get_cursor() as pg_cur:
+        csv_file_like_object = io.StringIO()
 
-                csv_file_like_object.seek(0)
+        try:
+            for result in results:
+                csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
 
-                # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
-                pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
-                pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
+            csv_file_like_object.seek(0)
 
-                return True
-            except Exception as ex:
-                print(f"Copy to Postgres FAILED! : {ex}")
+            # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
+            pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
+            pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
 
-                pg_cur.close()
-                pg_pool.putconn(pg_conn)
+        except Exception as ex:
+            print(f"Copy to Postgres FAILED! : {ex}")
 
-                return False
+            # pg_cur.close()
+            # pg_pool.putconn(pg_conn)
 
+            return False
+
+    # pg_pool.putconn(pg_conn)
+
+    return True
+
+
+# @contextmanager
+def get_cursor():
+    pg_conn = pg_pool.getconn()
+    pg_conn.autocommit = True
+
+    try:
+        yield pg_conn.cursor
+    finally:
+        pg_pool.putconn(pg_conn)
 
 def clean_csv_value(value: Optional[Any]) -> str:
     if value is None:
