@@ -35,8 +35,6 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-image_types = ["dem", "aspect", "slope"]
-
 # image_srid = 4326  # WGS84 lat/long
 
 # dem_file_path = "/data/tmp/cog/dem/Sydney-DEM-AHD_56_5m.tif"
@@ -70,6 +68,9 @@ else:
 # ------------------------------------------------------------------------------------------------------------------
 # END: edit settings
 # ------------------------------------------------------------------------------------------------------------------
+
+# the order of these cannot be changed (must match table column order)
+image_types = ["aspect", "slope", "dem"]
 
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
 max_processes = multiprocessing.cpu_count()
@@ -107,23 +108,21 @@ def main():
     input_file_object = io.StringIO()
 
     # get postgres connection from pool
-    with get_cursor() as pg_cur:
-        # clean out target table
-        pg_cur.execute(f"truncate table {output_table}")
+    global pg_pool
+    pg_conn = pg_pool.getconn()
+    pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-        # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
-        pg_cur.execute(f"SET search_path TO {input_table.split('.')[0]}, public")
+    # clean out target table
+    pg_cur.execute(f"truncate table {output_table}")
 
-        # get input geometries & building IDs (copy_to used for speed)
-        pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
+    # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
+    pg_cur.execute(f"SET search_path TO {input_table.split('.')[0]}, public")
 
-        # # get input geometries & building ID
-        # sql = f"""select * from {input_table}"""
-        # # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
-        # pg_cur.execute(sql)
-        #
-        # # get the rows as a list of dicts
-        # feature_list = list(pg_cur.fetchall())
+    # get input geometries & building IDs (copy_to used for speed)
+    pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
+
+    pg_cur.close()
+    pg_pool.putconn(pg_conn)
 
     logger.info(f"\t - got data from Postgres : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -306,44 +305,34 @@ def bulk_insert(results):
     """creates a CSV like file object of the results to insert many rows into Postgres very quickly"""
 
     # get postgres connection from pool
-    # pg_conn = pg_pool.getconn()
-    # pg_conn.autocommit = True
-
-    with get_cursor() as pg_cur:
-        csv_file_like_object = io.StringIO()
-
-        try:
-            for result in results:
-                csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
-
-            csv_file_like_object.seek(0)
-
-            # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
-            pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
-            pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
-
-        except Exception as ex:
-            print(f"Copy to Postgres FAILED! : {ex}")
-
-            # pg_cur.close()
-            # pg_pool.putconn(pg_conn)
-
-            return False
-
-    # pg_pool.putconn(pg_conn)
-
-    return True
-
-
-# @contextmanager
-def get_cursor():
+    global pg_pool
     pg_conn = pg_pool.getconn()
     pg_conn.autocommit = True
+    pg_cur = pg_conn.cursor()
+
+    csv_file_like_object = io.StringIO()
 
     try:
-        yield pg_conn.cursor
-    finally:
-        pg_pool.putconn(pg_conn)
+        for result in results:
+            csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
+
+        csv_file_like_object.seek(0)
+
+        # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
+        pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
+        pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
+
+        output = True
+    except Exception as ex:
+        print(f"Copy to Postgres FAILED! : {ex}")
+        output = False
+
+    pg_cur.close()
+    pg_pool.putconn(pg_conn)
+
+    return output
+
+
 
 def clean_csv_value(value: Optional[Any]) -> str:
     if value is None:
