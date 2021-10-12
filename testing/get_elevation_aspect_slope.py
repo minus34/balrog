@@ -45,7 +45,7 @@ output_table = "bushfire.bal_factors"
 
 # auto-select model & postgres settings to allow testing on both MocBook and EC2 GPU (G4) instances
 if platform.system() == "Darwin":
-    bulk_insert_row_count = 10000
+    # bulk_insert_row_count = 10000
 
     input_table = "bushfire.buildings_sydney"
 
@@ -55,7 +55,7 @@ if platform.system() == "Darwin":
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
 else:
-    bulk_insert_row_count = 100000
+    # bulk_insert_row_count = 100000
 
     input_table = "bushfire.buildings"
 
@@ -77,7 +77,7 @@ max_processes = multiprocessing.cpu_count()
 max_postgres_connections = max_processes + 1
 
 # create postgres connection pool (accessible across multiple processes)
-pg_pool = psycopg2.pool.SimpleConnectionPool(1, max_postgres_connections, pg_connect_string)
+pg_pool = psycopg2.pool.ThreadedConnectionPool(max_postgres_connections, max_postgres_connections, pg_connect_string)
 
 
 def main():
@@ -122,7 +122,7 @@ def main():
     pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
 
     pg_cur.close()
-    pg_pool.putconn(pg_conn)
+    pg_pool.putconn(pg_conn, close=False)
 
     logger.info(f"\t - got data from Postgres : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -137,10 +137,12 @@ def main():
         feature_list.append(line.split("|"))
         # list(map(int, stringValue.split(' ')))
 
+    feature_count = len(feature_list)
+
+    bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes))
+
     # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
     mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
-
-    feature_count = len(feature_list)
 
     logger.info(f"\t - got {feature_count} buildings to process : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -158,6 +160,9 @@ def main():
     real_results = mp_results.get()
     mp_pool.close()
     mp_pool.join()
+
+    # close all Postgres connections
+    pg_pool.closeall()
 
     success_count = 0
     fail_count = 0
@@ -185,7 +190,7 @@ def split_list(lst, n):
 def process_building(features):
     """for a set of features and a set of input rasters - mask using each geometry and return min/max/median values"""
 
-    record_count = features
+    record_count = len(features)
 
     success_count = 0
     fail_count = 0
@@ -328,7 +333,7 @@ def bulk_insert(results):
         output = False
 
     pg_cur.close()
-    pg_pool.putconn(pg_conn)
+    pg_pool.putconn(pg_conn, close=False)
 
     return output
 

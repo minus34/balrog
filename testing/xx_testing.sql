@@ -171,9 +171,13 @@ select count(*) from bushfire.buildings_mga56;
 
 
 
-
-
-select * from bushfire.bal_factors;
+drop view if exists bushfire.vw_bal_factors;
+create view bushfire.vw_bal_factors as
+select bal.*,
+       geo.geom
+from bushfire.bal_factors as bal
+inner join geo_propertyloc.aus_buildings_polygons as geo on bal.bld_pid = geo.bld_pid
+;
 
 
 
