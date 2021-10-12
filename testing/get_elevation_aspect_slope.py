@@ -2,6 +2,7 @@
 import boto3
 import glob
 # import json
+import io
 import logging
 import math
 import multiprocessing
@@ -20,8 +21,8 @@ from osgeo import gdal
 from datetime import datetime
 from psycopg2 import pool
 from psycopg2.extensions import AsIs
-
 from rasterio.session import AWSSession
+from typing import Iterator, Optional, Any, Dict
 
 # create AWS session object
 aws_session = AWSSession(boto3.Session())
@@ -33,15 +34,18 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-# dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-# aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
-# slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
-dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
-aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
-slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
-# image_srid = 4326  # WGS84 lat/long
-input_table = "bushfire.buildings"
+bulk_insert_row_count = 100
 
+image_types = ["dem", "aspect", "slope"]
+
+dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
+aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
+slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+# dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
+# aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
+# slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
+# image_srid = 4326  # WGS84 lat/long
+input_table = "bushfire.buildings_sydney"
 
 # dem_file_path = "/data/tmp/cog/dem/Sydney-DEM-AHD_56_5m.tif"
 # image_srid = 28356  # MGA (aka UTM South) Zone 56
@@ -90,38 +94,39 @@ def main():
     #     miny = maxy + transform.e * meta["height"] + 100.0
     #     # print([minx, miny, maxx, maxy])
 
+    # feature_list = None
+
     # get postgres connection from pool
-    pg_conn = pg_pool.getconn()
-    pg_conn.autocommit = True
-    pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    with pg_pool.getconn() as pg_conn:
+        pg_conn.autocommit = True
+        with pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as pg_cur:
+            # clean out target table
+            pg_cur.execute(f"truncate table {output_table}")
 
-    # clean out target table
-    pg_cur.execute(f"truncate table {output_table}")
+            # get input geometries & building ID
+            sql = f"""select * from {input_table} limit 1015"""
+            # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
+            pg_cur.execute(sql)
 
-    # get input geometries & building ID
-    sql = f"""select * from {input_table}"""
-    # where st_intersects(geom, st_transform(ST_MakeEnvelope({minx}, {miny}, {maxx}, {maxy}, 28356), 4283))
-    pg_cur.execute(sql)
+            # TODO: remove property bdys and use a line projected from the GNAF point in the direction of the aspect
 
-    # TODO: remove property bdys and use a line projected from the GNAF point in the direction of the aspect
+            # get the rows as a list of dicts
+            feature_list = list(pg_cur.fetchall())
 
-    # get the rows as a list of dicts
-    feature_list = list(pg_cur.fetchall())
     feature_count = len(feature_list)
-
-    # clean up postgres connection
-    pg_cur.close()
-    pg_pool.putconn(pg_conn)
 
     logger.info(f"\t - got {feature_count} buildings to process : {datetime.now() - start_time}")
     # start_time = datetime.now()
 
-    # create job list and process properties in parallel
-    mp_job_list = list()
+    # # create job list and process properties in parallel
+    # mp_job_list = list()
+    #
+    # if feature_list is not None:
+    #     for feature in feature_list:
+    #         mp_job_list.append(feature)
 
-    if feature_list is not None:
-        for feature in feature_list:
-            mp_job_list.append(feature)
+    # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
+    mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
 
     mp_pool = multiprocessing.Pool(max_processes)
     mp_results = mp_pool.map_async(process_building, mp_job_list, chunksize=1)
@@ -155,104 +160,167 @@ def main():
     logger.info(f"FINISHED : Create BAL Factors - aspect, slope & elevation : {datetime.now() - full_start_time}")
 
 
-def process_building(feature):
-
-    bld_pid = feature["bld_pid"]
-
-    # TODO: this is bodge but it's supposedly the Pythonic way
-    output_dict = dict()
-    output_dict["bld_pid"] = bld_pid
-
-    try:
-        output_dict = get_data(output_dict, feature, dem_file_path, "dem")
-        output_dict = get_data(output_dict, feature, aspect_file_path, "aspect")
-        output_dict = get_data(output_dict, feature, slope_file_path, "slope")
-
-        # export result to Postgres
-        insert_row(output_table, output_dict)
-
-        return "SUCCESS!"
-    except Exception as ex:
-        return f"{bld_pid} FAILED! : {ex}"
+def split_list(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 
-# mask the image and get data from the non-masked area
-def get_data(output_dict, feature, input_file, image_type):
+# def process_building(features):
+#
+#     for feature in features:
+#
+#         bld_pid = feature["bld_pid"]
+#
+#         # TODO: this is bodge but it's supposedly the Pythonic way
+#         output_dict = dict()
+#         output_dict["bld_pid"] = bld_pid
+#
+#         try:
+#             output_dict = get_data(output_dict, feature, dem_file_path, "dem")
+#             output_dict = get_data(output_dict, feature, aspect_file_path, "aspect")
+#             output_dict = get_data(output_dict, feature, slope_file_path, "slope")
+#
+#             # # export result to Postgres
+#             # insert_row(output_table, output_dict)
+#
+#             return "SUCCESS!"
+#         except Exception as ex:
+#             return f"{bld_pid} FAILED! : {ex}"
+#
+#     # export results to Postgres
+
+
+def process_building(features):
+    """for a set of features and a set of input rasters - mask using each geometry and return min/max/median values"""
+
+    output_list = list()
+
     with rasterio.Env(aws_session):
-        with rasterio.open(input_file, "r") as raster:
-            # for geom_field in ["geom", "buffer"]:
-            for geom_field in ["buffer"]:
-                # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[geom_field]}")
+        # open the images
+        raster_dem = rasterio.open(dem_file_path, "r")
+        raster_aspect = rasterio.open(aspect_file_path, "r")
+        raster_slope = rasterio.open(slope_file_path, "r")
 
-                # create mask
-                masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
+        for feature in features:
+            bld_pid = feature["bld_pid"]
 
-                # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : got mask")
+            output_dict = dict()
+            output_dict["bld_pid"] = bld_pid
 
-                # get rid of nodata values and flatten array
-                flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+            for image_type in image_types:
+                # get input image filepath
+                if image_type == "dem":
+                    raster = raster_dem
+                elif image_type == "aspect":
+                    raster = raster_aspect
+                elif image_type == "slope":
+                    raster = raster_slope
+                else:
+                    print(f"FAILED! : Invalid image type")
+                    exit()
 
-                # only proceed if there's data
-                if flat_array.size != 0:
-                    # get stats across the masked image
-                    min_value = numpy.min(flat_array)
-                    max_value = numpy.max(flat_array)
+                # for geom_field in ["geom", "buffer"]:
+                for geom_field in ["buffer"]:
+                    # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[geom_field]}")
 
-                    # aspect is a special case - values could be on either side of 360 degrees
-                    if image_type == "aspect":
-                        if min_value < 90 and max_value > 270:
-                            flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
+                    # create mask
+                    masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
 
-                        avg_value = numpy.mean(flat_array)
-                        std_value = numpy.std(flat_array)
-                        med_value = numpy.median(flat_array)
+                    # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : got mask")
 
-                        if avg_value > 360.0:
-                            avg_value -= 360.0
+                    # get rid of nodata values and flatten array
+                    flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+                    del masked_image, masked_transform
 
-                        if med_value > 360.0:
-                            med_value -= 360.0
+                    # only proceed if there's data
+                    if flat_array.size != 0:
+                        # get stats across the masked image
+                        min_value = numpy.min(flat_array)
+                        max_value = numpy.max(flat_array)
 
-                    else:
-                        avg_value = numpy.mean(flat_array)
-                        std_value = numpy.std(flat_array)
-                        med_value = numpy.median(flat_array)
+                        # aspect is a special case - values could be on either side of 360 degrees
+                        if image_type == "aspect":
+                            if min_value < 90 and max_value > 270:
+                                flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
 
-                    # assign results to output
-                    if geom_field == "geom":
-                        geom_name = "bldg"
-                    else:
-                        geom_name = "100m"
+                            avg_value = numpy.mean(flat_array)
+                            std_value = numpy.std(flat_array)
+                            med_value = numpy.median(flat_array)
 
-                    output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
-                    output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
-                    output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
-                    output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
-                    output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
+                            if avg_value > 360.0:
+                                avg_value -= 360.0
 
-    return output_dict
+                            if med_value > 360.0:
+                                med_value -= 360.0
+
+                        else:
+                            avg_value = numpy.mean(flat_array)
+                            std_value = numpy.std(flat_array)
+                            med_value = numpy.median(flat_array)
+
+                        # assign results to output
+                        if geom_field == "geom":
+                            geom_name = "bldg"
+                        else:
+                            geom_name = "100m"
+
+                        output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
+                        output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
+                        output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
+                        output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
+                        output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
+
+            output_list.append(output_dict)
+
+    # copy results to Postgres table
+    bulk_insert(output_list)
+
+    return "SUCCESS!"
 
 
-def insert_row(table_name, row):
-    """Inserts a python dictionary as a new row into a database table.
-    Allows for any number of columns and types; but column names and types MUST match existing columns"""
+def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
+    """creates a CSV like file object of the results to insert many rows into Postgres very quickly"""
 
     # get postgres connection from pool
-    pg_conn = pg_pool.getconn()
-    pg_conn.autocommit = True
-    pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    with pg_pool.getconn() as pg_conn:
+        pg_conn.autocommit = True
+        with pg_conn.cursor() as pg_cur:
+            csv_file_like_object = io.StringIO()
 
-    # get column names & values (dict keys must match existing table columns)
-    columns = list(row.keys())
-    values = [row[column] for column in columns]
+            for result in results:
+                csv_file_like_object.write('|'.join(map(clean_csv_value, (*result,))) + '\n')
 
-    insert_statement = f"INSERT INTO {table_name} (%s) VALUES %s"
-    sql = pg_cur.mogrify(insert_statement, (AsIs(','.join(columns)), tuple(values))).decode("utf-8")
-    pg_cur.execute(sql)
+            csv_file_like_object.seek(0)
 
-    # clean up postgres connection
-    pg_cur.close()
-    pg_pool.putconn(pg_conn)
+            pg_cur.copy_from(csv_file_like_object, output_table, sep='|')
+
+
+def clean_csv_value(value: Optional[Any]) -> str:
+    if value is None:
+        return r'\N'
+    return str(value).replace('\n', '\\n')
+
+# def insert_row(table_name, row):
+#     """Inserts a python dictionary as a new row into a database table.
+#     Allows for any number of columns and types; but column names and types MUST match existing columns"""
+#
+#     # get postgres connection from pool
+#     pg_conn = pg_pool.getconn()
+#     pg_conn.autocommit = True
+#     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+#
+#     # get column names & values (dict keys must match existing table columns)
+#     columns = list(row.keys())
+#     values = [row[column] for column in columns]
+#
+#     insert_statement = f"INSERT INTO {table_name} (%s) VALUES %s"
+#     sql = pg_cur.mogrify(insert_statement, (AsIs(','.join(columns)), tuple(values))).decode("utf-8")
+#     pg_cur.execute(sql)
+#
+#     # clean up postgres connection
+#     pg_cur.close()
+#     pg_pool.putconn(pg_conn)
 
 
 if __name__ == "__main__":
