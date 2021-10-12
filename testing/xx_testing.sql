@@ -94,6 +94,8 @@ analyse bushfire.bal_factors_test_sydney;
 
 -- create Geoscape building buffer table
 
+
+-- TODO: add building elevation from the polygon coords
 -- convert to 2D polygons (they aren't multipolygons!) -- 15,841,377 rows affected in 5 mins
 drop table if exists bushfire.temp_buildings;
 create table bushfire.temp_buildings as
@@ -107,12 +109,27 @@ CREATE INDEX temp_buildings_geom_idx ON bushfire.temp_buildings USING gist (geom
 ALTER TABLE bushfire.temp_buildings CLUSTER ON temp_buildings_geom_idx;
 
 
+-- make buffers
+drop table if exists bushfire.temp_building_buffers;
+create table bushfire.temp_building_buffers as
+select bld_pid,
+       st_buffer(geom::geography, 100, 4) as geom
+from geo_propertyloc.aus_buildings_polygons
+;
+analyse bushfire.temp_building_buffers;
+
+CREATE INDEX temp_building_buffers_geom_idx ON bushfire.temp_building_buffers USING gist (geom);
+ALTER TABLE bushfire.temp_building_buffers CLUSTER ON temp_building_buffers_geom_idx;
+
+
+
+
 -- WGA84 lat/long buildings with a 100m buffer -- 15,841,377 rows affected in 39 m 55 s 332 ms
 drop table if exists bushfire.buildings;
 create table bushfire.buildings as
 select bld_pid,
 --        st_asgeojson(geom, 6, 0)::jsonb as geom,
-       st_asgeojson(st_buffer(geom::geography, 100, 8), 6, 0)::jsonb as buffer
+       st_asgeojson(st_buffer(geom::geography, 100, 4), 6, 0)::jsonb as buffer
 from bushfire.temp_buildings
 ;
 analyse bushfire.buildings;

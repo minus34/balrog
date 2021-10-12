@@ -41,13 +41,23 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # image_srid = 28356  # MGA (aka UTM South) Zone 56
 # input_table = "bushfire.buildings_mga56"
 
-output_table = "bushfire.bal_factors"
-
 # auto-select model & postgres settings to allow testing on both MocBook and EC2 GPU (G4) instances
 if platform.system() == "Darwin":
     # bulk_insert_row_count = 10000
 
-    input_table = "bushfire.buildings_sydney"
+    # input_table = "bushfire.buildings_sydney"
+    # input_table = "bushfire.temp_buildings"
+    output_table = "bushfire.bal_factors_sydney"
+
+    input_sql = """with nsw as (
+                       select geom as geom
+                       from bushfire.nsw_elevation_index
+                       where maptitle = 'SYDNEY'
+                   )
+                   select bld.bld_pid,
+                          st_asgeojson(st_buffer(bld.geom::geography, 100, 8), 6, 0)::jsonb as buffer
+                   from bushfire.temp_buildings as bld
+                            inner join nsw on st_intersects(bld.geom, nsw.geom)"""
 
     dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
     aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
@@ -57,7 +67,12 @@ if platform.system() == "Darwin":
 else:
     # bulk_insert_row_count = 100000
 
-    input_table = "bushfire.buildings"
+    # input_table = "bushfire.buildings"
+    output_table = "bushfire.bal_factors"
+
+    input_sql = """select bld_pid,
+                          st_asgeojson(st_buffer(geom::geography, 100, 8), 6, 0)::jsonb as buffer
+                   from bushfire.temp_buildings"""
 
     dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
     aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
@@ -117,11 +132,13 @@ def main():
     # clean out target table
     pg_cur.execute(f"truncate table {output_table}")
 
-    # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
-    pg_cur.execute(f"SET search_path TO {input_table.split('.')[0]}, public")
+    # # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
+    # pg_cur.execute(f"SET search_path TO {input_table.split('.')[0]}, public")
 
     # get input geometries & building IDs (copy_to used for speed)
-    pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
+    pg_cur.copy_expert(f"COPY ({input_sql}) TO STDOUT", input_file_object)
+    # pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
+    input_file_object.seek(0)
 
     pg_cur.close()
     pg_conn.close()
@@ -134,13 +151,12 @@ def main():
     # feature_list = json.loads(input_file_object.read())
 
     # convert file object to list
-    input_file_object.seek(0)
     feature_list = list()
     for line in input_file_object.readlines():
         # # DEBUGGING
         # bld_pid = line.split("|")[0]
         # if bld_pid == 'bld34e8a3234b24':
-        feature_list.append(line.split("|"))
+        feature_list.append(line.split("\t"))
         # list(map(int, stringValue.split(' ')))
 
     feature_count = len(feature_list)
