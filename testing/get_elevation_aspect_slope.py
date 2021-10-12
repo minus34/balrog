@@ -3,7 +3,7 @@ import boto3
 import csv
 import glob
 import io
-# import json
+import json
 import logging
 import math
 import multiprocessing
@@ -35,7 +35,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-bulk_insert_row_count = 10000
+bulk_insert_row_count = 100000
 
 image_types = ["dem", "aspect", "slope"]
 
@@ -46,7 +46,7 @@ dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
 aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
 slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
 # image_srid = 4326  # WGS84 lat/long
-input_table = "bushfire.buildings_sydney"
+input_table = "bushfire.buildings"
 
 # dem_file_path = "/data/tmp/cog/dem/Sydney-DEM-AHD_56_5m.tif"
 # image_srid = 28356  # MGA (aka UTM South) Zone 56
@@ -192,9 +192,11 @@ def process_building(features):
         raster_aspect = rasterio.open(aspect_file_path, "r")
         raster_slope = rasterio.open(slope_file_path, "r")
 
+        # feature format is [id, geometry]
         for feature in features:
             try:
-                bld_pid = feature["bld_pid"]
+                bld_pid = feature[0]
+                geom = json.loads(feature[1])
 
                 output_dict = dict()
                 output_dict["bld_pid"] = bld_pid
@@ -211,12 +213,13 @@ def process_building(features):
                         print(f"FAILED! : Invalid image type")
                         exit()
 
+                    # TODO: clean this up
                     # for geom_field in ["geom", "buffer"]:
                     for geom_field in ["buffer"]:
-                        # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[geom_field]}")
+                        # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[1]}")
 
                         # create mask
-                        masked_image, masked_transform = rasterio.mask.mask(raster, [feature[geom_field]], crop=True)
+                        masked_image, masked_transform = rasterio.mask.mask(raster, [geom], crop=True)
 
                         # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : got mask")
 
