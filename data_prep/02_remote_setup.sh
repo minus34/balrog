@@ -121,9 +121,6 @@ psql -d geo -c "create schema if not exists bushfire;alter schema bushfire owner
 aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
 pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp
 
-# add PostGIS extension to database, create schema and tables
-psql -d geo -f ${HOME}/02_create_tables.sql
-
 echo "-------------------------------------------------------------------------"
 echo " Copy elevation data from S3"
 echo "-------------------------------------------------------------------------"

@@ -78,7 +78,7 @@ INSTANCE_IP_ADDRESS=$(aws ec2 describe-instances --instance-ids ${INSTANCE_ID} |
 python3 -c "import sys, json; print(json.load(sys.stdin)['Reservations'][0]['Instances'][0]['PrivateIpAddress'])")
 echo "  - Private IP address : ${INSTANCE_IP_ADDRESS}"
 
-# save instance vars to a local file for easy SSH commands
+# save instance details to a local file for easy SSH commands
 echo "export SCRIPT_DIR=${SCRIPT_DIR}" > ~/git/temp_ec2_vars.sh
 echo "export USER=${USER}" >> ~/git/temp_ec2_vars.sh
 echo "export SSH_CONFIG=${SSH_CONFIG}" >> ~/git/temp_ec2_vars.sh
@@ -122,23 +122,9 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/get_elevation_aspect_slope.py ${US
 
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then
-#  # set proxy permanently if required
-#  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} \
-#  'cat << EOF > ~/environment
-#  no_proxy="169.254.169.254,localhost,127.0.0.1,:11"
-#  http_proxy="'"${PROXY}"'"
-#  https_proxy="'"${PROXY}"'"
-#  proxy="'"${PROXY}"'"
-#  HTTP_PROXY="'"${PROXY}"'"
-#  HTTPS_PROXY="'"${PROXY}"'"
-#  PROXY="'"${PROXY}"'"
-#  NO_PROXY="169.254.169.254,localhost,127.0.0.1,:11"
-#  EOF'
-#  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sudo cp ~/environment /etc/environment"
-
   ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sh ./02_remote_setup.sh -p ${PROXY}"
-#else
-#  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sh ./02_remote_setup.sh"
+else
+  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sh ./02_remote_setup.sh"
 fi
 
 echo "-------------------------------------------------------------------------"
@@ -148,12 +134,3 @@ echo " Build took $((duration / 60)) mins"
 echo "----------------------------------------------------------------------------------------------------------------"
 
 ssh -F ${SSH_CONFIG} ${INSTANCE_ID}
-
-
-# HANDY STUFF BELOW
-
-# connect
-#ssh -F ${SSH_CONFIG} ${INSTANCE_ID}
-
-# load ec2 vars
-# . ~/git/temp_ec2_vars.sh
