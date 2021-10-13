@@ -49,19 +49,21 @@ if platform.system() == "Darwin":
     # input_table = "bushfire.temp_buildings"
     output_table = "bushfire.bal_factors_sydney"
 
-    input_sql = """with nsw as (
-                       select geom as geom
-                       from bushfire.nsw_elevation_index
-                       where maptitle = 'SYDNEY'
-                   )
-                   select bld.bld_pid,
-                          st_asgeojson(st_buffer(bld.geom::geography, 100, 8), 6, 0)::jsonb as buffer
-                   from bushfire.temp_buildings as bld
-                            inner join nsw on st_intersects(bld.geom, nsw.geom)"""
+    # input_sql = """select bld.bld_pid,
+    #                       st_asgeojson(bld.geom, 6, 0)::jsonb as buffer
+    #                from bushfire.temp_building_buffers as bld
+    #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
+    input_sql = """select bld.bld_pid,
+                          st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
+                   from bushfire.temp_building_buffers as bld
+                   inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
 
-    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
-    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+    # dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
+    # aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
+    # slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+    dem_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
+    aspect_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/aspect/Sydney-ASP-AHD_56_5m.tif"
+    slope_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/slope/Sydney-SLP-AHD_56_5m.tif"
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
 else:
