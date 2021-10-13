@@ -15,5 +15,5 @@ psql -d geo -c "drop table bushfire.bal_factors"
 
 
 
-## nope!
+## nope - GA's S3 bucket doesn't allow sync!
 #aws s3 sync s3://elevation-direct-downloads/5m-dem/national_utm_mosaics s3://bushfire-rasters/geoscience_australia/5m-dem/national_utm_mosaics/

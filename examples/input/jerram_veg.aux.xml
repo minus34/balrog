@@ -1,5 +1,5 @@
 <PAMDataset>
-  <SRS>PROJCS[&quot;GDA_1994_Australia_Albers&quot;,GEOGCS[&quot;GCS_GDA_1994&quot;,DATUM[&quot;D_GDA_1994&quot;,SPHEROID[&quot;GRS_1980&quot;,6378137.0,298.257222101]],PRIMEM[&quot;Greenwich&quot;,0.0],UNIT[&quot;Degree&quot;,0.0174532925199433]],PROJECTION[&quot;Albers&quot;],PARAMETER[&quot;False_Easting&quot;,0.0],PARAMETER[&quot;False_Northing&quot;,0.0],PARAMETER[&quot;central_meridian&quot;,132.0],PARAMETER[&quot;Standard_Parallel_1&quot;,-18.0],PARAMETER[&quot;Standard_Parallel_2&quot;,-36.0],PARAMETER[&quot;latitude_of_origin&quot;,0.0],UNIT[&quot;Meter&quot;,1.0]]</SRS>
+  <SRS dataAxisToSRSAxisMapping="1,2">PROJCS["GDA94 / Australian Albers",GEOGCS["GDA94",DATUM["Geocentric_Datum_of_Australia_1994",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],AUTHORITY["EPSG","6283"]],PRIMEM["Greenwich",0],UNIT["Degree",0.0174532925199433]],PROJECTION["Albers_Conic_Equal_Area"],PARAMETER["latitude_of_center",0],PARAMETER["longitude_of_center",132],PARAMETER["standard_parallel_1",-18],PARAMETER["standard_parallel_2",-36],PARAMETER["false_easting",0],PARAMETER["false_northing",0],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["Easting",EAST],AXIS["Northing",NORTH]]</SRS>
   <Metadata>
     <MDI key="DataType">Generic</MDI>
   </Metadata>
@@ -7,6 +7,13 @@
     <MDI key="PyramidResamplingType">NEAREST</MDI>
   </Metadata>
   <PAMRasterBand band="1">
-    <NoDataValue>1.28000000000000E+002</NoDataValue>
+    <NoDataValue>1.28000000000000E+02</NoDataValue>
+    <Metadata>
+      <MDI key="STATISTICS_MAXIMUM">25</MDI>
+      <MDI key="STATISTICS_MEAN">17.43605870021</MDI>
+      <MDI key="STATISTICS_MINIMUM">10</MDI>
+      <MDI key="STATISTICS_STDDEV">6.3108338829699</MDI>
+      <MDI key="STATISTICS_VALID_PERCENT">99.69</MDI>
+    </Metadata>
   </PAMRasterBand>
 </PAMDataset>
