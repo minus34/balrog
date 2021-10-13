@@ -24,7 +24,7 @@
 
 
 
--- dare to compare - NSW 5m DEM vs SRTM 1 sec DEM smoothed
+-- dare to compare - NSW 5m DEM vs SRTM 1 sec DEM smoothed -- 1 min
 drop table if exists bushfire.bal_factors_test_sydney_deltas;
 create table bushfire.bal_factors_test_sydney_deltas as
 with hmm as (
@@ -82,28 +82,25 @@ select count(*) from geo_propertyloc.aus_buildings_polygons
 
 
 
--- create copy of GNAF + properties being used for testing
-drop table if exists bushfire.gnaf_sydney;
-create table bushfire.gnaf_sydney as
-select pr_pid,
-       gnaf_pid,
-       address,
-       latitude,
-       longitude,
-       point_geom,
-       st_asgeojson(st_transform(geom, 4326), 6)::jsonb as geometry,
-       st_asgeojson(st_transform(st_buffer(geom::geography, 100)::geometry, 4326), 6)::jsonb as buffer,
-       geom
-from bushfire.bal_factors_test_sydney
-;
-analyse bushfire.bal_factors_test_sydney;
+-- -- create copy of GNAF + properties being used for testing
+-- drop table if exists bushfire.gnaf_sydney;
+-- create table bushfire.gnaf_sydney as
+-- select pr_pid,
+--        gnaf_pid,
+--        address,
+--        latitude,
+--        longitude,
+--        point_geom,
+--        st_asgeojson(st_transform(geom, 4326), 6)::jsonb as geometry,
+--        st_asgeojson(st_transform(st_buffer(geom::geography, 100)::geometry, 4326), 6)::jsonb as buffer,
+--        geom
+-- from bushfire.bal_factors_test_sydney
+-- ;
+-- analyse bushfire.bal_factors_test_sydney;
 
 
 
 -- create Geoscape building buffer table
-
-
--- TODO: add building elevation from the polygon coords
 
 
 
@@ -128,7 +125,7 @@ ALTER TABLE bushfire.temp_buildings CLUSTER ON temp_buildings_geom_idx;
 drop table if exists bushfire.temp_building_buffers;
 create table bushfire.temp_building_buffers as
 select bld_pid,
-       st_buffer(geom::geography, 100, 4) as geog
+       st_buffer(ST_Force2D(geom)::geography, 100, 4) as geog
 from geo_propertyloc.aus_buildings_polygons
 ;
 analyse bushfire.temp_building_buffers;
@@ -136,8 +133,6 @@ analyse bushfire.temp_building_buffers;
 ALTER TABLE bushfire.temp_building_buffers ADD CONSTRAINT temp_building_buffers_pkey PRIMARY KEY (bld_pid);
 -- CREATE INDEX temp_building_buffers_geom_idx ON bushfire.temp_building_buffers USING gist (geom);
 -- ALTER TABLE bushfire.temp_building_buffers CLUSTER ON temp_building_buffers_geom_idx;
-
-
 
 
 -- -- WGA84 lat/long buildings with a 100m buffer -- 15,841,377 rows affected in 39 m 55 s 332 ms

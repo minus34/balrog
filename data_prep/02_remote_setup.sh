@@ -103,6 +103,11 @@ echo "-------------------------------------------------------------------------"
 initdb -D postgres
 pg_ctl -D postgres -l logfile start
 
+# increase memory usage
+psql -d postgres -c "ALTER SYSTEM SET shared_buffers = '128GB';"
+psql -d postgres -c "ALTER SYSTEM SET wal_buffers = '2GB';"
+pg_ctl -D postgres restart
+
 # create new database on mounted drive (not enough space on default drive)
 mkdir -p /data/postgres
 psql -d postgres -c "CREATE TABLESPACE bushfirespace OWNER \"ec2-user\" LOCATION '/data/postgres';"
@@ -125,4 +130,4 @@ echo "-------------------------------------------------------------------------"
 
 # copy elevation files from S3
 aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/
-aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/tmp/cog/
+#aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/tmp/cog/
