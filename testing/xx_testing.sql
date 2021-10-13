@@ -16,10 +16,10 @@
 -- select * from bushfire.bal_factors;
 -- analyse bushfire.bal_factors_test_sydney_srtm;
 
-CREATE INDEX bal_factors_test_sydney_srtm_gnaf_pid_idx ON bushfire.bal_factors_test_sydney_srtm USING btree (gnaf_pid);
-CREATE INDEX bal_factors_test_sydney_srtm_point_geom_idx ON bushfire.bal_factors_test_sydney_srtm USING gist (point_geom);
-CREATE INDEX bal_factors_test_sydney_srtm_geom_idx ON bushfire.bal_factors_test_sydney_srtm USING gist (geom);
-ALTER TABLE bushfire.bal_factors_test_sydney_srtm CLUSTER ON bal_factors_test_sydney_srtm_geom_idx;
+-- CREATE INDEX bal_factors_test_sydney_srtm_gnaf_pid_idx ON bushfire.bal_factors_test_sydney_srtm USING btree (gnaf_pid);
+-- CREATE INDEX bal_factors_test_sydney_srtm_point_geom_idx ON bushfire.bal_factors_test_sydney_srtm USING gist (point_geom);
+-- CREATE INDEX bal_factors_test_sydney_srtm_geom_idx ON bushfire.bal_factors_test_sydney_srtm USING gist (geom);
+-- ALTER TABLE bushfire.bal_factors_test_sydney_srtm CLUSTER ON bal_factors_test_sydney_srtm_geom_idx;
 
 
 
@@ -28,39 +28,47 @@ ALTER TABLE bushfire.bal_factors_test_sydney_srtm CLUSTER ON bal_factors_test_sy
 drop table if exists bushfire.bal_factors_test_sydney_deltas;
 create table bushfire.bal_factors_test_sydney_deltas as
 with hmm as (
-    select distinct nsw.gnaf_pid,
-           nsw.address,
-           nsw.pr_pid,
-           nsw.dem_bdy_min,
-           nsw.dem_bdy_max,
-           nsw.dem_bdy_avg,
-           nsw.dem_bdy_std,
-           nsw.dem_bdy_med,
-           nsw.dem_100m_min,
-           nsw.dem_100m_max,
-           nsw.dem_100m_avg,
-           nsw.dem_100m_std,
-           nsw.dem_100m_med,
-           nsw.point_geom,
-           nsw.geom,
-           nsw.dem_bdy_avg - srtm.dem_bdy_avg   as dem_bdy_avg_delta,
-           nsw.dem_bdy_std - srtm.dem_bdy_std   as dem_bdy_std_delta,
-           nsw.dem_bdy_med - srtm.dem_bdy_med   as dem_bdy_med_delta,
-           nsw.dem_100m_avg - srtm.dem_100m_avg as dem_100m_avg_delta,
-           nsw.dem_100m_std - srtm.dem_100m_std as dem_100m_std_delta,
-           nsw.dem_100m_med - srtm.dem_100m_med as dem_100m_med_delta
-    from bushfire.bal_factors_test_sydney as nsw
-             inner join bushfire.bal_factors_test_sydney_srtm as srtm on nsw.gnaf_pid = srtm.gnaf_pid
+    select distinct nsw.bld_pid,
+                    nsw.dem_100m_min,
+                    nsw.dem_100m_max,
+                    nsw.dem_100m_avg,
+                    nsw.dem_100m_std,
+                    nsw.dem_100m_med,
+                    nsw.dem_100m_avg - srtm.dem_100m_avg as dem_100m_avg_delta,
+                    nsw.dem_100m_std - srtm.dem_100m_std as dem_100m_std_delta,
+                    nsw.dem_100m_med - srtm.dem_100m_med as dem_100m_med_delta,
+                    nsw.aspect_100m_min,
+                    nsw.aspect_100m_max,
+                    nsw.aspect_100m_avg,
+                    nsw.aspect_100m_std,
+                    nsw.aspect_100m_med,
+                    nsw.aspect_100m_avg - srtm.aspect_100m_avg as aspect_100m_avg_delta,
+                    nsw.aspect_100m_std - srtm.aspect_100m_std as aspect_100m_std_delta,
+                    nsw.aspect_100m_med - srtm.aspect_100m_med as aspect_100m_med_delta,
+                    nsw.slope_100m_min,
+                    nsw.slope_100m_max,
+                    nsw.slope_100m_avg,
+                    nsw.slope_100m_std,
+                    nsw.slope_100m_med,
+                    nsw.slope_100m_avg - srtm.slope_100m_avg as slope_100m_avg_delta,
+                    nsw.slope_100m_std - srtm.slope_100m_std as slope_100m_std_delta,
+                    nsw.slope_100m_med - srtm.slope_100m_med as slope_100m_med_delta
+    from bushfire.bal_factors_sydney as nsw
+             inner join bushfire.bal_factors_srtm_1sec as srtm on nsw.bld_pid = srtm.bld_pid
 )
 select *
-from hmm where abs(dem_100m_med_delta) > 5
+from hmm
+-- where abs(dem_100m_med_delta) > 5
 ;
 analyse bushfire.bal_factors_test_sydney_deltas;
 
-CREATE INDEX bal_factors_test_sydney_deltas_gnaf_pid_idx ON bushfire.bal_factors_test_sydney_deltas USING btree (gnaf_pid);
-CREATE INDEX bal_factors_test_sydney_deltas_point_geom_idx ON bushfire.bal_factors_test_sydney_deltas USING gist (point_geom);
-CREATE INDEX bal_factors_test_sydney_deltas_geom_idx ON bushfire.bal_factors_test_sydney_deltas USING gist (geom);
-ALTER TABLE bushfire.bal_factors_test_sydney_deltas CLUSTER ON bal_factors_test_sydney_deltas_geom_idx;
+ALTER TABLE bushfire.bal_factors_test_sydney_deltas ADD CONSTRAINT bal_factors_test_sydney_deltas_pkey PRIMARY KEY (bld_pid);
+
+
+-- CREATE INDEX bal_factors_test_sydney_deltas_gnaf_pid_idx ON bushfire.bal_factors_test_sydney_deltas USING btree (gnaf_pid);
+-- CREATE INDEX bal_factors_test_sydney_deltas_point_geom_idx ON bushfire.bal_factors_test_sydney_deltas USING gist (point_geom);
+-- CREATE INDEX bal_factors_test_sydney_deltas_geom_idx ON bushfire.bal_factors_test_sydney_deltas USING gist (geom);
+-- ALTER TABLE bushfire.bal_factors_test_sydney_deltas CLUSTER ON bal_factors_test_sydney_deltas_geom_idx;
 
 
 
@@ -129,10 +137,6 @@ ALTER TABLE bushfire.temp_building_buffers ADD CONSTRAINT temp_building_buffers_
 -- CREATE INDEX temp_building_buffers_geom_idx ON bushfire.temp_building_buffers USING gist (geom);
 -- ALTER TABLE bushfire.temp_building_buffers CLUSTER ON temp_building_buffers_geom_idx;
 
-
--- TODO: add these to the end of the bal factor process
-ALTER TABLE bushfire.bal_factors_sydney ADD CONSTRAINT bal_factors_sydney_pkey PRIMARY KEY (bld_pid);
-ALTER TABLE bushfire.bal_factors ADD CONSTRAINT bal_factors_pkey PRIMARY KEY (bld_pid);
 
 
 
