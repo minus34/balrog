@@ -91,10 +91,6 @@ image_types = ["aspect", "slope", "dem"]
 
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
 max_processes = multiprocessing.cpu_count()
-max_postgres_connections = max_processes + 1
-
-# create postgres connection pool (accessible across multiple processes)
-pg_pool = psycopg2.pool.ThreadedConnectionPool(max_postgres_connections, max_postgres_connections, pg_connect_string)
 
 
 def main():
@@ -124,9 +120,7 @@ def main():
 
     input_file_object = io.StringIO()
 
-    # get postgres connection from pool
-    # global pg_pool
-    # pg_conn = pg_pool.getconn()
+    # get postgres connection
     pg_conn = psycopg2.connect(pg_connect_string)
     pg_conn.autocommit = True
     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
@@ -134,17 +128,13 @@ def main():
     # clean out target table
     pg_cur.execute(f"truncate table {output_table}")
 
-    # # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
-    # pg_cur.execute(f"SET search_path TO {input_table.split('.')[0]}, public")
-
     # get input geometries & building IDs (copy_to used for speed)
     pg_cur.copy_expert(f"COPY ({input_sql}) TO STDOUT", input_file_object)
-    # pg_cur.copy_to(input_file_object, input_table.split('.')[1], sep="|")
     input_file_object.seek(0)
 
+    # clean up postgres connection
     pg_cur.close()
     pg_conn.close()
-    # pg_pool.putconn(pg_conn, close=False)
 
     logger.info(f"\t - got data from Postgres : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -185,9 +175,6 @@ def main():
     mp_pool.close()
     mp_pool.join()
 
-    # close all Postgres connections
-    # pg_pool.closeall()
-
     success_count = 0
     fail_count = 0
 
@@ -198,9 +185,45 @@ def main():
             success_count += result[0]
             fail_count += result[1]
 
+    # get postgres connection
+    pg_conn = psycopg2.connect(pg_connect_string)
+    pg_conn.autocommit = True
+    pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+    # delete records from output table with invalid values (if any)
+    sql = f"""delete from {output_table}
+                  where dem_100m_med = -9999
+                      or aspect_100m_med = -9999
+                      or slope_100m_med = -9999"""
+    pg_cur.execute(sql)
+    adjustment_count = pg_cur.rowcount
+
+    # update output table's stats
+    pg_cur.execute(f"ANALYSE {output_table}")
+
+    if adjustment_count is not None:
+        success_count -= adjustment_count
+        fail_count += adjustment_count
+
     logger.info(f"\t\t - {success_count} properties got data")
     if fail_count > 0:
         logger.info(f"\t\t - {fail_count} properties got NO data")
+
+    logger.info(f"\t - got BAL factors : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+    sql = f"ALTER TABLE {output_table} ADD CONSTRAINT {output_table.split('.')[1]}_pkey PRIMARY KEY (bld_pid)"
+    pg_cur.execute(sql)
+
+    logger.info(f"\t - added primary key to {output_table} : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+
+    logger.info(f"FINISHED : Create BAL Factors - aspect, slope & elevation : {datetime.now() - full_start_time}")
+
+    # clean up postgres connection
+    pg_cur.close()
+    pg_conn.close()
 
     logger.info(f"FINISHED : Create BAL Factors - aspect, slope & elevation : {datetime.now() - full_start_time}")
 
