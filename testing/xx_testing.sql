@@ -130,6 +130,10 @@ ALTER TABLE bushfire.temp_building_buffers ADD CONSTRAINT temp_building_buffers_
 -- ALTER TABLE bushfire.temp_building_buffers CLUSTER ON temp_building_buffers_geom_idx;
 
 
+-- TODO: add these to the end of the bal factor process
+ALTER TABLE bushfire.bal_factors_sydney ADD CONSTRAINT bal_factors_sydney_pkey PRIMARY KEY (bld_pid);
+ALTER TABLE bushfire.bal_factors ADD CONSTRAINT bal_factors_pkey PRIMARY KEY (bld_pid);
+
 
 
 -- -- WGA84 lat/long buildings with a 100m buffer -- 15,841,377 rows affected in 39 m 55 s 332 ms

@@ -73,8 +73,8 @@ else:
     output_table = "bushfire.bal_factors"
 
     input_sql = """select bld_pid,
-                          st_asgeojson(st_buffer(geom::geography, 100, 8), 6, 0)::jsonb as buffer
-                   from bushfire.temp_buildings"""
+                          st_asgeojson(geom, 6, 0)::jsonb as buffer
+                   from bushfire.temp_building_buffers"""
 
     dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
     aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
