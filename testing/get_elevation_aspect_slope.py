@@ -212,14 +212,13 @@ def main():
     logger.info(f"\t - got BAL factors : {datetime.now() - start_time}")
     start_time = datetime.now()
 
+    # add primary key (if there isn't one already)
     sql = f"ALTER TABLE {output_table} ADD CONSTRAINT {output_table.split('.')[1]}_pkey PRIMARY KEY (bld_pid)"
-    pg_cur.execute(sql)
-
-    logger.info(f"\t - added primary key to {output_table} : {datetime.now() - start_time}")
-    start_time = datetime.now()
-
-
-    logger.info(f"FINISHED : Create BAL Factors - aspect, slope & elevation : {datetime.now() - full_start_time}")
+    try:
+        pg_cur.execute(sql)
+        logger.info(f"\t - added primary key to {output_table} : {datetime.now() - start_time}")
+    except:
+        pass
 
     # clean up postgres connection
     pg_cur.close()
