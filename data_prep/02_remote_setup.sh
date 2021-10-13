@@ -110,8 +110,8 @@ pg_ctl -D postgres restart
 
 # create new database on mounted drive (not enough space on default drive)
 mkdir -p /data/postgres
-psql -d postgres -c "CREATE TABLESPACE bushfirespace OWNER \"ec2-user\" LOCATION '/data/postgres';"
-createdb --owner=ec2-user geo -D bushfirespace
+psql -d postgres -c "CREATE TABLESPACE dataspace OWNER \"ec2-user\" LOCATION '/data/postgres';"
+createdb --owner=ec2-user geo -D dataspace
 
 # add PostGIS and create schema
 psql -d geo -c "create extension if not exists postgis;"

@@ -1,7 +1,5 @@
 
 import boto3
-import csv
-import glob
 import io
 import json
 import logging
@@ -9,23 +7,18 @@ import math
 import multiprocessing
 import os
 import numpy
-import pathlib
 import platform
 import psycopg2
 import psycopg2.extras
 import rasterio.mask
-# import requests
 import sys
 import time
 
-from osgeo import gdal
 from datetime import datetime
-from psycopg2 import pool
-from psycopg2.extensions import AsIs
 from rasterio.session import AWSSession
-from typing import Iterator, Optional, Any, Dict
+from typing import Optional, Any
 
-# create AWS session object
+# create AWS session object to pull image data from S3
 aws_session = AWSSession(boto3.Session())
 
 # the directory of this script
@@ -35,48 +28,40 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-# image_srid = 4326  # WGS84 lat/long
-
-# dem_file_path = "/data/tmp/cog/dem/Sydney-DEM-AHD_56_5m.tif"
-# image_srid = 28356  # MGA (aka UTM South) Zone 56
-# input_table = "bushfire.buildings_mga56"
-
-# auto-select model & postgres settings to allow testing on both MocBook and EC2 GPU (G4) instances
+# choose your settings for running locally or on a remote server
+#   - edit this if not running locally on a Mac
 if platform.system() == "Darwin":
-    # bulk_insert_row_count = 10000
-
-    # input_table = "bushfire.buildings_sydney"
-    # input_table = "bushfire.temp_buildings"
-    output_table = "bushfire.bal_factors_sydney"
-
-    # input_sql = """select bld.bld_pid,
-    #                       st_asgeojson(bld.geom, 6, 0)::jsonb as buffer
-    #                from bushfire.temp_building_buffers as bld
-    #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
     input_sql = """select bld.bld_pid,
-                          st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
+                          st_asgeojson(bld.geom, 6, 0)::jsonb as buffer
                    from bushfire.temp_building_buffers as bld
                    inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
+    # input_sql = """select bld.bld_pid,
+    #                       st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
+    #                from bushfire.temp_building_buffers as bld
+    #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
+
+    output_table = "bushfire.bal_factors_sydney"
+    output_tablespace = "pg_default"
+    postgres_user = "postgres"
 
     # dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-    # aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
-    # slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
-    dem_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
-    aspect_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/aspect/Sydney-ASP-AHD_56_5m.tif"
-    slope_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/slope/Sydney-SLP-AHD_56_5m.tif"
+    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
+    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+    # dem_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
+    # aspect_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/aspect/Sydney-ASP-AHD_56_5m.tif"
+    # slope_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/slope/Sydney-SLP-AHD_56_5m.tif"
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
 else:
-    # bulk_insert_row_count = 100000
-
-    # input_table = "bushfire.buildings"
-    output_table = "bushfire.bal_factors"
-
     input_sql = """select bld_pid,
                           st_asgeojson(geom, 6, 0)::jsonb as buffer
                    from bushfire.temp_building_buffers"""
 
-    dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
+    postgres_user = "ec2-user"
+    output_table = "bushfire.bal_factors"
+    output_tablespace = "dataspace"
+
+    # dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
     aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
     slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
 
@@ -100,36 +85,20 @@ def main():
 
     logger.info(f"START : Create BAL Factors - aspect, slope & elevation : using {max_processes} processes : {full_start_time}")
 
-    # # get extents of raster (minus 100m to avoid masking issues at the edges)
-    # minx = None
-    # maxy = None
-    # maxx = None
-    # miny = None
-    # 
-    # with rasterio.open(dem_file_path) as raster:
-    #     meta = raster.profile.data
-    # 
-    #     transform = meta["transform"]
-    # 
-    #     minx = transform.c + 100.0
-    #     maxy = transform.f - 100.0
-    #     maxx = minx + transform.a * meta["width"] - 100.0
-    #     miny = maxy + transform.e * meta["height"] + 100.0
-    #     # print([minx, miny, maxx, maxy])
-
-    # feature_list = None
-
-    input_file_object = io.StringIO()
-
     # get postgres connection
     pg_conn = psycopg2.connect(pg_connect_string)
     pg_conn.autocommit = True
     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    # clean out target table
-    pg_cur.execute(f"truncate table {output_table}")
+    # create target table (and schema if it doesn't exist)
+    # WARNING: drops output table if exists
+    schema_name = output_table.split(".")[0]
+    pg_cur.execute(f'create schema if not exists {schema_name}; alter schema {schema_name} owner to "{postgres_user}";')
+    sql = open("03_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
+    pg_cur.execute(sql)
 
     # get input geometries & building IDs (copy_to used for speed)
+    input_file_object = io.StringIO()
     pg_cur.copy_expert(f"COPY ({input_sql}) TO STDOUT", input_file_object)
     input_file_object.seek(0)
 
@@ -140,20 +109,13 @@ def main():
     logger.info(f"\t - got data from Postgres : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    # # convert CSV rows to as list (using json.loads as it's fast)
-    # feature_list = json.loads(input_file_object.read())
-
-    # convert file object to list
+    # convert file object to list of features
     feature_list = list()
     for line in input_file_object.readlines():
-        # # DEBUGGING
-        # bld_pid = line.split("|")[0]
-        # if bld_pid == 'bld34e8a3234b24':
         feature_list.append(line.split("\t"))
-        # list(map(int, stringValue.split(' ')))
 
+    # determine features per process (for multiprocessing)
     feature_count = len(feature_list)
-
     bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes))
 
     # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
@@ -163,15 +125,14 @@ def main():
     start_time = datetime.now()
 
     mp_pool = multiprocessing.Pool(max_processes)
-    mp_results = mp_pool.map_async(process_building, mp_job_list, chunksize=1)
+    mp_results = mp_pool.map_async(process_building, mp_job_list, chunksize=1)  # use map_async to show progress
 
     while not mp_results.ready():
-        # TODO: this will initially show too many records being processed - ignore
         print(f"\rProperties remaining : {mp_results._number_left * bulk_insert_row_count}", end="")
         sys.stdout.flush()
         time.sleep(10)
 
-    print(f"\r\n", end="")
+    # print(f"\r\n", end="")
     real_results = mp_results.get()
     mp_pool.close()
     mp_pool.join()
@@ -193,15 +154,16 @@ def main():
 
     # delete records from output table with invalid values (if any)
     sql = f"""delete from {output_table}
-                  where dem_100m_med = -9999
-                      or aspect_100m_med = -9999
-                      or slope_100m_med = -9999"""
+                  where dem_med = -9999
+                      or aspect_med = -9999
+                      or slope_med = -9999"""
     pg_cur.execute(sql)
     adjustment_count = pg_cur.rowcount
 
     # update output table's stats
     pg_cur.execute(f"ANALYSE {output_table}")
 
+    # adjust results due to invalid values being removed
     if adjustment_count is not None:
         success_count -= adjustment_count
         fail_count += adjustment_count
@@ -213,13 +175,10 @@ def main():
     logger.info(f"\t - got BAL factors : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    # add primary key (if there isn't one already)
+    # add primary key
     sql = f"ALTER TABLE {output_table} ADD CONSTRAINT {output_table.split('.')[1]}_pkey PRIMARY KEY (bld_pid)"
-    try:
-        pg_cur.execute(sql)
-        logger.info(f"\t - added primary key to {output_table} : {datetime.now() - start_time}")
-    except:
-        pass
+    pg_cur.execute(sql)
+    logger.info(f"\t - added primary key to {output_table} : {datetime.now() - start_time}")
 
     # clean up postgres connection
     pg_cur.close()
@@ -228,10 +187,10 @@ def main():
     logger.info(f"FINISHED : Create BAL Factors - aspect, slope & elevation : {datetime.now() - full_start_time}")
 
 
-def split_list(lst, n):
-    """Yield successive n-sized chunks from lst."""
-    for i in range(0, len(lst), n):
-        yield lst[i:i + n]
+def split_list(input_list, max_count):
+    """Yields successive n-sized chunks from list"""
+    for i in range(0, len(input_list), max_count):
+        yield input_list[i:i + max_count]
 
 
 def process_building(features):
@@ -246,7 +205,7 @@ def process_building(features):
 
     with rasterio.Env(aws_session):
         # open the images
-        raster_dem = rasterio.open(dem_file_path, "r")
+        # raster_dem = rasterio.open(dem_file_path, "r")
         raster_aspect = rasterio.open(aspect_file_path, "r")
         raster_slope = rasterio.open(slope_file_path, "r")
 
@@ -261,9 +220,9 @@ def process_building(features):
 
                 for image_type in image_types:
                     # set input to use
-                    if image_type == "dem":
-                        raster = raster_dem
-                    elif image_type == "aspect":
+                    # if image_type == "dem":
+                    #     raster = raster_dem
+                    if image_type == "aspect":
                         raster = raster_aspect
                     elif image_type == "slope":
                         raster = raster_slope
@@ -271,64 +230,52 @@ def process_building(features):
                         print(f"FAILED! : Invalid image type")
                         exit()
 
-                    # TODO: clean this up
-                    # for geom_field in ["geom", "buffer"]:
-                    for geom_field in ["buffer"]:
-                        # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : {feature[1]}")
+                    # create mask
+                    masked_image, masked_transform = rasterio.mask.mask(raster, [geom], crop=True)
 
-                        # create mask
-                        masked_image, masked_transform = rasterio.mask.mask(raster, [geom], crop=True)
+                    # get rid of nodata values and flatten array
+                    flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+                    del masked_image, masked_transform
 
-                        # print(f"{output_dict['bld_pid']} : {geom_field} : {image_type} : got mask")
+                    # only proceed if there's data
+                    if flat_array.size != 0:
+                        # get stats across the masked image
+                        min_value = numpy.min(flat_array)
+                        max_value = numpy.max(flat_array)
 
-                        # get rid of nodata values and flatten array
-                        flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
-                        del masked_image, masked_transform
+                        # aspect is a special case - values could be either side of 360 degrees
+                        if image_type == "aspect":
+                            if min_value < 90 and max_value > 270:
+                                flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
 
-                        # only proceed if there's data
-                        if flat_array.size != 0:
-                            # get stats across the masked image
-                            min_value = numpy.min(flat_array)
-                            max_value = numpy.max(flat_array)
+                            avg_value = numpy.mean(flat_array)
+                            std_value = numpy.std(flat_array)
+                            med_value = numpy.median(flat_array)
 
-                            # aspect is a special case - values could be on either side of 360 degrees
-                            if image_type == "aspect":
-                                if min_value < 90 and max_value > 270:
-                                    flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
+                            if avg_value > 360.0:
+                                avg_value -= 360.0
 
-                                avg_value = numpy.mean(flat_array)
-                                std_value = numpy.std(flat_array)
-                                med_value = numpy.median(flat_array)
-
-                                if avg_value > 360.0:
-                                    avg_value -= 360.0
-
-                                if med_value > 360.0:
-                                    med_value -= 360.0
-
-                            else:
-                                avg_value = numpy.mean(flat_array)
-                                std_value = numpy.std(flat_array)
-                                med_value = numpy.median(flat_array)
-
-                            # assign results to output
-                            if geom_field == "geom":
-                                geom_name = "bldg"
-                            else:
-                                geom_name = "100m"
-
-                            output_dict[f"{image_type}_{geom_name}_min"] = int(min_value)
-                            output_dict[f"{image_type}_{geom_name}_max"] = int(max_value)
-                            output_dict[f"{image_type}_{geom_name}_avg"] = int(avg_value)
-                            output_dict[f"{image_type}_{geom_name}_std"] = int(std_value)
-                            output_dict[f"{image_type}_{geom_name}_med"] = int(med_value)
+                            if med_value > 360.0:
+                                med_value -= 360.0
 
                         else:
-                            output_dict[f"{image_type}_{geom_name}_min"] = -9999
-                            output_dict[f"{image_type}_{geom_name}_max"] = -9999
-                            output_dict[f"{image_type}_{geom_name}_avg"] = -9999
-                            output_dict[f"{image_type}_{geom_name}_std"] = -9999
-                            output_dict[f"{image_type}_{geom_name}_med"] = -9999
+                            avg_value = numpy.mean(flat_array)
+                            std_value = numpy.std(flat_array)
+                            med_value = numpy.median(flat_array)
+
+                        # assign results to output (save space by converting these low precision values to integers)
+                        output_dict[f"{image_type}_min"] = int(min_value)
+                        output_dict[f"{image_type}_max"] = int(max_value)
+                        output_dict[f"{image_type}_avg"] = int(avg_value)
+                        output_dict[f"{image_type}_std"] = int(std_value)
+                        output_dict[f"{image_type}_med"] = int(med_value)
+
+                    else:
+                        output_dict[f"{image_type}_min"] = -9999
+                        output_dict[f"{image_type}_max"] = -9999
+                        output_dict[f"{image_type}_avg"] = -9999
+                        output_dict[f"{image_type}_std"] = -9999
+                        output_dict[f"{image_type}_med"] = -9999
 
                 output_list.append(output_dict)
                 success_count += 1
@@ -354,11 +301,9 @@ def process_building(features):
 
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
 def bulk_insert(results):
-    """creates a CSV like file object of the results to insert many rows into Postgres very quickly"""
+    """creates a file object of the results to insert many rows into Postgres efficiently"""
 
-    # get postgres connection from pool
-    # global pg_pool
-    # pg_conn = pg_pool.getconn()
+    # get postgres connection
     pg_conn = psycopg2.connect(pg_connect_string)
     pg_conn.autocommit = True
     pg_cur = pg_conn.cursor()
@@ -371,10 +316,9 @@ def bulk_insert(results):
 
         csv_file_like_object.seek(0)
 
-        # Psycopg2 bug workaround - set schema to search path and only use table name in copy_from
+        # Psycopg2 bug workaround - add schema to postgres search path and only use table name in copy_from
         pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
         pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
-
         output = True
     except Exception as ex:
         print(f"Copy to Postgres FAILED! : {ex}")
@@ -382,12 +326,12 @@ def bulk_insert(results):
 
     pg_cur.close()
     pg_conn.close()
-    # pg_pool.putconn(pg_conn, close=False)
 
     return output
 
 
 def clean_csv_value(value: Optional[Any]) -> str:
+    """Escape a couple of things that postgres won't like"""
     if value is None:
         return r'\N'
     return str(value).replace('\n', '\\n')

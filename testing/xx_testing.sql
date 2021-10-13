@@ -4,40 +4,40 @@ drop table if exists bushfire.bal_factors_test_sydney_deltas;
 create table bushfire.bal_factors_test_sydney_deltas as
 with hmm as (
     select distinct nsw.bld_pid,
---                     nsw.dem_100m_min,
---                     nsw.dem_100m_max,
---                     nsw.dem_100m_avg,
---                     nsw.dem_100m_std,
---                     nsw.dem_100m_med,
---                     nsw.dem_100m_avg - srtm.dem_100m_avg as dem_100m_avg_delta,
---                     nsw.dem_100m_std - srtm.dem_100m_std as dem_100m_std_delta,
---                     nsw.dem_100m_med - srtm.dem_100m_med as dem_100m_med_delta,
-                    nsw.aspect_100m_min,
-                    nsw.aspect_100m_max,
-                    nsw.aspect_100m_avg,
-                    nsw.aspect_100m_std,
-                    nsw.aspect_100m_med,
-                    srtm.aspect_100m_min as aspect_100m_min_srtm,
-                    srtm.aspect_100m_max as aspect_100m_max_srtm,
-                    srtm.aspect_100m_avg as aspect_100m_avg_srtm,
-                    srtm.aspect_100m_std as aspect_100m_std_srtm,
-                    srtm.aspect_100m_med as aspect_100m_med_srtm,
-                    nsw.aspect_100m_avg - srtm.aspect_100m_avg as aspect_100m_avg_delta,
-                    nsw.aspect_100m_std - srtm.aspect_100m_std as aspect_100m_std_delta,
-                    nsw.aspect_100m_med - srtm.aspect_100m_med as aspect_100m_med_delta,
-                    nsw.slope_100m_min,
-                    nsw.slope_100m_max,
-                    nsw.slope_100m_avg,
-                    nsw.slope_100m_std,
-                    nsw.slope_100m_med,
-                    srtm.slope_100m_min as slope_100m_min_srtm,
-                    srtm.slope_100m_max as slope_100m_max_srtm,
-                    srtm.slope_100m_avg as slope_100m_avg_srtm,
-                    srtm.slope_100m_std as slope_100m_std_srtm,
-                    srtm.slope_100m_med as slope_100m_med_srtm,
-                    nsw.slope_100m_avg - srtm.slope_100m_avg as slope_100m_avg_delta,
-                    nsw.slope_100m_std - srtm.slope_100m_std as slope_100m_std_delta,
-                    nsw.slope_100m_med - srtm.slope_100m_med as slope_100m_med_delta
+--                     nsw.dem_min,
+--                     nsw.dem_max,
+--                     nsw.dem_avg,
+--                     nsw.dem_std,
+--                     nsw.dem_med,
+--                     nsw.dem_avg - srtm.dem_avg as dem_avg_delta,
+--                     nsw.dem_std - srtm.dem_std as dem_std_delta,
+--                     nsw.dem_med - srtm.dem_med as dem_med_delta,
+                    nsw.aspect_min,
+                    nsw.aspect_max,
+                    nsw.aspect_avg,
+                    nsw.aspect_std,
+                    nsw.aspect_med,
+                    srtm.aspect_min as aspect_min_srtm,
+                    srtm.aspect_max as aspect_max_srtm,
+                    srtm.aspect_avg as aspect_avg_srtm,
+                    srtm.aspect_std as aspect_std_srtm,
+                    srtm.aspect_med as aspect_med_srtm,
+                    nsw.aspect_avg - srtm.aspect_avg as aspect_avg_delta,
+                    nsw.aspect_std - srtm.aspect_std as aspect_std_delta,
+                    nsw.aspect_med - srtm.aspect_med as aspect_med_delta,
+                    nsw.slope_min,
+                    nsw.slope_max,
+                    nsw.slope_avg,
+                    nsw.slope_std,
+                    nsw.slope_med,
+                    srtm.slope_min as slope_min_srtm,
+                    srtm.slope_max as slope_max_srtm,
+                    srtm.slope_avg as slope_avg_srtm,
+                    srtm.slope_std as slope_std_srtm,
+                    srtm.slope_med as slope_med_srtm,
+                    nsw.slope_avg - srtm.slope_avg as slope_avg_delta,
+                    nsw.slope_std - srtm.slope_std as slope_std_delta,
+                    nsw.slope_med - srtm.slope_med as slope_med_delta
     from bushfire.bal_factors_sydney as nsw
              inner join bushfire.bal_factors_srtm_1sec as srtm on nsw.bld_pid = srtm.bld_pid
 )
@@ -45,8 +45,8 @@ select hmm.*,
        bld.geom
 from hmm
 inner join geo_propertyloc.aus_buildings_polygons as bld on hmm.bld_pid =  bld.bld_pid
-where (abs(aspect_100m_med_delta) between 45 and 315 and abs(slope_100m_med_delta) > 5)
-    or abs(slope_100m_med_delta) > 5
+where (abs(aspect_med_delta) between 45 and 315 and abs(slope_med_delta) > 5)
+    or abs(slope_med_delta) > 5
 ;
 analyse bushfire.bal_factors_test_sydney_deltas;
 
@@ -62,17 +62,17 @@ select count(*) from bushfire.bal_factors_test_sydney_deltas;
 
 -- 882
 select count(*) from bushfire.bal_factors_test_sydney_deltas
-where slope_100m_med_delta >= 10;
+where slope_med_delta >= 10;
 
 -- 4799
 select count(*) from bushfire.bal_factors_test_sydney_deltas
-where abs(aspect_100m_med_delta) between 45 and 315
-  and abs(slope_100m_med_delta) > 5;
+where abs(aspect_med_delta) between 45 and 315
+  and abs(slope_med_delta) > 5;
 
 -- 481
 select count(*) from bushfire.bal_factors_test_sydney_deltas
-where abs(aspect_100m_med_delta) between 45 and 315
-  and abs(slope_100m_med_delta) >= 10;
+where abs(aspect_med_delta) between 45 and 315
+  and abs(slope_med_delta) >= 10;
 
 
 
