@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Creates 100m buffers around building outlines to calculate their aspect and slope
+# Requires a licensed copy of Geoscape's Buildings dataset: https://geoscape.com.au/data/buildings/
+#
+# Takes ~1 hour to run
+# ---------------------------------------------------------------------------------------------------------------------
+
 SECONDS=0*
 
 # get the directory this script is running from
@@ -11,12 +18,12 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 AWS_PROFILE="default"
 OUTPUT_FOLDER="/Users/$(whoami)/tmp/bushfire"
-#
-#echo "---------------------------------------------------------------------------------------------------------------------"
-#echo "create subset tables to speed up export, copy and import"
-#echo "---------------------------------------------------------------------------------------------------------------------"
-#
-#psql -d geo -f ${SCRIPT_DIR}/xx_prep_gnaf_cad_tables.sql
+
+echo "---------------------------------------------------------------------------------------------------------------------"
+echo "create subset tables to speed up export, copy and import"
+echo "---------------------------------------------------------------------------------------------------------------------"
+
+psql -d geo -f ${SCRIPT_DIR}/create_buffered_buildings.sql
 
 echo "---------------------------------------------------------------------------------------------------------------------"
 echo "dump postgres table(s) to a local folder"
@@ -27,7 +34,7 @@ mkdir -p "${OUTPUT_FOLDER}"
 echo "Buildings exported to dump file"
 
 echo "---------------------------------------------------------------------------------------------------------------------"
-echo "copy training data & Postgres dump file to AWS S3"
+echo "copy dump file to AWS S3"
 echo "---------------------------------------------------------------------------------------------------------------------"
 
 aws --profile=${AWS_PROFILE} s3 sync ${OUTPUT_FOLDER} s3://bushfire-rasters/geoscape/ --exclude "*" --include "*.dmp"

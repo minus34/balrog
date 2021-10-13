@@ -87,7 +87,8 @@ else:
 # ------------------------------------------------------------------------------------------------------------------
 
 # the order of these cannot be changed (must match table column order)
-image_types = ["aspect", "slope", "dem"]
+# image_types = ["aspect", "slope", "dem"]
+image_types = ["aspect", "slope"]  # SRTM elevation has issues
 
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
 max_processes = multiprocessing.cpu_count()
@@ -249,7 +250,7 @@ def process_building(features):
         raster_aspect = rasterio.open(aspect_file_path, "r")
         raster_slope = rasterio.open(slope_file_path, "r")
 
-        # feature format is [id, geometry]
+        # expected feature format is [id:string, geometry:json string]
         for feature in features:
             try:
                 bld_pid = feature[0]
