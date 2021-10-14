@@ -32,7 +32,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 #   - edit this if not running locally on a Mac
 if platform.system() == "Darwin":
     input_sql = """select bld.bld_pid,
-                          st_asgeojson(bld.geom, 6, 0)::jsonb as buffer
+                          st_asgeojson(bld.geog, 6, 0)::text as buffer
                    from bushfire.temp_building_buffers as bld
                    inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
     # input_sql = """select bld.bld_pid,
@@ -54,7 +54,7 @@ if platform.system() == "Darwin":
     pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
 else:
     input_sql = """select bld_pid,
-                          st_asgeojson(geom, 6, 0)::jsonb as buffer
+                          st_asgeojson(geog, 6, 0)::text as buffer
                    from bushfire.temp_building_buffers"""
 
     postgres_user = "ec2-user"
@@ -154,9 +154,10 @@ def main():
 
     # delete records from output table with invalid values (if any)
     sql = f"""delete from {output_table}
-                  where dem_med = -9999
-                      or aspect_med = -9999
-                      or slope_med = -9999"""
+                  where aspect_med = -9999
+                      or slope_med = -9999 
+                      -- or dem_med = -9999
+                      """
     pg_cur.execute(sql)
     adjustment_count = pg_cur.rowcount
 
