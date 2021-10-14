@@ -122,4 +122,4 @@ select count(*) from bushfire.bal_factors_sydney_5m;
 
 -- vege
 
-select count(*) from bushfire.nvis6_0_nsw
+select count(*) from bushfire.nvis6_0
