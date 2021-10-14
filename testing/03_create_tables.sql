@@ -5,7 +5,7 @@ create extension if not exists postgis;
 -- create output table
 drop table if exists {1};
 create table {1} (
-    bld_pid text,
+    id text,
     aspect_min smallint,
     aspect_max smallint,
     aspect_avg smallint,

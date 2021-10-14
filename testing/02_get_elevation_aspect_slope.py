@@ -177,7 +177,7 @@ def main():
     start_time = datetime.now()
 
     # add primary key
-    sql = f"ALTER TABLE {output_table} ADD CONSTRAINT {output_table.split('.')[1]}_pkey PRIMARY KEY (bld_pid)"
+    sql = f"ALTER TABLE {output_table} ADD CONSTRAINT {output_table.split('.')[1]}_pkey PRIMARY KEY (id)"
     pg_cur.execute(sql)
     logger.info(f"\t - added primary key to {output_table} : {datetime.now() - start_time}")
 
@@ -213,11 +213,11 @@ def process_building(features):
         # expected feature format is [id:string, geometry:json string]
         for feature in features:
             try:
-                bld_pid = feature[0]
+                id = feature[0]
                 geom = json.loads(feature[1])
 
                 output_dict = dict()
-                output_dict["bld_pid"] = bld_pid
+                output_dict["id"] = id
 
                 for image_type in image_types:
                     # set input to use
@@ -283,7 +283,7 @@ def process_building(features):
             except Exception as ex:
                 error_message = str(ex)
                 if error_message != "Input shapes do not overlap raster.":
-                    print(f"{bld_pid} FAILED! : {error_message}")
+                    print(f"{id} FAILED! : {error_message}")
                 fail_count += 1
 
     # copy results to Postgres table
