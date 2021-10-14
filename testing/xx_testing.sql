@@ -42,6 +42,8 @@ with hmm as (
              inner join bushfire.bal_factors_srtm_1sec as srtm on nsw.bld_pid = srtm.bld_pid
 )
 select hmm.*,
+       bld.grd_elev,
+       bld.grd_el_src,
        bld.geom
 from hmm
 inner join geo_propertyloc.aus_buildings_polygons as bld on hmm.bld_pid =  bld.bld_pid
@@ -86,6 +88,8 @@ select count(*) from geo_propertyloc.aus_buildings_polygons
 drop table if exists bushfire.bal_factors_srtm_1sec;
 create table bushfire.bal_factors_srtm_1sec as -- 15,839,641 rows affected in 3 m 18 s 964 ms
 select bal.*,
+       geo.grd_elev,
+       geo.grd_el_src,
        geo.geom
 from bushfire.bal_factors as bal
 inner join geo_propertyloc.aus_buildings_polygons as geo on bal.bld_pid = geo.bld_pid
@@ -101,6 +105,8 @@ select count(*) from bushfire.bal_factors_srtm_1sec;
 drop table if exists bushfire.bal_factors_sydney_5m;
 create table bushfire.bal_factors_sydney_5m as -- 15,839,641 rows affected in 3 m 18 s 964 ms
 select bal.*,
+       geo.grd_elev,
+       geo.grd_el_src,
        geo.geom
 from bushfire.bal_factors_sydney as bal
          inner join geo_propertyloc.aus_buildings_polygons as geo on bal.bld_pid = geo.bld_pid
@@ -111,3 +117,9 @@ CREATE INDEX bal_factors_sydney_5m_geom_idx ON bushfire.bal_factors_sydney_5m US
 ALTER TABLE bushfire.bal_factors_sydney_5m CLUSTER ON bal_factors_sydney_5m_geom_idx;
 
 select count(*) from bushfire.bal_factors_sydney_5m;
+
+
+
+-- vege
+
+select count(*) from bushfire.nvis6_0_nsw
