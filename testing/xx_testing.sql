@@ -122,4 +122,5 @@ select count(*) from bushfire.bal_factors_sydney_5m;
 
 -- vege
 
+-- 9,018,062
 select count(*) from bushfire.nvis6_0
