@@ -8,11 +8,7 @@ where nvis_id in (10822, 90288);
 
 select * from bushfire.nvis6_lookup
 where nvis_id in (
-82155,
-49003,
-90288,
-7180
-                 )
+    51258 )
 ;
 
 select * from bushfire.nvis6_lookup
@@ -21,11 +17,11 @@ and mvs_number = 98
 ;
 
 
-
+-- check polygon complexity (where not urban and other low risk cover)
 select nvisdsc1,
        st_npoints((st_dump(wkb_geometry)).geom) as point_count
 from bushfire.nvis6
-where nvisdsc1 not in (82155, 49003, 90288)
+where nvisdsc1 not in (select nvis_id from bushfire.nvis6_lookup where mvg_number = 25 and mvs_number = 98)
 order by point_count desc
 ;
 
