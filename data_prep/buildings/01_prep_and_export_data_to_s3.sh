@@ -18,19 +18,19 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 AWS_PROFILE="default"
 OUTPUT_FOLDER="/Users/$(whoami)/tmp/bushfire"
-
-echo "---------------------------------------------------------------------------------------------------------------------"
-echo "create subset tables to speed up export, copy and import"
-echo "---------------------------------------------------------------------------------------------------------------------"
-
-psql -d geo -f ${SCRIPT_DIR}/create_buffered_buildings.sql
+#
+#echo "---------------------------------------------------------------------------------------------------------------------"
+#echo "create subset tables to speed up export, copy and import"
+#echo "---------------------------------------------------------------------------------------------------------------------"
+#
+#psql -d geo -f ${SCRIPT_DIR}/create_buffered_buildings.sql
 
 echo "---------------------------------------------------------------------------------------------------------------------"
 echo "dump postgres table(s) to a local folder"
 echo "---------------------------------------------------------------------------------------------------------------------"
 
 mkdir -p "${OUTPUT_FOLDER}"
-/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -t bushfire.temp_building_buffers -p 5432 -U postgres -f "${OUTPUT_FOLDER}/buildings.dmp" --no-owner
+/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -t bushfire.temp_building_buffers -t bushfire.temp_building_centroids -p 5432 -U postgres -f "${OUTPUT_FOLDER}/buildings.dmp" --no-owner
 echo "Buildings exported to dump file"
 
 echo "---------------------------------------------------------------------------------------------------------------------"

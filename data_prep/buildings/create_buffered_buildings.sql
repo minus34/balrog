@@ -13,3 +13,13 @@ from geo_propertyloc.aus_buildings_polygons
 analyse bushfire.temp_building_buffers;
 
 -- ALTER TABLE bushfire.temp_building_buffers ADD CONSTRAINT temp_building_buffers_pkey PRIMARY KEY (bld_pid);
+
+-- create building centroids for vegetation work
+drop table if exists bushfire.temp_building_centroids;
+create table bushfire.temp_building_centroids as
+select bld_pid,
+       st_y(st_centroid(geom))::numeric(8, 6) as latitude,
+       st_x(st_centroid(geom))::numeric(9, 6) as longitude
+from geo_propertyloc.aus_buildings_polygons
+;
+analyse bushfire.temp_building_centroids;

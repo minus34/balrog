@@ -118,9 +118,3 @@ ALTER TABLE bushfire.bal_factors_sydney_5m CLUSTER ON bal_factors_sydney_5m_geom
 
 select count(*) from bushfire.bal_factors_sydney_5m;
 
-
-
--- vege
-
--- 9,018,062
-select count(*) from bushfire.nvis6_0
