@@ -6,8 +6,23 @@ where nvis_id in (10822, 90288);
 
 
 
-mvg_number,mvg_name,mvs_number,mvs_name
-29,"Regrowth, modified native vegetation",91,Regrowth or modified shrublands
+select * from bushfire.nvis6_lookup
+where nvis_id in (
+82155,
+49003,
+90288)
+;
+
+
+
+
+
+select nvisdsc1,
+       st_npoints((st_dump(wkb_geometry)).geom) as point_count
+from bushfire.nvis6
+where nvisdsc1 not in (82155, 49003, 90288)
+order by point_count desc
+;
 
 
 
