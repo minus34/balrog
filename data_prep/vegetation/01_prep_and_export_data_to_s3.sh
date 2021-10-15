@@ -30,7 +30,7 @@ echo "dump postgres table(s) to a local folder"
 echo "---------------------------------------------------------------------------------------------------------------------"
 
 mkdir -p "${OUTPUT_FOLDER}"
-#/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -t bushfire.nvis6 -p 5432 -U postgres -f "${OUTPUT_FOLDER}/nvis6.dmp" --no-owner
+/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -t bushfire.nvis6 -p 5432 -U postgres -f "${OUTPUT_FOLDER}/nvis6.dmp" --no-owner
 /Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -t bushfire.nvis6_lookup -p 5432 -U postgres -f "${OUTPUT_FOLDER}/nvis6_lookup.dmp" --no-owner
 echo "Vegetation exported to dump file"
 

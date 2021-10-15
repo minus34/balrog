@@ -103,9 +103,17 @@ echo "-------------------------------------------------------------------------"
 initdb -D postgres
 pg_ctl -D postgres -l logfile start
 
-# increase memory usage
+# increase memory usage and minimise logging (don't care if it crashes and we lose everything)
 psql -d postgres -c "ALTER SYSTEM SET shared_buffers = '128GB';"
 psql -d postgres -c "ALTER SYSTEM SET wal_buffers = '2GB';"
+psql -d postgres -c "ALTER SYSTEM SET max_wal_size = '64GB';"
+psql -d postgres -c "ALTER SYSTEM SET wal_level = 'minimal';"
+psql -d postgres -c "ALTER SYSTEM SET max_wal_senders = 0;"
+psql -d postgres -c "ALTER SYSTEM SET archive_mode = 'off';"
+psql -d postgres -c "ALTER SYSTEM SET fsync = 'off';"
+psql -d postgres -c "ALTER SYSTEM SET full_page_writes = 'off';"
+psql -d postgres -c "ALTER SYSTEM SET synchronous_commit = 'off';"
+
 pg_ctl -D postgres restart
 
 # create new database on mounted drive (not enough space on default drive)

@@ -20,5 +20,5 @@ psql -d geo -c "drop table bushfire.bal_factors"
 
 
 
-
+find . -name "postgresql.conf"  2>&1 | grep -v "Permission denied"
 
