@@ -10,10 +10,15 @@ select * from bushfire.nvis6_lookup
 where nvis_id in (
 82155,
 49003,
-90288)
+90288,
+7180
+                 )
 ;
 
-
+select * from bushfire.nvis6_lookup
+where mvg_number = 25
+and mvs_number = 98
+;
 
 
 
