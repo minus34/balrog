@@ -113,6 +113,8 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_create_dem_aspect_slope_rasters.sh ${USER}
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/02_get_elevation_aspect_slope.py ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/03_create_tables.sql ${USER}@${INSTANCE_ID}:~/
 
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/classify_and_merge_data.sql ${USER}@${INSTANCE_ID}:~/
+
 
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then

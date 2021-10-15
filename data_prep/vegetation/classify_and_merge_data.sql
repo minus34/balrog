@@ -2,7 +2,7 @@
 -- create a temp table of exploded polygons
 drop table if exists temp_nvis6;
 create temporary table temp_nvis6 as
-select nvisdsc1::smallint as nvis_id,
+select nvisdsc1::integer as nvis_id,
        (st_dump(wkb_geometry)).geom as geom
 from bushfire.nvis6
 ;
@@ -19,11 +19,19 @@ with merge as (
     inner join bushfire.nvis6_lookup as lkp on veg.nvis_id = lkp.nvis_id
     group by veg_group,
              veg_subgroup
+), polys as (
+    select row_number() over () as gid,
+           veg_group,
+           veg_subgroup,
+           (st_dump(geom)).geom as geom
+    from merge
 )
-select veg_group,
+select gid,
+       veg_group,
        veg_subgroup,
-       (st_dump(geom)).geom as geom
-from merge
+       st_area(geom::geography) / 10000.0 as area_ha,
+       geom
+from polys
 ;
 
 CREATE INDEX nvis6_merge_veg_group_idx ON bushfire.nvis6_merge USING btree (veg_group);

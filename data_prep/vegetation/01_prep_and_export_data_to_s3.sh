@@ -17,7 +17,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 # ---------------------------------------------------------------------------------------------------------------------
 
 AWS_PROFILE="default"
-OUTPUT_FOLDER="/Users/$(whoami)/tmp/bushfire"
+OUTPUT_FOLDER="/Users/$(whoami)/tmp/bushfire/veg"
 
 #echo "---------------------------------------------------------------------------------------------------------------------"
 #echo "create subset tables to speed up export, copy and import"
