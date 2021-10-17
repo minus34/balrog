@@ -1,25 +1,43 @@
 
--- create a temp table of exploded polygons
-drop table if exists temp_nvis6;
-create temporary table temp_nvis6 as
-select nvisdsc1::integer as nvis_id,
-       (st_dump(wkb_geometry)).geom as geom
-from bushfire.nvis6
-;
-analyse temp_nvis6;
-
--- merge with lookup table
-drop table if exists temp_nvis6_merge;
-create temporary table temp_nvis6_merge as
-select lkp.mvg_number::smallint as veg_group,
+-- create a temp table of exploded polygons --
+drop table if exists bushfire.nvis6_exploded;
+create table bushfire.nvis6_exploded as
+with veg as (
+    select nvisdsc1::integer as nvis_id,
+           (st_dump(wkb_geometry)).geom as geom
+    from bushfire.nvis6
+)
+select row_number() over () as gid,
+       veg.nvis_id,
+       lkp.mvg_number::smallint as veg_group,
        lkp.mvs_number::smallint as veg_subgroup,
-       veg.geom
-from temp_nvis6 as veg
+       st_npoints(veg.geom) as point_count,
+       st_isvalid(veg.geom),
+       st_makevalid(veg.geom) as geom
+from veg
 inner join bushfire.nvis6_lookup as lkp on veg.nvis_id = lkp.nvis_id
 ;
-analyse temp_nvis6_merge;
+analyse bushfire.nvis6_exploded;
 
-CREATE INDEX temp_nvis6_merge_veg_groups_idx ON bushfire.nvis6_merge USING btree (veg_group, veg_subgroup);
+CREATE INDEX nvis6_exploded_veg_group_idx ON bushfire.nvis6_exploded USING btree (veg_group);
+CREATE INDEX nvis6_exploded_veg_subgroup_idx ON bushfire.nvis6_exploded USING btree (veg_subgroup);
+CREATE INDEX nvis6_exploded_geom_idx ON bushfire.nvis6_exploded USING gist (geom);
+ALTER TABLE bushfire.nvis6_exploded CLUSTER ON nvis6_exploded_geom_idx;
+
+
+--
+-- -- merge with lookup table
+-- drop table if exists temp_nvis6_merge;
+-- create temporary table temp_nvis6_merge as
+-- select lkp.mvg_number::smallint as veg_group,
+--        lkp.mvs_number::smallint as veg_subgroup,
+--        veg.geom
+-- from temp_nvis6 as veg
+-- inner join bushfire.nvis6_lookup as lkp on veg.nvis_id = lkp.nvis_id
+-- ;
+-- analyse temp_nvis6_merge;
+--
+-- CREATE INDEX temp_nvis6_merge_veg_groups_idx ON bushfire.nvis6_merge USING btree (veg_group, veg_subgroup);
 
 
 -- union all polygons of the same vegetation group & subgroup
