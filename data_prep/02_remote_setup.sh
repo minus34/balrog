@@ -116,8 +116,6 @@ psql -d postgres -c "ALTER SYSTEM SET fsync = 'off';"
 psql -d postgres -c "ALTER SYSTEM SET full_page_writes = 'off';"
 psql -d postgres -c "ALTER SYSTEM SET synchronous_commit = 'off';"
 
-
-
 pg_ctl -D postgres restart
 
 # create new database on mounted drive (not enough space on default drive)
@@ -133,11 +131,9 @@ psql -d geo -c "create schema if not exists bushfire;alter schema bushfire owner
 aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
 pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp
 
-# restore vegetation table(s) (ignore the ALTER TABLE errors)
-aws s3 sync s3://bushfire-rasters/vegetation/nvis6/ /data/
-#aws s3 cp s3://bushfire-rasters/vegetation/nvis6/nvis6_lookup.dmp /data/
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/nvis6.dmp
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/nvis6_lookup.dmp
+## restore vegetation table(s) (ignore the ALTER TABLE errors)
+#aws s3 sync s3://bushfire-rasters/vegetation/nvis6/ /data/
+#pg_restore -Fc -d geo -p 5432 -U ec2-user /data/nvis6.dmp
 
 echo "-------------------------------------------------------------------------"
 echo " Copy elevation data from S3"

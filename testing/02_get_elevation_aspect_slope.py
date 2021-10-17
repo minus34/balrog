@@ -209,7 +209,7 @@ def process_building(features):
         raster_aspect = rasterio.open(aspect_file_path, "r")
         raster_slope = rasterio.open(slope_file_path, "r")
 
-        # expected feature format is [id:string, geometry:json string]
+        # expected feature format is [id:string, geometry:string representing a valid geojson geometry]
         for feature in features:
             try:
                 id = feature[0]
@@ -227,7 +227,7 @@ def process_building(features):
                     elif image_type == "slope":
                         raster = raster_slope
                     else:
-                        print(f"FAILED! : Invalid image type")
+                        print("FAILED! : Invalid image type")
                         exit()
 
                     # create mask
@@ -243,7 +243,7 @@ def process_building(features):
                         min_value = numpy.min(flat_array)
                         max_value = numpy.max(flat_array)
 
-                        # aspect is a special case - values could be either side of 360 degrees
+                        # aspect is a special case - values could be either side of 360 degrees (North)
                         if image_type == "aspect":
                             if min_value < 90 and max_value > 270:
                                 flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
