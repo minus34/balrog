@@ -44,7 +44,7 @@ if platform.system() == "Darwin":
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
-    # dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
+    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
     aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
     slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
     # dem_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
@@ -61,7 +61,7 @@ else:
     output_table = "bushfire.bal_factors"
     output_tablespace = "dataspace"
 
-    # dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
+    dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
     aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
     slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
 
@@ -72,8 +72,7 @@ else:
 # ------------------------------------------------------------------------------------------------------------------
 
 # the order of these cannot be changed (must match table column order)
-# image_types = ["aspect", "slope", "dem"]
-image_types = ["aspect", "slope"]  # SRTM elevation has issues
+image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues around narrow peninsulas and tall buildings
 
 # how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
 max_processes = multiprocessing.cpu_count()
@@ -156,7 +155,7 @@ def main():
     sql = f"""delete from {output_table}
                   where aspect_med = -9999
                       or slope_med = -9999 
-                      -- or dem_med = -9999
+                      or dem_med = -9999
                       """
     pg_cur.execute(sql)
     adjustment_count = pg_cur.rowcount
@@ -206,7 +205,7 @@ def process_building(features):
 
     with rasterio.Env(aws_session):
         # open the images
-        # raster_dem = rasterio.open(dem_file_path, "r")
+        raster_dem = rasterio.open(dem_file_path, "r")
         raster_aspect = rasterio.open(aspect_file_path, "r")
         raster_slope = rasterio.open(slope_file_path, "r")
 
@@ -221,8 +220,8 @@ def process_building(features):
 
                 for image_type in image_types:
                     # set input to use
-                    # if image_type == "dem":
-                    #     raster = raster_dem
+                    if image_type == "dem":
+                        raster = raster_dem
                     if image_type == "aspect":
                         raster = raster_aspect
                     elif image_type == "slope":

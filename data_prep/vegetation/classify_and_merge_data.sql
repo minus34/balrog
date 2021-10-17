@@ -1,5 +1,5 @@
 
--- create a temp table of exploded polygons --
+-- create a temp table of exploded polygons -- 9.5 hours on MacBook
 drop table if exists bushfire.nvis6_exploded;
 create table bushfire.nvis6_exploded as
 with veg as (
