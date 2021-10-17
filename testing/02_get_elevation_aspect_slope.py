@@ -222,7 +222,7 @@ def process_building(features):
                     # set input to use
                     if image_type == "dem":
                         raster = raster_dem
-                    if image_type == "aspect":
+                    elif image_type == "aspect":
                         raster = raster_aspect
                     elif image_type == "slope":
                         raster = raster_slope
