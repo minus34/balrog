@@ -17,6 +17,11 @@ select row_number() over () as gid,
 from veg
 inner join bushfire.nvis6_lookup as lkp on veg.nvis_id = lkp.nvis_id
 ;
+
+-- only allow this after testing for non-polygon rows
+delete from bushfire.nvis6_exploded
+where st_geometrytype(geom) <> 'ST_Polygon'
+
 analyse bushfire.nvis6_exploded;
 
 CREATE INDEX nvis6_exploded_veg_group_idx ON bushfire.nvis6_exploded USING btree (veg_group);
