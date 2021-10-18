@@ -1,11 +1,12 @@
+#!/usr/bin/env bash
 
 # script runs the pool detection in an EC2 instance via SSH and dumps & downloads the results from the remote Postgres database to a local PG DB
 
-# get directory this script is running from
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-
 # load AWS & EC2 vars
 . ${GIT_HOME}/temp_ec2_vars.sh
+
+# get directory this script is running from
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 # copy and run python script remotely
 FILENAME="02_get_elevation_aspect_slope.py"
