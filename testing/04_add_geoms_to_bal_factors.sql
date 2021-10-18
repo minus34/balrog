@@ -1,7 +1,7 @@
 
 -- add geoms to bal factor results
 drop table if exists bushfire.bal_factors_srtm_1sec;
-create table bushfire.bal_factors_srtm_1sec as -- 15,839,641 rows affected in 3 m 18 s 964 ms
+create table bushfire.bal_factors_srtm_1sec as -- 15,839,130 rows affected in 6 m 31 s 636 ms
 select geo.bld_pid,
        aspect_min,
        aspect_max,

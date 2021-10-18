@@ -12,7 +12,7 @@ select row_number() over () as gid,
        lkp.mvg_number::smallint as veg_group,
        lkp.mvs_number::smallint as veg_subgroup,
        st_npoints(veg.geom) as point_count,
-       st_isvalid(veg.geom),
+       st_isvalid(veg.geom) as is_geom_valid,
        st_makevalid(veg.geom) as geom
 from veg
 inner join bushfire.nvis6_lookup as lkp on veg.nvis_id = lkp.nvis_id

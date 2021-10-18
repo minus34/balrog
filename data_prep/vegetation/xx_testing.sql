@@ -5,6 +5,45 @@ where nvis_id in (10822, 90288);
 
 
 
+-- check exploded nvis polygons
+
+-- geometry types
+select st_geometrytype(geom) as geom_type,
+       sum(st_numgeometries(geom)) as geom_count,
+       count(*) as row_count
+from bushfire.nvis6_exploded
+group by geom_type
+;
+
+-- +---------------------+----------+---------+
+-- |geom_type            |geom_count|row_count|
+-- +---------------------+----------+---------+
+-- |ST_GeometryCollection|4         |2        |
+-- |ST_LineString        |3         |3        |
+-- |ST_Polygon           |9408852   |9408852  |
+-- +---------------------+----------+---------+
+
+-- check invalid geoms
+select st_isvalid(geom) as new_geom_valid,
+       is_geom_valid as old_geom_valid,
+       count(*) as row_count
+from bushfire.nvis6_exploded
+group by new_geom_valid,
+         old_geom_valid
+;
+
+-- check row & ID counts
+select count(*) from bushfire.nvis6;  -- 9018062
+select count(*) from bushfire.nvis6_exploded;  -- 9408857
+
+
+select * from bushfire.nvis6_exploded;
+
+
+
+
+
+
 
 select * from bushfire.nvis6_lookup
 where nvis_id in (
