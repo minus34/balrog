@@ -16,10 +16,13 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_create_tables.sql ${USER}@${INSTANCE_ID}:~
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/${FILENAME} ${USER}@${INSTANCE_ID}:~/
 ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "rm ~/${LOGFILENAME}; python3 ${FILENAME}"
 
-# dump results from Postgres and copy locally
-ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "pg_dump -Fc -d geo -t bushfire.bal_factors -p 5432 -U ec2-user -f ~/bal_factors.dmp --no-owner"
-scp -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID}:~/bal_factors.dmp ${SCRIPT_DIR}/
+# copy logfile locally
 scp -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID}:~/${LOGFILENAME}  ${SCRIPT_DIR}/
+
+# dump results from Postgres and copy to S3 and then locally
+ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "pg_dump -Fc -d geo -t bushfire.bal_factors -p 5432 -U ec2-user -f /data/bal_factors.dmp --no-owner"
+ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "aws s3 cp /data/bal_factors.dmp s3://bushfire-rasters/output/"
+aws s3 cp s3://bushfire-rasters/output/bal_factors.dmp ${HOME}/tmp/bushfire/
 
 # load into local postgres (WARNING: force drops tables first)
 /Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -c "drop table bushfire.bal_factors cascade"
