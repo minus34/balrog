@@ -1,33 +1,33 @@
 
--- create a temp table of exploded polygons -- 9.5 hours on MacBook
-drop table if exists bushfire.nvis6_exploded;
-create table bushfire.nvis6_exploded as
-with veg as (
-    select nvisdsc1::integer as nvis_id,
-           (st_dump(wkb_geometry)).geom as geom
-    from bushfire.nvis6
-)
-select row_number() over () as gid,
-       veg.nvis_id,
-       lkp.mvg_number::smallint as veg_group,
-       lkp.mvs_number::smallint as veg_subgroup,
-       st_npoints(veg.geom) as point_count,
-       st_isvalid(veg.geom) as is_geom_valid,
-       st_makevalid(veg.geom) as geom
-from veg
-inner join bushfire.nvis6_lookup as lkp on veg.nvis_id = lkp.nvis_id
-;
-
--- only allow this after testing for non-polygon rows
-delete from bushfire.nvis6_exploded
-where st_geometrytype(geom) <> 'ST_Polygon'
-
-analyse bushfire.nvis6_exploded;
-
-CREATE INDEX nvis6_exploded_veg_group_idx ON bushfire.nvis6_exploded USING btree (veg_group);
-CREATE INDEX nvis6_exploded_veg_subgroup_idx ON bushfire.nvis6_exploded USING btree (veg_subgroup);
-CREATE INDEX nvis6_exploded_geom_idx ON bushfire.nvis6_exploded USING gist (geom);
-ALTER TABLE bushfire.nvis6_exploded CLUSTER ON nvis6_exploded_geom_idx;
+-- -- create a temp table of exploded polygons -- 9.5 hours on MacBook
+-- drop table if exists bushfire.nvis6_exploded;
+-- create table bushfire.nvis6_exploded as
+-- with veg as (
+--     select nvisdsc1::integer as nvis_id,
+--            (st_dump(wkb_geometry)).geom as geom
+--     from bushfire.nvis6
+-- )
+-- select row_number() over () as gid,
+--        veg.nvis_id,
+--        lkp.mvg_number::smallint as veg_group,
+--        lkp.mvs_number::smallint as veg_subgroup,
+--        st_npoints(veg.geom) as point_count,
+--        st_isvalid(veg.geom) as is_geom_valid,
+--        st_makevalid(veg.geom) as geom
+-- from veg
+-- inner join bushfire.nvis6_lookup as lkp on veg.nvis_id = lkp.nvis_id
+-- ;
+--
+-- -- only allow this after testing for non-polygon rows
+-- delete from bushfire.nvis6_exploded
+-- where st_geometrytype(geom) <> 'ST_Polygon'
+--
+-- analyse bushfire.nvis6_exploded;
+--
+-- CREATE INDEX nvis6_exploded_veg_group_idx ON bushfire.nvis6_exploded USING btree (veg_group);
+-- CREATE INDEX nvis6_exploded_veg_subgroup_idx ON bushfire.nvis6_exploded USING btree (veg_subgroup);
+-- CREATE INDEX nvis6_exploded_geom_idx ON bushfire.nvis6_exploded USING gist (geom);
+-- ALTER TABLE bushfire.nvis6_exploded CLUSTER ON nvis6_exploded_geom_idx;
 
 
 --
@@ -53,7 +53,7 @@ with merge as (
     select veg_group,
            veg_subgroup,
            st_union(geom) as geom
-    from temp_nvis6_merge
+    from bushfire.nvis6_exploded
     group by veg_group,
              veg_subgroup
 ), polys as (
@@ -71,11 +71,6 @@ select gid,
 from polys
 ;
 
-CREATE INDEX nvis6_merge_veg_group_idx ON bushfire.nvis6_merge USING btree (veg_group);
-CREATE INDEX nvis6_merge_veg_subgroup_idx ON bushfire.nvis6_merge USING btree (veg_subgroup);
+CREATE INDEX nvis6_merge_veg_group_idx ON bushfire.nvis6_merge USING btree (veg_group, veg_subgroup);
 CREATE INDEX nvis6_merge_geom_idx ON bushfire.nvis6_merge USING gist (geom);
 ALTER TABLE bushfire.nvis6_merge CLUSTER ON nvis6_merge_geom_idx;
-
-drop table if exists temp_nvis6_union;
-drop table if exists temp_nvis6_merge;
-drop table if exists temp_nvis6;
