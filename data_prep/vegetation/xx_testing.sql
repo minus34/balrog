@@ -51,15 +51,26 @@ select st_isvalid(geom) as is_geom_now_valid,
 from temp_nvis6_invalid
 group by is_geom_now_valid
 ;
+drop table if exists temp_nvis6_invalid;
 
--- check for geoms with less than 4 vertices --  rows
+
+
+-- check for polygons with less than 4 vertices -- 0 rows
 select count(*) as row_count
 from bushfire.nvis6_exploded
 where st_npoints(geom) < 4
+    and st_geometrytype(geom) = 'ST_Polygon'
 ;
 
 
-
+-- INVESTIGATE THESE
+drop table if exists bushfire.temp_nvis6_non_polygon;
+create table bushfire.temp_nvis6_non_polygon as
+select *
+from bushfire.nvis6_exploded
+where st_geometrytype(geom) <> 'ST_Polygon'
+;
+analyse bushfire.temp_nvis6_non_polygon;
 
 
 -- check row & ID counts
