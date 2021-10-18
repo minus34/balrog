@@ -37,13 +37,28 @@ group by is_geom_valid
 -- |true         |9292113  |
 -- +-------------+---------+
 
--- check for geoms that are still invalid
-select st_isvalid(geom) as is_geom_now_valid,
-       count(*) as row_count
+-- check for geoms that are still invalid -- 116,744 rows affected in 1 m 15 s 694 ms
+drop table if exists temp_nvis6_invalid;
+create temporary table temp_nvis6_invalid as
+select geom
 from bushfire.nvis6_exploded
 where not is_geom_valid
+;
+
+-- 116744 geoms all valid! (35 mins to run)
+select st_isvalid(geom) as is_geom_now_valid,
+       count(*) as row_count
+from temp_nvis6_invalid
 group by is_geom_now_valid
 ;
+
+-- check for geoms with less than 4 vertices --  rows
+select count(*) as row_count
+from bushfire.nvis6_exploded
+where st_npoints(geom) < 4
+;
+
+
 
 
 
