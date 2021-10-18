@@ -11,6 +11,8 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 # copy and run python script remotely
 FILENAME="02_get_elevation_aspect_slope.py"
 LOGFILENAME="02_get_elevation_aspect_slope.log"
+
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_create_tables.sql ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/${FILENAME} ${USER}@${INSTANCE_ID}:~/
 ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "rm ~/${LOGFILENAME}; python3 ${FILENAME}"
 
