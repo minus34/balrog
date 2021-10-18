@@ -74,7 +74,7 @@ else:
 # the order of these cannot be changed (must match table column order)
 image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues around narrow peninsulas and tall buildings
 
-# how many parallel processes to run (only used for downloading images, hence can use 2x CPUs safely)
+# how many parallel processes to run
 max_processes = multiprocessing.cpu_count()
 
 

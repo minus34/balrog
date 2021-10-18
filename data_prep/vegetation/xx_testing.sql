@@ -23,14 +23,29 @@ group by geom_type
 -- |ST_Polygon           |9408852   |9408852  |
 -- +---------------------+----------+---------+
 
--- check invalid geoms
-select st_isvalid(geom) as new_geom_valid,
-       is_geom_valid as old_geom_valid,
+-- check invalid exploded geoms
+select is_geom_valid,
        count(*) as row_count
 from bushfire.nvis6_exploded
-group by new_geom_valid,
-         old_geom_valid
+group by is_geom_valid
 ;
+
+-- +-------------+---------+
+-- |is_geom_valid|row_count|
+-- +-------------+---------+
+-- |false        |116744   |
+-- |true         |9292113  |
+-- +-------------+---------+
+
+-- check for geoms that are still invalid
+select st_isvalid(geom) as is_geom_now_valid,
+       count(*) as row_count
+from bushfire.nvis6_exploded
+where not is_geom_valid
+group by is_geom_now_valid
+;
+
+
 
 -- check row & ID counts
 select count(*) from bushfire.nvis6;  -- 9018062
