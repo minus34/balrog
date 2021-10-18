@@ -6,6 +6,11 @@ create extension if not exists postgis;
 drop table if exists {1};
 create table {1} (
     id text,
+    dem_min smallint,
+    dem_max smallint,
+    dem_avg smallint,
+    dem_std smallint,
+    dem_med smallint,
     aspect_min smallint,
     aspect_max smallint,
     aspect_avg smallint,

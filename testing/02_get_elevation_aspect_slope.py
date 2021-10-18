@@ -111,7 +111,9 @@ def main():
     # convert file object to list of features
     feature_list = list()
     for line in input_file_object.readlines():
-        feature_list.append(line.split("\t"))
+        feature_list.append(tuple(line.split("\t")))
+
+    input_file_object.close()
 
     # determine features per process (for multiprocessing)
     feature_count = len(feature_list)
