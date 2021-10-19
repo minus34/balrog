@@ -1,5 +1,5 @@
 
--- -- create a temp table of exploded polygons -- 9.5 hours on MacBook
+-- -- create a table of exploded polygons with BAl numbers -- 9.5 hours on MacBook
 -- drop table if exists bushfire.nvis6_exploded;
 -- create table bushfire.nvis6_exploded as
 -- with veg as (
@@ -11,6 +11,8 @@
 --        veg.nvis_id,
 --        lkp.mvg_number::smallint as veg_group,
 --        lkp.mvs_number::smallint as veg_subgroup,
+--        lkp.bal_number,
+--        lkp.bal_name,
 --        st_npoints(veg.geom) as point_count,
 --        st_isvalid(veg.geom) as is_geom_valid,
 --        st_makevalid(veg.geom) as geom
@@ -47,30 +49,31 @@
 
 -- union all polygons of the same vegetation group & subgroup
 --   then split the non-contiguous ones into separate records
-drop table if exists bushfire.nvis6_merge;
-create table bushfire.nvis6_merge as
+drop table if exists bushfire.nvis6_bal;
+create table bushfire.nvis6_bal as
 with merge as (
-    select veg_group,
-           veg_subgroup,
+    select bal_number,
+           bal_name,
            st_union(geom) as geom
     from bushfire.nvis6_exploded
-    group by veg_group,
-             veg_subgroup
+    group by bal_number,
+             bal_name
 ), polys as (
     select row_number() over () as gid,
-           veg_group,
-           veg_subgroup,
+           bal_number,
+           bal_name,
            (st_dump(geom)).geom as geom
     from merge
 )
 select gid,
-       veg_group,
-       veg_subgroup,
+       bal_number,
+       bal_name,
        st_area(geom::geography) / 10000.0 as area_ha,
        geom
 from polys
 ;
+analyse bushfire.nvis6_bal;
 
-CREATE INDEX nvis6_merge_veg_group_idx ON bushfire.nvis6_merge USING btree (veg_group, veg_subgroup);
-CREATE INDEX nvis6_merge_geom_idx ON bushfire.nvis6_merge USING gist (geom);
-ALTER TABLE bushfire.nvis6_merge CLUSTER ON nvis6_merge_geom_idx;
+CREATE INDEX nvis6_bal_veg_group_idx ON bushfire.nvis6_bal USING btree (bal_number);
+CREATE INDEX nvis6_bal_geom_idx ON bushfire.nvis6_bal USING gist (geom);
+ALTER TABLE bushfire.nvis6_bal CLUSTER ON nvis6_bal_geom_idx;

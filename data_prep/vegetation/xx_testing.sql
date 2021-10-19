@@ -63,7 +63,7 @@ where st_npoints(geom) < 4
 ;
 
 
--- INVESTIGATE THESE
+-- INVESTIGATE THESE -- all can be deleted
 drop table if exists bushfire.temp_nvis6_non_polygon;
 create table bushfire.temp_nvis6_non_polygon as
 select *
@@ -76,6 +76,45 @@ analyse bushfire.temp_nvis6_non_polygon;
 -- check row & ID counts
 select count(*) from bushfire.nvis6;  -- 9018062
 select count(*) from bushfire.nvis6_exploded;  -- 9408857
+
+
+-- get point counts per class of veg -- 2 mins
+with veg as (
+    select veg_group,
+           veg_subgroup,
+           sum(st_npoints(geom)) as point_count,
+           count(*)              as polygon_count
+    from bushfire.nvis6_exploded
+    group by veg_group,
+             veg_subgroup
+), lkp as (
+    select mvg_number,
+           mvg_name,
+           mvs_number,
+           mvs_name,
+           count(*) as nvis_count
+    from bushfire.nvis6_lookup
+    group by mvg_number,
+             mvg_name,
+             mvs_number,
+             mvs_name
+)
+select mvg_number,
+       mvg_name,
+       mvs_number,
+       mvs_name,
+       nvis_count,
+       point_count,
+       polygon_count
+from veg
+inner join lkp on veg.veg_group = lkp.mvg_number
+    and veg.veg_subgroup = lkp.mvs_number
+;
+
+
+-- how many small areas are there? -- roughly 50% - ~4,500,000 rows :-(
+select count(*) from bushfire.nvis6_exploded
+where st_area(geom::geography) < 10000.0;
 
 
 select * from bushfire.nvis6_exploded;
