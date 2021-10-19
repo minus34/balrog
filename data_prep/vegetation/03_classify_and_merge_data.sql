@@ -26,8 +26,7 @@
 --
 -- analyse bushfire.nvis6_exploded;
 --
--- CREATE INDEX nvis6_exploded_veg_group_idx ON bushfire.nvis6_exploded USING btree (veg_group);
--- CREATE INDEX nvis6_exploded_veg_subgroup_idx ON bushfire.nvis6_exploded USING btree (veg_subgroup);
+CREATE INDEX nvis6_exploded_veg_group_idx ON bushfire.nvis6_exploded USING btree (bal_number);
 -- CREATE INDEX nvis6_exploded_geom_idx ON bushfire.nvis6_exploded USING gist (geom);
 -- ALTER TABLE bushfire.nvis6_exploded CLUSTER ON nvis6_exploded_geom_idx;
 

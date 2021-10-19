@@ -80,35 +80,23 @@ select count(*) from bushfire.nvis6_exploded;  -- 9408857
 
 -- get point counts per class of veg -- 2 mins
 with veg as (
-    select veg_group,
-           veg_subgroup,
+    select bal_number,
            sum(st_npoints(geom)) as point_count,
            count(*)              as polygon_count
     from bushfire.nvis6_exploded
-    group by veg_group,
-             veg_subgroup
+    group by bal_number
 ), lkp as (
-    select mvg_number,
-           mvg_name,
-           mvs_number,
-           mvs_name,
+    select bal_number,
            count(*) as nvis_count
     from bushfire.nvis6_lookup
-    group by mvg_number,
-             mvg_name,
-             mvs_number,
-             mvs_name
+    group by bal_number
 )
-select mvg_number,
-       mvg_name,
-       mvs_number,
-       mvs_name,
+select veg.bal_number,
        nvis_count,
        point_count,
        polygon_count
 from veg
-inner join lkp on veg.veg_group = lkp.mvg_number
-    and veg.veg_subgroup = lkp.mvs_number
+inner join lkp on veg.bal_number = lkp.bal_number
 ;
 
 

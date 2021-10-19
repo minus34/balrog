@@ -77,7 +77,21 @@ order by bal_number,
 -- -- one off fix for main table
 -- ALTER TABLE bushfire.nvis6_exploded ADD COLUMN IF NOT EXISTS bal_number smallint;
 -- ALTER TABLE bushfire.nvis6_exploded ADD COLUMN IF NOT EXISTS bal_name name;
---
+
+-- ALTER SYSTEM SET max_parallel_workers = 8;
+-- ALTER SYSTEM SET max_parallel_workers_per_gather = 8;
+-- ALTER SYSTEM SET shared_buffers = '4GB';
+-- ALTER SYSTEM SET work_mem = '4GB';
+-- ALTER SYSTEM SET wal_buffers = '512MB';
+-- ALTER SYSTEM SET max_wal_size = '2GB';
+-- ALTER SYSTEM SET wal_level = 'minimal';
+-- ALTER SYSTEM SET max_wal_senders = 0;
+-- ALTER SYSTEM SET archive_mode = 'off';
+-- ALTER SYSTEM SET fsync = 'off';
+-- ALTER SYSTEM SET full_page_writes = 'off';
+-- ALTER SYSTEM SET synchronous_commit = 'off';
+
+
 -- update bushfire.nvis6_exploded as veg
 --     set bal_number = lkp.bal_number,
 --         bal_name = lkp.bal_name
