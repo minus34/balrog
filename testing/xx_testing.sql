@@ -62,9 +62,12 @@ ALTER TABLE bushfire.bal_factors_test_sydney_deltas CLUSTER ON bal_factors_test_
 -- 11330
 select count(*) from bushfire.bal_factors_test_sydney_deltas;
 
--- 882
-select count(*) from bushfire.bal_factors_test_sydney_deltas
-where slope_med_delta >= 10;
+-- 476
+select count(*) as row_count,
+       max(slope_100m_med_delta) as max_delta,
+       avg(slope_100m_med_delta) as avg_delta
+from bushfire.bal_factors_test_sydney_deltas
+where slope_100m_med_delta > 10;
 
 -- 4799
 select count(*) from bushfire.bal_factors_test_sydney_deltas

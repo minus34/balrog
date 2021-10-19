@@ -1,5 +1,5 @@
 
--- From the Geoscience Austrlia BAL toolkit:
+-- From the Geoscience Australia BAL toolkit:
 
 -- There are many classes in the original vegetation. To derive the
 -- target vegetation classes described in the Standard (1: Forest, 2:
@@ -80,7 +80,7 @@ order by bal_number,
 
 -- ALTER SYSTEM SET max_parallel_workers = 8;
 -- ALTER SYSTEM SET max_parallel_workers_per_gather = 8;
--- ALTER SYSTEM SET shared_buffers = '4GB';
+-- ALTER SYSTEM SET shared_buffers = '8GB';
 -- ALTER SYSTEM SET work_mem = '4GB';
 -- ALTER SYSTEM SET wal_buffers = '512MB';
 -- ALTER SYSTEM SET max_wal_size = '2GB';
@@ -92,10 +92,16 @@ order by bal_number,
 -- ALTER SYSTEM SET synchronous_commit = 'off';
 
 
--- update bushfire.nvis6_exploded as veg
---     set bal_number = lkp.bal_number,
---         bal_name = lkp.bal_name
--- from bushfire.nvis6_lookup as lkp
--- where veg.veg_group = lkp.mvg_number
--- ;
--- analyse bushfire.nvis6_exploded;
+with lkp as (
+    select distinct mvg_number,
+                    bal_number,
+                    bal_name
+    from bushfire.nvis6_lookup
+)
+update bushfire.nvis6_exploded as veg
+    set bal_number = lkp.bal_number,
+        bal_name = lkp.bal_name
+from lkp
+where veg.veg_group = lkp.mvg_number
+;
+analyse bushfire.nvis6_exploded;
