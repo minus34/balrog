@@ -1,5 +1,5 @@
 
--- -- create a table of exploded polygons with BAl numbers -- 9.5 hours on MacBook
+-- -- create a table of exploded polygons with BAL numbers -- 9.5 hours on MacBook
 -- drop table if exists bushfire.nvis6_exploded;
 -- create table bushfire.nvis6_exploded as
 -- with veg as (
@@ -23,10 +23,11 @@
 -- -- only allow this after testing for non-polygon rows
 -- delete from bushfire.nvis6_exploded
 -- where st_geometrytype(geom) <> 'ST_Polygon'
+-- ;
 --
 -- analyse bushfire.nvis6_exploded;
 --
-CREATE INDEX nvis6_exploded_veg_group_idx ON bushfire.nvis6_exploded USING btree (bal_number);
+-- CREATE INDEX nvis6_exploded_bal_number_idx ON bushfire.nvis6_exploded USING btree (bal_number);
 -- CREATE INDEX nvis6_exploded_geom_idx ON bushfire.nvis6_exploded USING gist (geom);
 -- ALTER TABLE bushfire.nvis6_exploded CLUSTER ON nvis6_exploded_geom_idx;
 

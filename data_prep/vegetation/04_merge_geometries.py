@@ -1,5 +1,4 @@
 
-import boto3
 import io
 import json
 import logging
@@ -10,16 +9,12 @@ import numpy
 import platform
 import psycopg2
 import psycopg2.extras
-import rasterio.mask
+import shapely
 import sys
 import time
 
 from datetime import datetime
-from rasterio.session import AWSSession
 from typing import Optional, Any
-
-# create AWS session object to pull image data from S3
-aws_session = AWSSession(boto3.Session())
 
 # the directory of this script
 script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -31,39 +26,29 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # choose your settings for running locally or on a remote server
 #   - edit this if not running locally on a Mac
 if platform.system() == "Darwin":
-    input_sql = """select bld.bld_pid,
-                          st_asgeojson(bld.geog, 6, 0)::text as buffer
-                   from bushfire.temp_building_buffers as bld
-                   inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
-    # input_sql = """select bld.bld_pid,
-    #                       st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
-    #                from bushfire.temp_building_buffers as bld
-    #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
+    input_sql = """select bal_number,
+                          bal_name,
+                          geom
+                   from bushfire.nvis6_exploded
+                   where bal_number > -9999
+                   order by bal_number"""
 
-    output_table = "bushfire.bal_factors_sydney"
+    output_table = "bushfire.nvis6_bal"
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
-    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
-    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
-    # dem_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
-    # aspect_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/aspect/Sydney-ASP-AHD_56_5m.tif"
-    # slope_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/slope/Sydney-SLP-AHD_56_5m.tif"
-
     pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
 else:
-    input_sql = """select bld_pid,
-                          st_asgeojson(geog, 6, 0)::text as buffer
-                   from bushfire.temp_building_buffers"""
+    input_sql = """select bal_number,
+                          bal_name,
+                          geom
+                   from bushfire.nvis6_exploded
+                   where bal_number > -9999
+                   order by bal_number"""
 
-    postgres_user = "ec2-user"
-    output_table = "bushfire.bal_factors"
+    output_table = "bushfire.nvis6_bal"
     output_tablespace = "dataspace"
-
-    dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
-    aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
-    slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
+    postgres_user = "ec2-user"
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='ec2-user' password='ec2-user'"
 
@@ -71,18 +56,17 @@ else:
 # END: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-# the order of these cannot be changed (must match table column order)
-image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues around narrow peninsulas and tall buildings
-
-# how many parallel processes to run
-max_processes = multiprocessing.cpu_count()
+# how many parallel processes to run (max 7 as there are 7 BAL vegetation classes)
+max_processes = multiprocessing.cpu_count() - 1  # take one off as this is CPU intensive and on-one likes a locked up machine
+if max_processes > 7:
+    max_processes = 7
 
 
 def main():
     full_start_time = datetime.now()
     start_time = datetime.now()
 
-    logger.info(f"START : Create BAL Factors - aspect, slope & elevation : using {max_processes} processes : {full_start_time}")
+    logger.info(f"START : Merge vegetation polygons : using {max_processes} processes : {full_start_time}")
 
     # get postgres connection
     pg_conn = psycopg2.connect(pg_connect_string)
@@ -93,7 +77,7 @@ def main():
     # WARNING: drops output table if exists
     schema_name = output_table.split(".")[0]
     pg_cur.execute(f'create schema if not exists {schema_name}; alter schema {schema_name} owner to "{postgres_user}";')
-    sql = open("03_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
+    sql = open("05_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
     pg_cur.execute(sql)
 
     # get input geometries & building IDs (copy_to used for speed)
@@ -186,7 +170,7 @@ def main():
     pg_cur.close()
     pg_conn.close()
 
-    logger.info(f"FINISHED : Create BAL Factors - aspect, slope & elevation : {datetime.now() - full_start_time}")
+    logger.info(f"FINISHED : Merge vegetation polygons : {datetime.now() - full_start_time}")
 
 
 def split_list(input_list, max_count):

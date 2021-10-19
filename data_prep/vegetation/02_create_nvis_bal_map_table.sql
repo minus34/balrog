@@ -91,17 +91,17 @@ order by bal_number,
 -- ALTER SYSTEM SET full_page_writes = 'off';
 -- ALTER SYSTEM SET synchronous_commit = 'off';
 
-
-with lkp as (
-    select distinct mvg_number,
-                    bal_number,
-                    bal_name
-    from bushfire.nvis6_lookup
-)
-update bushfire.nvis6_exploded as veg
-    set bal_number = lkp.bal_number,
-        bal_name = lkp.bal_name
-from lkp
-where veg.veg_group = lkp.mvg_number
-;
-analyse bushfire.nvis6_exploded;
+-- --  9,408,852 rows affected in 12 m 0 s 675 ms
+-- with lkp as (
+--     select distinct mvg_number,
+--                     bal_number,
+--                     bal_name
+--     from bushfire.nvis6_lookup
+-- )
+-- update bushfire.nvis6_exploded as veg
+--     set bal_number = lkp.bal_number,
+--         bal_name = lkp.bal_name
+-- from lkp
+-- where veg.veg_group = lkp.mvg_number
+-- ;
+-- analyse bushfire.nvis6_exploded;
