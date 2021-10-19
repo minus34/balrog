@@ -1,15 +1,11 @@
 
 import io
-import json
 import logging
-import math
 import multiprocessing
 import os
-import numpy
 import platform
 import psycopg2
 import psycopg2.extras
-import shapely
 import sys
 import time
 
@@ -40,25 +36,17 @@ else:
 # END: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-input_sql = """select bal_number,
-                      bal_name,
-                      st_astext(st_force2d(geom))
-               from bushfire.nvis6_exploded
-               -- where bal_number > -9999
-               where bal_number = 4
-               order by bal_number"""
-
+input_table = "bushfire.nvis6_exploded"
 output_table = "bushfire.nvis6_bal"
 
-# how many parallel processes to run (max 7 as there are 7 BAL vegetation classes)
-max_processes = multiprocessing.cpu_count() - 1  # take one off as this is CPU intensive and on-one likes a locked up machine
+# how many parallel processes to run (max 7 as there are only 7 BAL vegetation classes)
+max_processes = multiprocessing.cpu_count() - 1  # take one off as this is CPU intensive and no-one likes a locked up machine
 if max_processes > 7:
     max_processes = 7
 
 
 def main():
     full_start_time = datetime.now()
-    start_time = datetime.now()
 
     logger.info(f"START : Merge vegetation polygons : using {max_processes} processes : {full_start_time}")
 
@@ -67,79 +55,62 @@ def main():
     pg_conn.autocommit = True
     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
+    schema_name = output_table.split(".")[0]
+    table_name = output_table.split(".")[1]
+
     # create target table (and schema if it doesn't exist)
     # WARNING: drops output table if exists
-    schema_name = output_table.split(".")[0]
     pg_cur.execute(f'create schema if not exists {schema_name}; alter schema {schema_name} owner to "{postgres_user}";')
     sql = open("05_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
     pg_cur.execute(sql)
-
-    # get input geometries & building IDs (copy_to used for speed)
-    input_file_object = io.StringIO()
-    pg_cur.copy_expert(f"COPY ({input_sql}) TO STDOUT", input_file_object)
-    input_file_object.seek(0)
 
     # clean up postgres connection
     pg_cur.close()
     pg_conn.close()
 
-    logger.info(f"\t - got data from Postgres : {datetime.now() - start_time}")
+    # process each BAL vegetation class in it's own process
+    # mp_job_list = list(range(1, 8))
+    mp_job_list = [4]  # DEBUGGING
+
+    mp_pool = multiprocessing.Pool(max_processes)
+    mp_results = mp_pool.map_async(process_bal_class, mp_job_list, chunksize=1)  # use map_async to show progress
+
+    while not mp_results.ready():
+        print(f"\rBAL Classes remaining : {mp_results._number_left}", end="")
+        sys.stdout.flush()
+        time.sleep(10)
+
+    print(f"\r \n", end="")
+    real_results = mp_results.get()
+    mp_pool.close()
+    mp_pool.join()
+
+    success_count = 0
+    fail_count = 0
+
+    for result in real_results:
+        if result is None:
+            logger.warning("A multiprocessing process failed!")
+        elif result:
+            success_count += 1
+        else:
+            fail_count += 1
+
     start_time = datetime.now()
-
-    # convert file object to list of features
-    feature_list = list()
-    for line in input_file_object.readlines():
-        feature_list.append(tuple(line.split("\t")))
-
-    input_file_object.close()
-
-    # determine features per process (for multiprocessing)
-    feature_count = len(feature_list)
-    # bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes))
-    #
-    # # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
-    # mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
-
-    logger.info(f"\t - got {feature_count} vegetation polygons to process : {datetime.now() - start_time}")
-    start_time = datetime.now()
-
-    process_bal_class(feature_list)
-
-    # mp_pool = multiprocessing.Pool(max_processes)
-    # mp_results = mp_pool.map_async(process_building, mp_job_list, chunksize=1)  # use map_async to show progress
-    #
-    # while not mp_results.ready():
-    #     print(f"\rProperties remaining : {mp_results._number_left * bulk_insert_row_count}", end="")
-    #     sys.stdout.flush()
-    #     time.sleep(10)
-    #
-    # # print(f"\r\n", end="")
-    # real_results = mp_results.get()
-    # mp_pool.close()
-    # mp_pool.join()
-    #
-    # success_count = 0
-    # fail_count = 0
-    #
-    # for result in real_results:
-    #     if result is None:
-    #         logger.warning("A multiprocessing process failed!")
-    #     else:
-    #         success_count += result[0]
-    #         fail_count += result[1]
 
     # get postgres connection
     pg_conn = psycopg2.connect(pg_connect_string)
     pg_conn.autocommit = True
-    pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+    pg_cur = pg_conn.cursor()
 
     # update output table's stats
     pg_cur.execute(f"ANALYSE {output_table}")
 
-    # # add primary key
-    # sql = f"ALTER TABLE {output_table} ADD CONSTRAINT {output_table.split('.')[1]}_pkey PRIMARY KEY (id)"
-    # pg_cur.execute(sql)
-    # logger.info(f"\t - added primary key to {output_table} : {datetime.now() - start_time}")
+    # add indexes
+    pg_cur.execute(f"CREATE INDEX {table_name}_bal_number_idx ON {output_table} USING btree (bal_number)")
+    pg_cur.execute(f"CREATE INDEX {table_name}_geom_idx ON {output_table} USING gist (geom)")
+    pg_cur.execute(f"ALTER TABLE {output_table} CLUSTER ON {table_name}_geom_idx")
+    logger.info(f"\t - {output_table} analysed & indexes added: {datetime.now() - start_time}")
 
     # clean up postgres connection
     pg_cur.close()
@@ -148,59 +119,85 @@ def main():
     logger.info(f"FINISHED : Merge vegetation polygons : {datetime.now() - full_start_time}")
 
 
-def split_list(input_list, max_count):
-    """Yields successive n-sized chunks from list"""
-    for i in range(0, len(input_list), max_count):
-        yield input_list[i:i + max_count]
-
-
-def process_bal_class(features):
+def process_bal_class(bal_number):
     """for a set of polygons - combine them into one multipolygon, then split into polygons
        expected feature format is [id:string, geometry:string representing a valid geojson geometry]"""
 
     start_time = datetime.now()
 
-    # record_count = len(features)
-    #
-    # success_count = 0
-    # fail_count = 0
+    # get geometries from postgres
+    features = get_features(bal_number)
+    feature_count = len(features)
 
     output_list = list()
+    geom_list = list()
     bal_number = features[0][0]
     bal_name = features[0][1]
 
-    geom_list = list()
+    logger.info(f"\t\t - {bal_name} : got {feature_count} vegetation polygons to process : {datetime.now() - start_time}")
+    start_time = datetime.now()
 
     for feature in features:
         geom_list.append(wkt.loads(feature[2]))
 
-    logger.info(f"\t\t - {bal_name} : merging {len(geom_list)} polygons : {datetime.now() - start_time}")
+    logger.info(f"\t\t - {bal_name} : ready to merge polygons : {datetime.now() - start_time}")
     start_time = datetime.now()
 
+    # merge all polygons into one multipolygon
     the_big_one = unary_union(geom_list)
 
     logger.info(f"\t\t - {bal_name} : polygons merged : {datetime.now() - start_time}")
     start_time = datetime.now()
 
+    # break the one multipolygon into polygons that don't touch & convert to Well Known Text (WKT)
     polygons = list(the_big_one)
-
-    for polygon in polygons:
-        # output_dict = dict()
-        # output_dict["bal_number"] = bal_number
-        # output_dict["bal_name"] = bal_name
-        # output_dict["geom"] = wkt.dumps(polygon)
-        # output_list.append(output_dict)
+    for polygon in list(the_big_one):
         output_list.append({"bal_number": bal_number, "bal_name": bal_name, "geom": wkt.dumps(polygon)})
 
     logger.info(f"\t\t - {bal_name} : multipolygon split into {len(polygons)} polygons: {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    bulk_insert(output_list)
+    # export results to postgres
+    result = bulk_insert(output_list)
 
-    logger.info(f"\t\t - {bal_name} : polygons exported to PostGIS: {datetime.now() - start_time}")
+    if result:
+        logger.info(f"\t\t - {bal_name} : polygons exported to PostGIS: {datetime.now() - start_time}")
+        return True
+    else:
+        return False
 
 
-# def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
+def get_features(bal_number):
+
+    # get postgres connection
+    pg_conn = psycopg2.connect(pg_connect_string)
+    pg_cur = pg_conn.cursor()
+
+    # get input geometries
+    input_sql = f"""select bal_number,
+                      bal_name,
+                      st_astext(geom)
+               from {input_table}
+               where bal_number = {bal_number}"""
+
+    input_file_object = io.StringIO()
+    pg_cur.copy_expert(f"COPY ({input_sql}) TO STDOUT", input_file_object)
+    input_file_object.seek(0)
+
+    # convert file object to list of features
+    feature_list = list()
+    for line in input_file_object.readlines():
+        feature_list.append(tuple(line.split("\t")))
+
+    input_file_object.close()
+
+    # clean up postgres connection
+    pg_cur.close()
+    pg_conn.close()
+
+    return feature_list
+
+
 def bulk_insert(results):
     """creates a file object of the results to insert many rows into Postgres efficiently"""
 
