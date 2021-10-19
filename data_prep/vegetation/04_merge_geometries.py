@@ -14,7 +14,7 @@ import sys
 import time
 
 from datetime import datetime
-from shapely import wkb
+from shapely import wkt
 from shapely.ops import unary_union
 from typing import Optional, Any
 
@@ -42,7 +42,7 @@ else:
 
 input_sql = """select bal_number,
                       bal_name,
-                      geom
+                      st_astext(geom)
                from bushfire.nvis6_exploded
                -- where bal_number > -9999
                where bal_number = 4
@@ -100,7 +100,7 @@ def main():
     # # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
     # mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
 
-    logger.info(f"\t - got {feature_count} buildings to process : {datetime.now() - start_time}")
+    logger.info(f"\t - got {feature_count} vegetation polygons to process : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     process_bal_class(feature_list)
@@ -164,23 +164,40 @@ def process_bal_class(features):
     #
     # success_count = 0
     # fail_count = 0
-    #
-    # output_list = list()
+
+    output_list = list()
     bal_number = features[0][0]
     bal_name = features[0][1]
 
     geom_list = list()
 
     for feature in features:
-        geom_list.append(wkb.loads(feature[2], hex=True))
+        geom_list.append(wkt.loads(feature[2]))
 
-    logger.info(f"\t - got {len(geom_list)} {bal_name} polygons to merge : {datetime.now() - start_time}")
+    logger.info(f"\t\t - {bal_name} - merging {len(geom_list)} polygons : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     the_big_one = unary_union(geom_list)
 
-    logger.info(f"\t - OMG - it worked : {datetime.now() - start_time}")
-    # start_time = datetime.now()
+    logger.info(f"\t\t - {bal_name} - polygons merged : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+    polygons = list(the_big_one)
+
+    for polygon in polygons:
+        output_dict = dict()
+        output_dict["bal_number"] = bal_number
+        output_dict["bal_name"] = bal_name
+        output_dict["geom"] = wkt.dumps(polygon)
+
+        output_list.append(output_dict)
+
+    logger.info(f"\t\t - {bal_name} - multipolygon has been split into list: {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+    bulk_insert(output_list)
+
+    logger.info(f"\t\t - {bal_name} - polygons exported to PostGIS: {datetime.now() - start_time}")
 
 
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
