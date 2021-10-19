@@ -42,7 +42,7 @@ else:
 
 input_sql = """select bal_number,
                       bal_name,
-                      st_astext(geom)
+                      st_astext(st_force2d(geom))
                from bushfire.nvis6_exploded
                -- where bal_number > -9999
                where bal_number = 4
@@ -174,30 +174,30 @@ def process_bal_class(features):
     for feature in features:
         geom_list.append(wkt.loads(feature[2]))
 
-    logger.info(f"\t\t - {bal_name} - merging {len(geom_list)} polygons : {datetime.now() - start_time}")
+    logger.info(f"\t\t - {bal_name} : merging {len(geom_list)} polygons : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     the_big_one = unary_union(geom_list)
 
-    logger.info(f"\t\t - {bal_name} - polygons merged : {datetime.now() - start_time}")
+    logger.info(f"\t\t - {bal_name} : polygons merged : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     polygons = list(the_big_one)
 
     for polygon in polygons:
-        output_dict = dict()
-        output_dict["bal_number"] = bal_number
-        output_dict["bal_name"] = bal_name
-        output_dict["geom"] = wkt.dumps(polygon)
+        # output_dict = dict()
+        # output_dict["bal_number"] = bal_number
+        # output_dict["bal_name"] = bal_name
+        # output_dict["geom"] = wkt.dumps(polygon)
+        # output_list.append(output_dict)
+        output_list.append({"bal_number": bal_number, "bal_name": bal_name, "geom": wkt.dumps(polygon)})
 
-        output_list.append(output_dict)
-
-    logger.info(f"\t\t - {bal_name} - multipolygon has been split into list: {datetime.now() - start_time}")
+    logger.info(f"\t\t - {bal_name} : multipolygon split into {len(polygons)} polygons: {datetime.now() - start_time}")
     start_time = datetime.now()
 
     bulk_insert(output_list)
 
-    logger.info(f"\t\t - {bal_name} - polygons exported to PostGIS: {datetime.now() - start_time}")
+    logger.info(f"\t\t - {bal_name} : polygons exported to PostGIS: {datetime.now() - start_time}")
 
 
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:

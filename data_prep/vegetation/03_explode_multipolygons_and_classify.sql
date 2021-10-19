@@ -4,7 +4,7 @@
 -- create table bushfire.nvis6_exploded as
 -- with veg as (
 --     select nvisdsc1::integer as nvis_id,
---            (st_dump(wkb_geometry)).geom as geom
+--            (st_dump(st_force2d(wkb_geometry))).geom as geom
 --     from bushfire.nvis6
 -- )
 -- select row_number() over () as gid,
