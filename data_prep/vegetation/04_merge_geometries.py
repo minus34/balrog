@@ -76,7 +76,7 @@ def main():
     mp_results = mp_pool.map_async(process_bal_class, mp_job_list, chunksize=1)  # use map_async to show progress
 
     while not mp_results.ready():
-        print(f"\rBAL Classes remaining : {mp_results._number_left}", end="")
+        print(f"\rBAL classes remaining : {mp_results._number_left}", end="")
         sys.stdout.flush()
         time.sleep(10)
 
@@ -110,6 +110,7 @@ def main():
     pg_cur.execute(f"CREATE INDEX {table_name}_bal_number_idx ON {output_table} USING btree (bal_number)")
     pg_cur.execute(f"CREATE INDEX {table_name}_geom_idx ON {output_table} USING gist (geom)")
     pg_cur.execute(f"ALTER TABLE {output_table} CLUSTER ON {table_name}_geom_idx")
+
     logger.info(f"\t - {output_table} analysed & indexes added: {datetime.now() - start_time}")
 
     # clean up postgres connection
@@ -134,19 +135,19 @@ def process_bal_class(bal_number):
     bal_number = features[0][0]
     bal_name = features[0][1]
 
-    logger.info(f"\t\t - {bal_name} : got {feature_count} vegetation polygons to process : {datetime.now() - start_time}")
+    print(f" - {bal_name} : got {feature_count} vegetation polygons to process : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     for feature in features:
         geom_list.append(wkt.loads(feature[2]))
 
-    logger.info(f"\t\t - {bal_name} : ready to merge polygons : {datetime.now() - start_time}")
+    print(f" - {bal_name} : ready to merge polygons : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # merge all polygons into one multipolygon
     the_big_one = unary_union(geom_list)
 
-    logger.info(f"\t\t - {bal_name} : polygons merged : {datetime.now() - start_time}")
+    print(f" - {bal_name} : polygons merged : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # break the one multipolygon into polygons that don't touch & convert to Well Known Text (WKT)
@@ -154,14 +155,14 @@ def process_bal_class(bal_number):
     for polygon in list(the_big_one):
         output_list.append({"bal_number": bal_number, "bal_name": bal_name, "geom": wkt.dumps(polygon)})
 
-    logger.info(f"\t\t - {bal_name} : multipolygon split into {len(polygons)} polygons: {datetime.now() - start_time}")
+    print(f" - {bal_name} : multipolygon split into {len(polygons)} polygons: {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # export results to postgres
     result = bulk_insert(output_list)
 
     if result:
-        logger.info(f"\t\t - {bal_name} : polygons exported to PostGIS: {datetime.now() - start_time}")
+        print(f" - {bal_name} : polygons exported to PostGIS: {datetime.now() - start_time}")
         return True
     else:
         return False
