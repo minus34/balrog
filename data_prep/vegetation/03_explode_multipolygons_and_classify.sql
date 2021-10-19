@@ -24,7 +24,6 @@
 -- delete from bushfire.nvis6_exploded
 -- where st_geometrytype(geom) <> 'ST_Polygon'
 -- ;
---
 -- analyse bushfire.nvis6_exploded;
 --
 -- CREATE INDEX nvis6_exploded_bal_number_idx ON bushfire.nvis6_exploded USING btree (bal_number);
