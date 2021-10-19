@@ -55,12 +55,14 @@ set bal_number = 7,
 where mvg_number in (19, 20, 21, 22)
 ;
 
+-- set these to values so we can see inthe main table if there are missing values (NULLS)
 update bushfire.nvis6_lookup
-set bal_number = NULL,
-    bal_name = NULL
+set bal_number = -9999,
+    bal_name = 'not applicable'
 where mvg_number in (24, 25, 27, 28, 99)
 ;
 
+analyse bushfire.nvis6_lookup;
 
 -- check values are correct
 select distinct mvg_number,
@@ -72,4 +74,14 @@ order by bal_number,
          mvg_number;
 
 
--- one off fix
+-- -- one off fix for main table
+-- ALTER TABLE bushfire.nvis6_exploded ADD COLUMN IF NOT EXISTS bal_number smallint;
+-- ALTER TABLE bushfire.nvis6_exploded ADD COLUMN IF NOT EXISTS bal_name name;
+--
+-- update bushfire.nvis6_exploded as veg
+--     set bal_number = lkp.bal_number,
+--         bal_name = lkp.bal_name
+-- from bushfire.nvis6_lookup as lkp
+-- where veg.veg_group = lkp.mvg_number
+-- ;
+-- analyse bushfire.nvis6_exploded;
