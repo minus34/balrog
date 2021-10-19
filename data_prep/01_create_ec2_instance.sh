@@ -109,11 +109,16 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_export_to_cog.py ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_create_dem_aspect_slope_rasters.sh ${USER}@${INSTANCE_ID}:~/
 
-# copy scripts to run
+# copy elevation, aspect, slope scripts
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/02_get_elevation_aspect_slope.py ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/03_create_tables.sql ${USER}@${INSTANCE_ID}:~/
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/04_add_geoms_to_bal_factors.sql ${USER}@${INSTANCE_ID}:~/
 
-scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/classify_and_merge_data.sql ${USER}@${INSTANCE_ID}:~/
+# copy vegetation scripts
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/02_create_nvis_bal_map_table.sql ${USER}@${INSTANCE_ID}:~/
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/03_explode_multipolygons_and_classify.sql ${USER}@${INSTANCE_ID}:~/
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/04_merge_geometries.py ${USER}@${INSTANCE_ID}:~/
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/05_create_tables.sql ${USER}@${INSTANCE_ID}:~/
 
 
 # setup proxy (if required) install packages & environment and import data

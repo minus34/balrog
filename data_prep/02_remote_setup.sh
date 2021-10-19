@@ -106,7 +106,7 @@ pg_ctl -D postgres -l logfile start
 # increase memory usage and minimise logging (don't care if it crashes and we lose everything)
 psql -d postgres -c "ALTER SYSTEM SET max_parallel_workers = 64;"
 psql -d postgres -c "ALTER SYSTEM SET max_parallel_workers_per_gather = 64;"
-psql -d postgres -c "ALTER SYSTEM SET shared_buffers = '128GB';"
+psql -d postgres -c "ALTER SYSTEM SET shared_buffers = '256GB';"
 psql -d postgres -c "ALTER SYSTEM SET wal_buffers = '2GB';"
 psql -d postgres -c "ALTER SYSTEM SET max_wal_size = '64GB';"
 psql -d postgres -c "ALTER SYSTEM SET wal_level = 'minimal';"
@@ -139,6 +139,6 @@ echo "-------------------------------------------------------------------------"
 echo " Copy elevation data from S3"
 echo "-------------------------------------------------------------------------"
 
-# copy elevation files from S3
-aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/
+## copy elevation files from S3
+#aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/
 #aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/tmp/cog/
