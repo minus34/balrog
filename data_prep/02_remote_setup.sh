@@ -66,7 +66,7 @@ echo "-------------------------------------------------------------------------"
 echo " Installing Python packages"
 echo "-------------------------------------------------------------------------"
 
-echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis requests boto3
+echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely requests boto3
 
 # remove proxy if set
 if [ -n "${PROXY}" ];
@@ -132,7 +132,7 @@ aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
 pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp
 
 # restore vegetation table(s) (ignore the ALTER TABLE errors)
-aws s3 sync s3://bushfire-rasters/vegetation/nvis6/ /data/
+aws s3 cp s3://bushfire-rasters/vegetation/nvis6/nvis6.dmp /data/
 pg_restore -Fc -d geo -p 5432 -U ec2-user /data/nvis6.dmp
 
 echo "-------------------------------------------------------------------------"
