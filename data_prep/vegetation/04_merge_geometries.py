@@ -107,6 +107,7 @@ def main():
     pg_cur.execute(f"ANALYSE {output_table}")
 
     # add indexes
+    pg_cur.execute(f"ALTER TABLE {output_table} ADD CONSTRAINT {table_name}_pkey PRIMARY KEY (gid, bal_number)")
     pg_cur.execute(f"CREATE INDEX {table_name}_bal_number_idx ON {output_table} USING btree (bal_number)")
     pg_cur.execute(f"CREATE INDEX {table_name}_geom_idx ON {output_table} USING gist (geom)")
     pg_cur.execute(f"ALTER TABLE {output_table} CLUSTER ON {table_name}_geom_idx")
@@ -151,9 +152,12 @@ def process_bal_class(bal_number):
     start_time = datetime.now()
 
     # break the one multipolygon into polygons that don't touch & convert to Well Known Text (WKT)
+    #   and give them a sequential id
+    gid = 0
     polygons = list(the_big_one)
     for polygon in list(the_big_one):
-        output_list.append({"bal_number": bal_number, "bal_name": bal_name, "geom": wkt.dumps(polygon)})
+        output_list.append({"gid": gid, "bal_number": bal_number, "bal_name": bal_name, "geom": wkt.dumps(polygon)})
+        gid += 1
 
     print(f" - {bal_name} : multipolygon split into {len(polygons)} polygons: {datetime.now() - start_time}")
     start_time = datetime.now()
