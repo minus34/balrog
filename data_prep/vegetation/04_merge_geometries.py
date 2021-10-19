@@ -14,6 +14,8 @@ import sys
 import time
 
 from datetime import datetime
+from shapely import wkb
+from shapely.ops import unary_union
 from typing import Optional, Any
 
 # the directory of this script
@@ -26,35 +28,27 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # choose your settings for running locally or on a remote server
 #   - edit this if not running locally on a Mac
 if platform.system() == "Darwin":
-    input_sql = """select bal_number,
-                          bal_name,
-                          geom
-                   from bushfire.nvis6_exploded
-                   where bal_number > -9999
-                   order by bal_number"""
-
-    output_table = "bushfire.nvis6_bal"
     output_tablespace = "pg_default"
     postgres_user = "postgres"
-
-    pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
+    pg_connect_string = f"dbname=geo host=localhost port=5432 user='{postgres_user}' password='password'"
 else:
-    input_sql = """select bal_number,
-                          bal_name,
-                          geom
-                   from bushfire.nvis6_exploded
-                   where bal_number > -9999
-                   order by bal_number"""
-
-    output_table = "bushfire.nvis6_bal"
     output_tablespace = "dataspace"
     postgres_user = "ec2-user"
-
-    pg_connect_string = "dbname=geo host=localhost port=5432 user='ec2-user' password='ec2-user'"
+    pg_connect_string = f"dbname=geo host=localhost port=5432 user='{postgres_user}' password='ec2-user'"
 
 # ------------------------------------------------------------------------------------------------------------------
 # END: edit settings
 # ------------------------------------------------------------------------------------------------------------------
+
+input_sql = """select bal_number,
+                      bal_name,
+                      geom
+               from bushfire.nvis6_exploded
+               -- where bal_number > -9999
+               where bal_number = 4
+               order by bal_number"""
+
+output_table = "bushfire.nvis6_bal"
 
 # how many parallel processes to run (max 7 as there are 7 BAL vegetation classes)
 max_processes = multiprocessing.cpu_count() - 1  # take one off as this is CPU intensive and on-one likes a locked up machine
@@ -101,70 +95,51 @@ def main():
 
     # determine features per process (for multiprocessing)
     feature_count = len(feature_list)
-    bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes))
-
-    # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
-    mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
+    # bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes))
+    #
+    # # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
+    # mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
 
     logger.info(f"\t - got {feature_count} buildings to process : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    mp_pool = multiprocessing.Pool(max_processes)
-    mp_results = mp_pool.map_async(process_building, mp_job_list, chunksize=1)  # use map_async to show progress
+    process_bal_class(feature_list)
 
-    while not mp_results.ready():
-        print(f"\rProperties remaining : {mp_results._number_left * bulk_insert_row_count}", end="")
-        sys.stdout.flush()
-        time.sleep(10)
-
-    # print(f"\r\n", end="")
-    real_results = mp_results.get()
-    mp_pool.close()
-    mp_pool.join()
-
-    success_count = 0
-    fail_count = 0
-
-    for result in real_results:
-        if result is None:
-            logger.warning("A multiprocessing process failed!")
-        else:
-            success_count += result[0]
-            fail_count += result[1]
+    # mp_pool = multiprocessing.Pool(max_processes)
+    # mp_results = mp_pool.map_async(process_building, mp_job_list, chunksize=1)  # use map_async to show progress
+    #
+    # while not mp_results.ready():
+    #     print(f"\rProperties remaining : {mp_results._number_left * bulk_insert_row_count}", end="")
+    #     sys.stdout.flush()
+    #     time.sleep(10)
+    #
+    # # print(f"\r\n", end="")
+    # real_results = mp_results.get()
+    # mp_pool.close()
+    # mp_pool.join()
+    #
+    # success_count = 0
+    # fail_count = 0
+    #
+    # for result in real_results:
+    #     if result is None:
+    #         logger.warning("A multiprocessing process failed!")
+    #     else:
+    #         success_count += result[0]
+    #         fail_count += result[1]
 
     # get postgres connection
     pg_conn = psycopg2.connect(pg_connect_string)
     pg_conn.autocommit = True
     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-    # delete records from output table with invalid values (if any)
-    sql = f"""delete from {output_table}
-                  where aspect_med = -9999
-                      or slope_med = -9999 
-                      or dem_med = -9999
-                      """
-    pg_cur.execute(sql)
-    adjustment_count = pg_cur.rowcount
-
     # update output table's stats
     pg_cur.execute(f"ANALYSE {output_table}")
 
-    # adjust results due to invalid values being removed
-    if adjustment_count is not None:
-        success_count -= adjustment_count
-        fail_count += adjustment_count
-
-    logger.info(f"\t\t - {success_count} properties got data")
-    if fail_count > 0:
-        logger.info(f"\t\t - {fail_count} properties got NO data")
-
-    logger.info(f"\t - got BAL factors : {datetime.now() - start_time}")
-    start_time = datetime.now()
-
-    # add primary key
-    sql = f"ALTER TABLE {output_table} ADD CONSTRAINT {output_table.split('.')[1]}_pkey PRIMARY KEY (id)"
-    pg_cur.execute(sql)
-    logger.info(f"\t - added primary key to {output_table} : {datetime.now() - start_time}")
+    # # add primary key
+    # sql = f"ALTER TABLE {output_table} ADD CONSTRAINT {output_table.split('.')[1]}_pkey PRIMARY KEY (id)"
+    # pg_cur.execute(sql)
+    # logger.info(f"\t - added primary key to {output_table} : {datetime.now() - start_time}")
 
     # clean up postgres connection
     pg_cur.close()
@@ -179,110 +154,33 @@ def split_list(input_list, max_count):
         yield input_list[i:i + max_count]
 
 
-def process_building(features):
-    """for a set of features and a set of input rasters - mask using each geometry and return min/max/median values"""
+def process_bal_class(features):
+    """for a set of polygons - combine them into one multipolygon, then split into polygons
+       expected feature format is [id:string, geometry:string representing a valid geojson geometry]"""
 
-    record_count = len(features)
+    start_time = datetime.now()
 
-    success_count = 0
-    fail_count = 0
+    # record_count = len(features)
+    #
+    # success_count = 0
+    # fail_count = 0
+    #
+    # output_list = list()
+    bal_number = features[0][0]
+    bal_name = features[0][1]
 
-    output_list = list()
+    geom_list = list()
 
-    with rasterio.Env(aws_session):
-        # open the images
-        raster_dem = rasterio.open(dem_file_path, "r")
-        raster_aspect = rasterio.open(aspect_file_path, "r")
-        raster_slope = rasterio.open(slope_file_path, "r")
+    for feature in features:
+        geom_list.append(wkb.loads(feature[2], hex=True))
 
-        # expected feature format is [id:string, geometry:string representing a valid geojson geometry]
-        for feature in features:
-            try:
-                id = feature[0]
-                geom = json.loads(feature[1])
+    logger.info(f"\t - got {len(geom_list)} {bal_name} polygons to merge : {datetime.now() - start_time}")
+    start_time = datetime.now()
 
-                output_dict = dict()
-                output_dict["id"] = id
+    the_big_one = unary_union(geom_list)
 
-                for image_type in image_types:
-                    # set input to use
-                    if image_type == "dem":
-                        raster = raster_dem
-                    elif image_type == "aspect":
-                        raster = raster_aspect
-                    elif image_type == "slope":
-                        raster = raster_slope
-                    else:
-                        print("FAILED! : Invalid image type")
-                        exit()
-
-                    # create mask
-                    masked_image, masked_transform = rasterio.mask.mask(raster, [geom], crop=True)
-
-                    # get rid of nodata values and flatten array
-                    flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
-                    del masked_image, masked_transform
-
-                    # only proceed if there's data
-                    if flat_array.size != 0:
-                        # get stats across the masked image
-                        min_value = numpy.min(flat_array)
-                        max_value = numpy.max(flat_array)
-
-                        # aspect is a special case - values could be either side of 360 degrees (North)
-                        if image_type == "aspect":
-                            if min_value < 90 and max_value > 270:
-                                flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
-
-                            avg_value = numpy.mean(flat_array)
-                            std_value = numpy.std(flat_array)
-                            med_value = numpy.median(flat_array)
-
-                            if avg_value > 360.0:
-                                avg_value -= 360.0
-
-                            if med_value > 360.0:
-                                med_value -= 360.0
-
-                        else:
-                            avg_value = numpy.mean(flat_array)
-                            std_value = numpy.std(flat_array)
-                            med_value = numpy.median(flat_array)
-
-                        # assign results to output (save space by converting these low precision values to integers)
-                        output_dict[f"{image_type}_min"] = int(min_value)
-                        output_dict[f"{image_type}_max"] = int(max_value)
-                        output_dict[f"{image_type}_avg"] = int(avg_value)
-                        output_dict[f"{image_type}_std"] = int(std_value)
-                        output_dict[f"{image_type}_med"] = int(med_value)
-
-                    else:
-                        output_dict[f"{image_type}_min"] = -9999
-                        output_dict[f"{image_type}_max"] = -9999
-                        output_dict[f"{image_type}_avg"] = -9999
-                        output_dict[f"{image_type}_std"] = -9999
-                        output_dict[f"{image_type}_med"] = -9999
-
-                output_list.append(output_dict)
-                success_count += 1
-            except Exception as ex:
-                error_message = str(ex)
-                if error_message != "Input shapes do not overlap raster.":
-                    print(f"{id} FAILED! : {error_message}")
-                fail_count += 1
-
-    # copy results to Postgres table
-    if len(output_list) > 0:
-        copy_result = bulk_insert(output_list)
-
-        if copy_result:
-            return (success_count, fail_count)
-        else:
-            # if the copy failed flag all features as failed
-            return (0, record_count)
-    else:
-        # total failure!?
-        return (0, record_count)
+    logger.info(f"\t - OMG - it worked : {datetime.now() - start_time}")
+    # start_time = datetime.now()
 
 
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
