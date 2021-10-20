@@ -48,7 +48,7 @@ geod = Geod(ellps="WGS84")
 max_processes = multiprocessing.cpu_count() - 1  # take one off as this is CPU intensive and no-one likes a locked up machine
 
 # size of each set of polygon to group in the first pass
-geom_list_chunk_size = 100000
+geom_list_chunk_size = 50000
 
 
 def main():
@@ -83,11 +83,11 @@ def main():
     mp_results = mp_pool.map_async(process_bal_class, mp_job_list, chunksize=1)  # use map_async to show progress
 
     while not mp_results.ready():
-        print(f"\rBAL classes remaining : {mp_results._number_left}", end="")
+        print(f"BAL classes remaining : {mp_results._number_left}", end="")
         sys.stdout.flush()
-        time.sleep(10)
+        time.sleep(600)
 
-    print(f"\r \n", end="")
+    # print(f"\r \n", end="")
     real_results = mp_results.get()
     mp_pool.close()
     mp_pool.join()
@@ -114,10 +114,10 @@ def main():
     pg_cur.execute(f"ANALYSE {output_table}")
 
     # add indexes
-    pg_cur.execute(f"ALTER TABLE {output_table} ADD CONSTRAINT {table_name}_pkey PRIMARY KEY (gid, bal_number)")
-    pg_cur.execute(f"CREATE INDEX {table_name}_bal_number_idx ON {output_table} USING btree (bal_number)")
-    pg_cur.execute(f"CREATE INDEX {table_name}_geom_idx ON {output_table} USING gist (geom)")
-    pg_cur.execute(f"ALTER TABLE {output_table} CLUSTER ON {table_name}_geom_idx")
+    # pg_cur.execute(f"ALTER TABLE {output_table} ADD CONSTRAINT {table_name}_pkey PRIMARY KEY (gid, bal_number)")
+    # pg_cur.execute(f"CREATE INDEX {table_name}_bal_number_idx ON {output_table} USING btree (bal_number)")
+    # pg_cur.execute(f"CREATE INDEX {table_name}_geom_idx ON {output_table} USING gist (geom)")
+    # pg_cur.execute(f"ALTER TABLE {output_table} CLUSTER ON {table_name}_geom_idx")
 
     logger.info(f"\t - {output_table} analysed & indexes added: {datetime.now() - start_time}")
 
@@ -150,9 +150,8 @@ def process_bal_class(bal_number):
     for feature in features:
         geom_list.append(wkt.loads(feature[2]))
 
+    # split work into chunks
     poly_list = list(split_list(geom_list, geom_list_chunk_size))
-
-
 
     print(f" - {bal_name} : ready to merge polygons : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -160,7 +159,7 @@ def process_bal_class(bal_number):
     # create list of jobs to run in concurrently
     job_list = list()
     for job in poly_list:
-        job_list.append(async_union_polygons(job))
+        job_list.append(async_union_polygons(bal_name, job))
 
     # process polygons in groups asynchronously
     loop = asyncio.get_event_loop()
@@ -181,8 +180,10 @@ def process_bal_class(bal_number):
     polygons = list(the_big_one)
     for polygon in list(the_big_one):
         area_m2 = abs(geod.geometry_area_perimeter(polygon)[0])
-        output_list.append({"gid": gid, "bal_number": bal_number, "bal_name": bal_name,
-                            "area_m2": area_m2, "geom": wkt.dumps(polygon)})
+        output_list.append([gid, bal_number, bal_name, wkt.dumps(polygon), area_m2])
+        # output_list.append([gid, bal_number, bal_name, area_m2, wkt.dumps(polygon)])
+        # output_list.append({"gid": gid, "bal_number": bal_number, "bal_name": bal_name,
+        #                     "area_m2": area_m2, "geom": wkt.dumps(polygon)})
         gid += 1
 
     print(f" - {bal_name} : multipolygon split into {len(polygons)} polygons: {datetime.now() - start_time}")
@@ -239,9 +240,15 @@ def split_list(input_list, max_count):
         yield input_list[i:i + max_count]
 
 
-async def async_union_polygons(geom_list):
+async def async_union_polygons(bal_name, geom_list):
     """union a set of polygons & return the resulting multipolygon"""
-    return unary_union(geom_list)
+    start_time = datetime.now()
+
+    big_poly = unary_union(geom_list)
+
+    print(f"\t - {bal_name} : set of polygons unioned: {datetime.now() - start_time}")
+
+    return big_poly
 
 
 def bulk_insert(results):
@@ -256,7 +263,7 @@ def bulk_insert(results):
 
     try:
         for result in results:
-            csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
+            csv_file_like_object.write('|'.join(map(clean_csv_value, result)) + '\n')
 
         csv_file_like_object.seek(0)
 
