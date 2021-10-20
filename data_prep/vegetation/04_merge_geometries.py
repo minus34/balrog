@@ -48,7 +48,7 @@ geod = Geod(ellps="WGS84")
 max_processes = multiprocessing.cpu_count() - 1  # take one off as this is CPU intensive and no-one likes a locked up machine
 
 # size of each set of polygon to group in the first pass
-geom_list_chunk_size = 50000
+geom_list_chunk_size = 100000
 
 
 def main():
@@ -83,9 +83,9 @@ def main():
     mp_results = mp_pool.map_async(process_bal_class, mp_job_list, chunksize=1)  # use map_async to show progress
 
     while not mp_results.ready():
-        print(f"BAL classes remaining : {mp_results._number_left}", end="")
+        print(f"BAL classes remaining : {mp_results._number_left}\n", end="")
         sys.stdout.flush()
-        time.sleep(600)
+        time.sleep(10)
 
     # print(f"\r \n", end="")
     real_results = mp_results.get()
@@ -156,17 +156,23 @@ def process_bal_class(bal_number):
     print(f" - {bal_name} : ready to merge polygons : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    # create list of jobs to run in concurrently
-    job_list = list()
-    for job in poly_list:
-        job_list.append(async_union_polygons(bal_name, job))
+    if len(poly_list) > 1:
+        # create list of jobs to run concurrently
+        job_list = list()
+        for job in poly_list:
+            job_list.append(async_union_polygons(bal_name, job))
 
-    # process polygons in groups asynchronously
-    loop = asyncio.get_event_loop()
-    big_geom_list = loop.run_until_complete(asyncio.gather(*job_list))
+        # process polygons in groups asynchronously
+        loop = asyncio.get_event_loop()
+        big_geom_list = loop.run_until_complete(asyncio.gather(*job_list))
 
-    print(f" - {bal_name} : pass 1 - polygons merged : {datetime.now() - start_time}")
-    start_time = datetime.now()
+        loop.close()
+
+        print(f" - {bal_name} : pass 1 - polygons merged : {datetime.now() - start_time}")
+        start_time = datetime.now()
+    else:
+        print(f" - {bal_name} : no need for pass 1 : {datetime.now() - start_time}")
+        big_geom_list = geom_list
 
     # merge all polygons into one multipolygon
     the_big_one = unary_union(big_geom_list)
