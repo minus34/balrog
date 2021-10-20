@@ -7,8 +7,7 @@ aws s3 cp /data/bal_factors.dmp s3://bushfire-rasters/output/
 
 # local
 aws s3 cp s3://bushfire-rasters/output/bal_factors.dmp /Users/$(whoami)/tmp/bushfire/
-psql -d geo -c "drop table bushfire.bal_factors"
-/Applications/Postgres.app/Contents/Versions/13/bin/pg_restore -Fc -d geo -p 5432 -U postgres /Users/$(whoami)/tmp/bushfire/bal_factors.dmp
+/Applications/Postgres.app/Contents/Versions/13/bin/pg_restore -Fc -d geo -p 5432 -U postgres /Users/$(whoami)/tmp/bushfire/bal_factors.dmp --clean
 
 
 

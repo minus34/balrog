@@ -25,8 +25,7 @@ ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "aws s3 cp /data/bal_factors.dmp s3://bushfi
 aws s3 cp s3://bushfire-rasters/output/bal_factors.dmp ${HOME}/tmp/bushfire/
 
 # load into local postgres (WARNING: force drops tables first)
-/Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -c "drop table bushfire.bal_factors cascade"
-/Applications/Postgres.app/Contents/Versions/13/bin/pg_restore -Fc -d geo -p 5432 -U postgres ${HOME}/tmp/bushfire/bal_factors.dmp
+/Applications/Postgres.app/Contents/Versions/13/bin/pg_restore -Fc -d geo -p 5432 -U postgres ${HOME}/tmp/bushfire/bal_factors.dmp --clean
 
 # display table counts
 /Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -c "select count(*) as address_count from bushfire.bal_factors"
