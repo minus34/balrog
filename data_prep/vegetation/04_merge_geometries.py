@@ -1,4 +1,5 @@
 
+import asyncio
 import io
 import logging
 import multiprocessing
@@ -43,10 +44,11 @@ output_table = "bushfire.nvis6_bal"
 # create ellipsoid for area calcs (WGS84 is close enough for what we need)
 geod = Geod(ellps="WGS84")
 
-# how many parallel processes to run (max 7 as there are only 7 BAL vegetation classes)
+# how many parallel processes to run)
 max_processes = multiprocessing.cpu_count() - 1  # take one off as this is CPU intensive and no-one likes a locked up machine
-if max_processes > 7:
-    max_processes = 7
+
+# size of each set of polygon to group in the first pass
+geom_list_chunk_size = 100000
 
 
 def main():
@@ -147,13 +149,29 @@ def process_bal_class(bal_number):
     for feature in features:
         geom_list.append(wkt.loads(feature[2]))
 
+    poly_list = list(split_list(geom_list, geom_list_chunk_size))
+
+
+
     print(f" - {bal_name} : ready to merge polygons : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    # merge all polygons into one multipolygon
-    the_big_one = unary_union(geom_list)
+    # create list of jobs to run in concurrently
+    job_list = list()
+    for job in poly_list:
+        job_list.append(async_union_polygons(job))
 
-    print(f" - {bal_name} : polygons merged : {datetime.now() - start_time}")
+    # process polygons in groups asynchronously
+    loop = asyncio.get_event_loop()
+    big_geom_list = loop.run_until_complete(asyncio.gather(*job_list))
+
+    print(f" - {bal_name} : pass 1 - polygons merged : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+    # merge all polygons into one multipolygon
+    the_big_one = unary_union(big_geom_list)
+
+    print(f" - {bal_name} : pass 2 - polygons merged : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # break the one multipolygon into polygons that don't touch & convert to Well Known Text (WKT),
@@ -187,12 +205,14 @@ def get_features(bal_number):
     pg_conn = psycopg2.connect(pg_connect_string)
     pg_cur = pg_conn.cursor()
 
-    # get input geometries
+    # get input geometries (order by long/lat to "group" them - theoretically could speed up merging of polygons)
     input_sql = f"""select bal_number,
                       bal_name,
                       st_astext(geom)
                from {input_table}
-               where bal_number = {bal_number}"""
+               where bal_number = {bal_number}
+               order by st_x(st_centroid(geom)),
+                        st_y(st_centroid(geom))"""
 
     input_file_object = io.StringIO()
     pg_cur.copy_expert(f"COPY ({input_sql}) TO STDOUT", input_file_object)
@@ -210,6 +230,17 @@ def get_features(bal_number):
     pg_conn.close()
 
     return feature_list
+
+
+def split_list(input_list, max_count):
+    """Yields successive n-sized chunks from list"""
+    for i in range(0, len(input_list), max_count):
+        yield input_list[i:i + max_count]
+
+
+async def async_union_polygons(geom_list):
+    """union a set of polygons & return the resulting multipolygon"""
+    return unary_union(geom_list)
 
 
 def bulk_insert(results):

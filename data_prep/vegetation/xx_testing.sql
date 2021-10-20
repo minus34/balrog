@@ -1,4 +1,13 @@
 
+
+-- fix nvis bal table
+-- alter table bushfire.nvis6_bal add column area_m2 double precision;
+
+update bushfire.nvis6_bal set area_m2 = st_area(geom::geography);
+analyse bushfire.nvis6_bal;
+
+
+
 -- lookup table
 select * from bushfire.nvis6_lookup
 where nvis_id in (10822, 90288);
@@ -114,6 +123,18 @@ where st_area(geom::geography) < 10000.0
 group by bal_number,
          bal_name;
 
+-- +----------+-----------------------------+----------+
+-- |bal_number|bal_name                     |poly_count|
+-- +----------+-----------------------------+----------+
+-- |-9999     |not applicable               |1092979   |
+-- |1         |forest                       |483680    |
+-- |2         |woodland                     |1839382   |
+-- |3         |shrubland                    |344866    |
+-- |4         |scrub                        |26266     |
+-- |5         |mallee or mulga              |214327    |
+-- |6         |rainforest                   |36352     |
+-- |7         |grassland or tussock moorland|463782    |
+-- +----------+-----------------------------+----------+
 
 
 
