@@ -90,10 +90,29 @@ group by bal_number,
 order by bal_number
 ;
 
+-- +----------+-----------------------------+-----------+-------------+
+-- |bal_number|bal_name                     |point_count|polygon_count|
+-- +----------+-----------------------------+-----------+-------------+
+-- |-9999     |not applicable               |112028445  |1475341      |
+-- |1         |forest                       |69183045   |2378814      |
+-- |2         |woodland                     |188128249  |3213206      |
+-- |3         |shrubland                    |37058000   |758931       |
+-- |4         |scrub                        |4443556    |67791        |
+-- |5         |mallee or mulga              |17119369   |382810       |
+-- |6         |rainforest                   |12197476   |154362       |
+-- |7         |grassland or tussock moorland|62055842   |977597       |
+-- +----------+-----------------------------+-----------+-------------+
+
+
 
 -- how many small areas are there? -- roughly 50% - ~4,500,000 rows :-(
-select count(*) from bushfire.nvis6_exploded
-where st_area(geom::geography) < 10000.0;
+select bal_number,
+       bal_name,
+       count(*) as poly_count
+from bushfire.nvis6_exploded
+where st_area(geom::geography) < 10000.0
+group by bal_number,
+         bal_name;
 
 
 

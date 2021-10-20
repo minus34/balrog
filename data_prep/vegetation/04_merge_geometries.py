@@ -10,6 +10,7 @@ import sys
 import time
 
 from datetime import datetime
+from pyproj import Geod
 from shapely import wkt
 from shapely.ops import unary_union
 from typing import Optional, Any
@@ -38,6 +39,9 @@ else:
 
 input_table = "bushfire.nvis6_exploded"
 output_table = "bushfire.nvis6_bal"
+
+# create ellipsoid for area calcs (WGS84 is close enough for what we need)
+geod = Geod(ellps="WGS84")
 
 # how many parallel processes to run (max 7 as there are only 7 BAL vegetation classes)
 max_processes = multiprocessing.cpu_count() - 1  # take one off as this is CPU intensive and no-one likes a locked up machine
@@ -152,12 +156,14 @@ def process_bal_class(bal_number):
     print(f" - {bal_name} : polygons merged : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    # break the one multipolygon into polygons that don't touch & convert to Well Known Text (WKT)
-    #   and give them a sequential id
+    # break the one multipolygon into polygons that don't touch & convert to Well Known Text (WKT),
+    #   add areas & give them a sequential id
     gid = 0
     polygons = list(the_big_one)
     for polygon in list(the_big_one):
-        output_list.append({"gid": gid, "bal_number": bal_number, "bal_name": bal_name, "geom": wkt.dumps(polygon)})
+        area_m2 = abs(geod.geometry_area_perimeter(polygon)[0])
+        output_list.append({"gid": gid, "bal_number": bal_number, "bal_name": bal_name,
+                            "area_m2": area_m2, "geom": wkt.dumps(polygon)})
         gid += 1
 
     print(f" - {bal_name} : multipolygon split into {len(polygons)} polygons: {datetime.now() - start_time}")

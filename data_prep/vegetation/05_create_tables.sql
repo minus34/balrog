@@ -8,6 +8,7 @@ create table {1} (
     gid integer,
     bal_number smallint,
     bal_name text,
+    area_m2 double precision,
     geom geometry(polygon, 4283)
 )
 tablespace {2};
