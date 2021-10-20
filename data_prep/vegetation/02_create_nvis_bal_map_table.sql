@@ -105,3 +105,11 @@ order by bal_number,
 -- where veg.veg_group = lkp.mvg_number
 -- ;
 -- analyse bushfire.nvis6_exploded;
+--
+-- -- fix mangrove error (was assigned to 'scrub')
+-- update bushfire.nvis6_exploded as veg
+--     set bal_number = -9999,
+--         bal_name = 'not applicable'
+-- where veg_group = 23;
+--
+-- vacuum analyse bushfire.nvis6_exploded;
