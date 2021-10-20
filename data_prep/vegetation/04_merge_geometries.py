@@ -41,7 +41,7 @@ else:
 input_table = "bushfire.nvis6_exploded"
 output_table = "bushfire.nvis6_bal"
 
-# create ellipsoid for area calcs (WGS84 is close enough for what we need)
+# create ellipsoid for area calcs (WGS84 is close enough to GDA94 for what we need)
 geod = Geod(ellps="WGS84")
 
 # how many parallel processes to run)
@@ -67,8 +67,8 @@ def main():
     # create target table (and schema if it doesn't exist)
     # WARNING: drops output table if exists
     pg_cur.execute(f'create schema if not exists {schema_name}; alter schema {schema_name} owner to "{postgres_user}";')
-    # sql = open("05_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
-    sql = f"delete from {output_table} where bal_number = 4; analyse {output_table}"  # DEBUGGING
+    sql = open("05_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
+    # sql = f"delete from {output_table} where bal_number = 4; analyse {output_table}"  # DEBUGGING
     pg_cur.execute(sql)
 
     # clean up postgres connection
@@ -76,8 +76,8 @@ def main():
     pg_conn.close()
 
     # process each BAL vegetation class in it's own process
-    # mp_job_list = list(range(1, 8))
-    mp_job_list = [4]  # DEBUGGING
+    mp_job_list = list(range(1, 8))
+    # mp_job_list = [4]  # DEBUGGING
 
     mp_pool = multiprocessing.Pool(max_processes)
     mp_results = mp_pool.map_async(process_bal_class, mp_job_list, chunksize=1)  # use map_async to show progress
@@ -85,23 +85,20 @@ def main():
     while not mp_results.ready():
         print(f"BAL classes remaining : {mp_results._number_left}\n", end="")
         sys.stdout.flush()
-        time.sleep(10)
+        time.sleep(60)
 
     # print(f"\r \n", end="")
     real_results = mp_results.get()
     mp_pool.close()
     mp_pool.join()
 
-    success_count = 0
-    fail_count = 0
-
-    for result in real_results:
+    for bal_name, result in real_results:
         if result is None:
             logger.warning("A multiprocessing process failed!")
         elif result:
-            success_count += 1
+            logger.info(f"\t - {bal_name} success!")
         else:
-            fail_count += 1
+            logger.warning(f"\t - {bal_name} FAILED!")
 
     start_time = datetime.now()
 
@@ -114,10 +111,10 @@ def main():
     pg_cur.execute(f"ANALYSE {output_table}")
 
     # add indexes
-    # pg_cur.execute(f"ALTER TABLE {output_table} ADD CONSTRAINT {table_name}_pkey PRIMARY KEY (gid, bal_number)")
-    # pg_cur.execute(f"CREATE INDEX {table_name}_bal_number_idx ON {output_table} USING btree (bal_number)")
-    # pg_cur.execute(f"CREATE INDEX {table_name}_geom_idx ON {output_table} USING gist (geom)")
-    # pg_cur.execute(f"ALTER TABLE {output_table} CLUSTER ON {table_name}_geom_idx")
+    pg_cur.execute(f"ALTER TABLE {output_table} ADD CONSTRAINT {table_name}_pkey PRIMARY KEY (gid, bal_number)")
+    pg_cur.execute(f"CREATE INDEX {table_name}_bal_number_idx ON {output_table} USING btree (bal_number)")
+    pg_cur.execute(f"CREATE INDEX {table_name}_geom_idx ON {output_table} USING gist (geom)")
+    pg_cur.execute(f"ALTER TABLE {output_table} CLUSTER ON {table_name}_geom_idx")
 
     logger.info(f"\t - {output_table} analysed & indexes added: {datetime.now() - start_time}")
 
@@ -186,10 +183,7 @@ def process_bal_class(bal_number):
     polygons = list(the_big_one)
     for polygon in list(the_big_one):
         area_m2 = abs(geod.geometry_area_perimeter(polygon)[0])
-        output_list.append([gid, bal_number, bal_name, wkt.dumps(polygon), area_m2])
-        # output_list.append([gid, bal_number, bal_name, area_m2, wkt.dumps(polygon)])
-        # output_list.append({"gid": gid, "bal_number": bal_number, "bal_name": bal_name,
-        #                     "area_m2": area_m2, "geom": wkt.dumps(polygon)})
+        output_list.append([gid, bal_number, bal_name, area_m2, wkt.dumps(polygon)])
         gid += 1
 
     print(f" - {bal_name} : multipolygon split into {len(polygons)} polygons: {datetime.now() - start_time}")
@@ -205,6 +199,8 @@ def process_bal_class(bal_number):
         output = False
 
     print(f" - {bal_name} : FINISHED in {datetime.now() - full_start_time}")
+
+    return bal_name, output
 
 
 def get_features(bal_number):
