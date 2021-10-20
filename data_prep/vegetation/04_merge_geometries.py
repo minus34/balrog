@@ -69,8 +69,8 @@ def main():
     pg_conn.close()
 
     # process each BAL vegetation class in it's own process
-    # mp_job_list = list(range(1, 8))
-    mp_job_list = [4]  # DEBUGGING
+    mp_job_list = list(range(1, 8))
+    # mp_job_list = [4]  # DEBUGGING
 
     mp_pool = multiprocessing.Pool(max_processes)
     mp_results = mp_pool.map_async(process_bal_class, mp_job_list, chunksize=1)  # use map_async to show progress
@@ -125,6 +125,7 @@ def process_bal_class(bal_number):
     """for a set of polygons - combine them into one multipolygon, then split into polygons
        expected feature format is [id:string, geometry:string representing a valid geojson geometry]"""
 
+    full_start_time = datetime.now()
     start_time = datetime.now()
 
     # get geometries from postgres
@@ -167,9 +168,11 @@ def process_bal_class(bal_number):
 
     if result:
         print(f" - {bal_name} : polygons exported to PostGIS: {datetime.now() - start_time}")
-        return True
+        output = True
     else:
-        return False
+        output = False
+
+    print(f" - {bal_name} : FINISHED in {datetime.now() - full_start_time}")
 
 
 def get_features(bal_number):

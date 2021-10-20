@@ -34,7 +34,7 @@ where mvg_number in (15, 16, 17, 18)
 update bushfire.nvis6_lookup
 set bal_number = 4,
     bal_name = 'scrub'
-where mvg_number in (23, 26, 29)
+where mvg_number in (26, 29)
 ;
 
 update bushfire.nvis6_lookup
@@ -59,7 +59,7 @@ where mvg_number in (19, 20, 21, 22)
 update bushfire.nvis6_lookup
 set bal_number = -9999,
     bal_name = 'not applicable'
-where mvg_number in (24, 25, 27, 28, 99)
+where mvg_number in (23, 24, 25, 27, 28, 99)
 ;
 
 analyse bushfire.nvis6_lookup;
