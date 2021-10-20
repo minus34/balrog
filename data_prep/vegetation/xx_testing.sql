@@ -96,6 +96,10 @@ select count(*) from bushfire.nvis6_exploded
 where st_area(geom::geography) < 10000.0;
 
 
+
+
+
+
 select * from bushfire.nvis6_exploded;
 
 

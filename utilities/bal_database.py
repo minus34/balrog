@@ -15,7 +15,7 @@ FDI = [100, 80, 50, 40]
 
 # 1: Forest, 2: Woodland, 3: Shrubland, 4: Scrub, 5: Mallee/Mulga
 # 6: Rainforest, 7: Grassland/Tussock moorland
-VEG_CLASS =  [1, 2, 3, 4, 5, 6, 7]
+VEG_CLASS = [1, 2, 3, 4, 5, 6, 7]
 
 # 1: 0, 2: 0 ~ 5, 3: 5 ~ 10, 4: 10 ~ 15, 5: 15 ~ 20, 6: > 20
 SLOPE = [1, 2, 3, 4, 5, 6]

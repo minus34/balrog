@@ -11,10 +11,7 @@ package.
 
 """
 
-from __future__ import absolute_import
-
 import numpy as np
-import arcpy
 import os
 
 RADIANS_PER_DEGREE = 0.01745329251994329576923690768489

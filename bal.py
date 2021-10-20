@@ -16,7 +16,7 @@ import os
 import inspect
 import math
 from os.path import join as pjoin
-import arcpy
+# import arcpy
 from calculate_bal import bal_cal
 from utilities.sa_tools import extract_by_mask, reclassify, cal_slope_aspect
 
