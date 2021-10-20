@@ -149,11 +149,12 @@ def process_bal_class(bal_number):
 
     # split work into chunks
     poly_list = list(split_list(geom_list, geom_list_chunk_size))
+    job_count = len(poly_list)
 
-    print(f" - {bal_name} : ready to merge polygons : {datetime.now() - start_time}")
+    print(f" - {bal_name} : ready to merge polygons in {job_count} processes : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    if len(poly_list) > 1:
+    if job_count > 1:
         # create list of jobs to run concurrently
         job_list = list()
         for job in poly_list:

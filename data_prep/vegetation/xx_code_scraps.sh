@@ -17,7 +17,7 @@ aws s3 cp "s3://bushfire-rasters/vegetation/${TABLE_NAME}.dmp" /Users/$(whoami)/
 
 
 
-
+ssh -F ${SSH_CONFIG} ${INSTANCE_ID} 'cat ~/04_merge_geometries.log'
 
 #
 #
