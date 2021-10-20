@@ -67,7 +67,8 @@ def main():
     # create target table (and schema if it doesn't exist)
     # WARNING: drops output table if exists
     pg_cur.execute(f'create schema if not exists {schema_name}; alter schema {schema_name} owner to "{postgres_user}";')
-    sql = open("05_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
+    # sql = open("05_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
+    sql = f"delete from {output_table} where bal_number = 4; analyse {output_table}"  # DEBUGGING
     pg_cur.execute(sql)
 
     # clean up postgres connection
@@ -75,8 +76,8 @@ def main():
     pg_conn.close()
 
     # process each BAL vegetation class in it's own process
-    mp_job_list = list(range(1, 8))
-    # mp_job_list = [4]  # DEBUGGING
+    # mp_job_list = list(range(1, 8))
+    mp_job_list = [4]  # DEBUGGING
 
     mp_pool = multiprocessing.Pool(max_processes)
     mp_results = mp_pool.map_async(process_bal_class, mp_job_list, chunksize=1)  # use map_async to show progress
