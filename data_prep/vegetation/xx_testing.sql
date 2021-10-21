@@ -191,7 +191,7 @@ group by bal_number,
 
 
 
-
+select count(*) from bushfire.nvis6_bal;
 
 
 
