@@ -15,6 +15,14 @@ aws s3 cp "s3://bushfire-rasters/vegetation/${TABLE_NAME}.dmp" /Users/$(whoami)/
 
 
 
+# export NVIS BAL data to flatgeobuf & copy to S3
+OUTPUT_FOLDER=""${HOME}/tmp/bushfire""
+ogr2ogr -f FlatGeobuf "${OUTPUT_FOLDER}/nvis6_bal.fgb" PG:"host=localhost dbname=geo user=postgres password=password port=5432" "bushfire.nvis6_bal(geom)"
+aws s3 cp "${OUTPUT_FOLDER}/nvis6_bal.fgb" "s3://bushfire-rasters/vegetation/"
+
+
+
+
 
 ssh -F ${SSH_CONFIG} ${INSTANCE_ID} 'cat ~/04_merge_geometries.log'
 
