@@ -1,10 +1,22 @@
 
 
--- fix nvis bal table
--- alter table bushfire.nvis6_bal add column area_m2 double precision;
 
-update bushfire.nvis6_bal set area_m2 = st_area(geom::geography);
-analyse bushfire.nvis6_bal;
+-- ALTER TABLE bushfire.nvis6_bal ADD CONSTRAINT nvis6_bal_pkey PRIMARY KEY (gid, bal_number);
+-- CREATE INDEX nvis6_bal_bal_number_idx ON bushfire.nvis6_bal USING btree (bal_number);
+-- CREATE INDEX nvis6_bal_area_idx ON bushfire.nvis6_bal USING btree (area_m2);
+-- CREATE INDEX nvis6_bal_geom_idx ON bushfire.nvis6_bal USING gist (geom);
+-- ALTER TABLE bushfire.nvis6_bal CLUSTER ON nvis6_bal_geom_idx;
+
+
+
+
+
+select *
+from bushfire.nvis6_bal;
+
+
+
+
 
 
 
@@ -135,6 +147,49 @@ group by bal_number,
 -- |6         |rainforest                   |36352     |
 -- |7         |grassland or tussock moorland|463782    |
 -- +----------+-----------------------------+----------+
+
+-- how many small areas are there? -- roughly 50% - ~4,500,000 rows :-(
+select bal_number,
+       bal_name,
+       count(*) as poly_count
+from bushfire.nvis6_bal
+where area_m2 < 10000.0
+group by bal_number,
+         bal_name
+;
+
+-- how many small areas are there within 100m of other vegetation? --
+with a as (
+    select gid,
+           bal_number,
+           bal_name,
+           geom
+    from bushfire.nvis6_bal
+    where area_m2 < 10000.0
+), b as (
+    select gid,
+           bal_number,
+           bal_name,
+           geom
+    from bushfire.nvis6_bal
+--     where area_m2 < 10000.0
+), merge as (
+    select a.*,
+           b.gid as b_gid
+    from a, b
+    where st_dwithin(a.geom, b.geom, 0.001)   -- roughly 110m
+)
+select bal_number,
+       bal_name,
+       count(*) as poly_count
+from merge
+where gid <> b_gid
+group by bal_number,
+         bal_name
+;
+
+
+
 
 
 

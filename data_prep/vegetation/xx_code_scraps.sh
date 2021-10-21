@@ -9,7 +9,6 @@ aws s3 cp "/data/${TABLE_NAME}.dmp" s3://bushfire-rasters/vegetation/
 
 # local restore
 aws s3 cp "s3://bushfire-rasters/vegetation/${TABLE_NAME}.dmp" /Users/$(whoami)/tmp/bushfire/veg/
-#psql -d geo -c "drop table if exists bushfire.${TABLE_NAME}"
 /Applications/Postgres.app/Contents/Versions/13/bin/pg_restore -Fc -d geo -p 5432 -U postgres "/Users/$(whoami)/tmp/bushfire/veg/${TABLE_NAME}.dmp" --clean
 
 

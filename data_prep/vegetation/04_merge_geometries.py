@@ -113,6 +113,7 @@ def main():
     # add indexes
     pg_cur.execute(f"ALTER TABLE {output_table} ADD CONSTRAINT {table_name}_pkey PRIMARY KEY (gid, bal_number)")
     pg_cur.execute(f"CREATE INDEX {table_name}_bal_number_idx ON {output_table} USING btree (bal_number)")
+    pg_cur.execute(f"CREATE INDEX {table_name}_area_idx ON {output_table} USING btree (area_m2)")
     pg_cur.execute(f"CREATE INDEX {table_name}_geom_idx ON {output_table} USING gist (geom)")
     pg_cur.execute(f"ALTER TABLE {output_table} CLUSTER ON {table_name}_geom_idx")
 
