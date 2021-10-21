@@ -190,8 +190,25 @@ group by bal_number,
 
 
 
-
 select count(*) from bushfire.nvis6_bal;
+
+
+
+-- small area counts
+select area_m2::integer as area_m2_int,
+       count(*)
+from bushfire.nvis6_bal
+where area_m2 < 1000.0
+group by area_m2_int
+order by area_m2_int desc;
+
+-- +-----------+------+
+-- |area_m2_int|count |
+-- +-----------+------+
+-- |625        |489678|
+-- |624        |34966 |
+-- +-----------+------+
+
 
 
 
