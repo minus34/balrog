@@ -138,7 +138,11 @@ def main():
 def process_veg_polygon(geom, row, point):
     veg_dict = dict(row['properties'])  # convert from OrderDict: Python 3.9 bug appending to lists
     veg_dict["polygon"] = geom
-    veg_dict["line"] = LineString(nearest_points(point, geom))
+
+    line = LineString(nearest_points(point, geom))
+
+    veg_dict["distance"] = transform(project_2_lcc, line).length
+    veg_dict["line"] = line
     return veg_dict
 
 

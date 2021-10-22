@@ -9,6 +9,7 @@ create table {1} (
     bal_number smallint,
     bal_name text,
     area_m2 double precision,
+    distance_m double precision,
     geom geometry(polygon, 4283),
     line_geom geometry(linestring, 4283)
 )
