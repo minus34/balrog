@@ -32,3 +32,14 @@ ssh -F ${SSH_CONFIG} ${INSTANCE_ID} 'cat ~/04_merge_geometries.log'
 #
 #
 #psql -d geo -f classify_and_merge_data.sql
+
+
+
+
+# one off copy to minus34.com
+
+aws --profile minus34 s3 cp ~/tmp/bushfire/srtm_1sec_dem_s.tif s3://minus34.com/open-data/ga/
+
+
+
+
