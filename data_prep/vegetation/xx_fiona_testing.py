@@ -55,7 +55,8 @@ longitude = 150.3861878
 
 buffer_size_m = 250
 
-# get coordinate systems and transforms
+# get coordinate systems, geodetic parameters and transforms
+geodesic = pyproj.Geod(ellps='WGS84')
 wgs84 = pyproj.CRS('EPSG:4326')
 lcc = pyproj.CRS('EPSG:3577')
 
@@ -139,10 +140,19 @@ def process_veg_polygon(geom, row, point):
     veg_dict = dict(row['properties'])  # convert from OrderDict: Python 3.9 bug appending to lists
     veg_dict["polygon"] = geom
 
-    line = LineString(nearest_points(point, geom))
+    # get nearest point to input coordinates and the resulting line's geodesic distance and bearing
+    points = nearest_points(point, geom)
+    fwd_azimuth, back_azimuth, distance = geodesic.inv(points[0].x, points[0].y, points[1].x, points[1].y)
 
-    veg_dict["distance"] = transform(project_2_lcc, line).length
-    veg_dict["line"] = line
+    veg_dict["azimuth"] = fwd_azimuth
+    veg_dict["distance"] = distance
+    veg_dict["line"] = LineString(points)
+
+
+    # TODO: get slope, aspect & elevation for each veg polygon AND a 100m buffer around input coordinates
+    #   then determine if each polygon is above, level or below input cords
+
+
     return veg_dict
 
 
