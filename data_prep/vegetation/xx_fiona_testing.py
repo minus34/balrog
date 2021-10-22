@@ -50,8 +50,8 @@ else:
 # ------------------------------------------------------------------------------------------------------------------
 
 # test coordinates
-latitude = -33.730476
-longitude = 150.387354
+latitude = -33.7292483
+longitude = 150.3861878
 
 buffer_size_m = 250
 
@@ -109,8 +109,8 @@ def main():
             else:
                 veg_dict = dict(row['properties'])  # convert from OrderDict: Python 3.9 bug appending to lists
                 # veg_dict["geom"] = wkt.dumps(geom)
-                veg_dict["polygon"] = geom
-                veg_dict["line"] = LineString(nearest_points(wgs84_point, geom))
+                veg_dict["polygon"] = clipped_geom
+                veg_dict["line"] = LineString(nearest_points(wgs84_point, clipped_geom))
 
                 veg_list.append(veg_dict)
 
@@ -119,11 +119,13 @@ def main():
 
     print(f"Got {len(veg_list)} polygons : {datetime.now() - start_time}")
 
-
     if debug:
         # export clipped veg polygons & nearest point lines to postgres
         export_list = list()
         for veg in veg_list:
+
+            print(veg["line"])
+
             veg["geom"] = wkt.dumps(veg["polygon"])
             veg["line_geom"] = wkt.dumps(veg["line"])
             veg.pop("polygon", None)
