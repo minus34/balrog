@@ -100,17 +100,11 @@ def main():
             # need to cover cases where the clipped polygon creates a multipolygon
             if clipped_geom.type == "MultiPolygon":
                 for geom in list(clipped_geom):
-                    veg_dict = dict(row['properties'])  # convert from OrderDict: Python 3.9 bug appending to lists
-                    # veg_dict["geom"] = wkt.dumps(geom)
-                    veg_dict["polygon"] = geom
-                    veg_dict["line"] = LineString(nearest_points(wgs84_point, geom))
+                    veg_dict = process_veg_polygon(geom, row, wgs84_point)
 
                     veg_list.append(veg_dict)
             else:
-                veg_dict = dict(row['properties'])  # convert from OrderDict: Python 3.9 bug appending to lists
-                # veg_dict["geom"] = wkt.dumps(geom)
-                veg_dict["polygon"] = clipped_geom
-                veg_dict["line"] = LineString(nearest_points(wgs84_point, clipped_geom))
+                veg_dict = process_veg_polygon(clipped_geom, row, wgs84_point)
 
                 veg_list.append(veg_dict)
 
@@ -124,7 +118,7 @@ def main():
         export_list = list()
         for veg in veg_list:
 
-            print(veg["line"])
+            # print(veg["line"])
 
             veg["geom"] = wkt.dumps(veg["polygon"])
             veg["line_geom"] = wkt.dumps(veg["line"])
@@ -140,6 +134,12 @@ def main():
     # for veg in veg_list:
     #     nearest_point_pair = nearest_points(wgs84_point, veg
 
+
+def process_veg_polygon(geom, row, point):
+    veg_dict = dict(row['properties'])  # convert from OrderDict: Python 3.9 bug appending to lists
+    veg_dict["polygon"] = geom
+    veg_dict["line"] = LineString(nearest_points(point, geom))
+    return veg_dict
 
 
 def bulk_insert(results):
