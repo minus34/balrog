@@ -9,8 +9,8 @@ import pyproj
 
 from datetime import datetime
 from shapely import wkt
-from shapely.geometry import Polygon, Point, mapping
-from shapely.ops import transform
+from shapely.geometry import Polygon, Point, LineString, mapping
+from shapely.ops import nearest_points, transform
 from typing import Optional, Any
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -20,6 +20,8 @@ from typing import Optional, Any
 # choose your settings for running locally or on a remote server
 #   - edit this if not running locally on a Mac
 if platform.system() == "Darwin":
+    debug = True
+
     output_table = "bushfire.temp_veg"
     output_tablespace = "pg_default"
     postgres_user = "postgres"
@@ -80,44 +82,62 @@ def main():
     buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m, cap_style=1))
     dict_buffer = mapping(buffer)  # a dict representing a GeoJSON geometry
 
+    if debug:
+        pg_cur.execute(f"insert into {output_table}_buffer values (st_geomfromtext('{wkt.dumps(buffer)}', 4283))")
+
     print(f"created buffer : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # open vegetation file and filter by buffer
     with fiona.open(veg_file_path) as src:
-        clipped_list = list()
+        veg_list = list()
 
-        for f in src.filter(mask=dict_buffer):
+        for row in src.filter(mask=dict_buffer):
             # clip veg polygons by buffer
-            clipped_geom = Polygon(f['geometry']['coordinates'][0]).intersection(buffer)
+            veg_geom = Polygon(row['geometry']['coordinates'][0])
+            clipped_geom = buffer.intersection(veg_geom)
 
             # need to cover cases where the clipped polygon creates a multipolygon
             if clipped_geom.type == "MultiPolygon":
                 for geom in list(clipped_geom):
-                    clipped_list.append(process_veg(f['properties'], geom))
+                    veg_dict = dict(row['properties'])  # convert from OrderDict: Python 3.9 bug appending to lists
+                    # veg_dict["geom"] = wkt.dumps(geom)
+                    veg_dict["polygon"] = geom
+                    veg_dict["line"] = LineString(nearest_points(wgs84_point, geom))
+
+                    veg_list.append(veg_dict)
             else:
-                clipped_list.append(process_veg(f['properties'], clipped_geom))
+                veg_dict = dict(row['properties'])  # convert from OrderDict: Python 3.9 bug appending to lists
+                # veg_dict["geom"] = wkt.dumps(geom)
+                veg_dict["polygon"] = geom
+                veg_dict["line"] = LineString(nearest_points(wgs84_point, geom))
 
-    print(f"Got {len(clipped_list)} polygons : {datetime.now() - start_time}")
-
-    success = bulk_insert(clipped_list)
-
-    print(success)
-
-
-def process_veg(props, geom):
-    """the party happens here"""
-    clipped_dict = props
-    clipped_dict["geom"] = wkt.dumps(geom)
-
-    print(f"{geom.type} : {clipped_dict['gid']} : {clipped_dict['bal_number']} : "
-          f"{clipped_dict['bal_name']} : {clipped_dict['area_m2']} m2")
+                veg_list.append(veg_dict)
 
 
+    # TODO: log Python OrderedDict bug
+
+    print(f"Got {len(veg_list)} polygons : {datetime.now() - start_time}")
 
 
+    if debug:
+        # export clipped veg polygons & nearest point lines to postgres
+        export_list = list()
+        for veg in veg_list:
+            veg["geom"] = wkt.dumps(veg["polygon"])
+            veg["line_geom"] = wkt.dumps(veg["line"])
+            veg.pop("polygon", None)
+            veg.pop("line", None)
 
-    return clipped_dict
+            export_list.append(veg)
+
+        bulk_insert(veg_list)
+
+
+    # # get closest points and their bearing & distance
+    # for veg in veg_list:
+    #     nearest_point_pair = nearest_points(wgs84_point, veg
+
 
 
 def bulk_insert(results):

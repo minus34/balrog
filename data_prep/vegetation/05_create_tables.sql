@@ -9,7 +9,16 @@ create table {1} (
     bal_number smallint,
     bal_name text,
     area_m2 double precision,
-    geom geometry(polygon, 4283)
+    geom geometry(polygon, 4283),
+    line_geom geometry(linestring, 4283)
 )
 tablespace {2};
 alter table {1} owner to "{0}";
+
+
+drop table if exists {1}_buffer;
+create table {1}_buffer (
+    geom geometry(polygon, 4283)
+)
+tablespace {2};
+alter table {1}_buffer owner to "{0}";
