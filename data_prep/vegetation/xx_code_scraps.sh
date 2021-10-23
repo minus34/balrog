@@ -38,8 +38,16 @@ ssh -F ${SSH_CONFIG} ${INSTANCE_ID} 'cat ~/04_merge_geometries.log'
 
 # one off copy to minus34.com
 
-aws --profile minus34 s3 cp ~/tmp/bushfire/srtm_1sec_dem_s.tif s3://minus34.com/open-data/ga/
+#aws --profile minus34 s3 cp ~/tmp/bushfire/srtm_1sec_dem_s.tif s3://minus34.com/opendata/ga/
+#
+#aws s3 sync ~/tmp/bushfire/veg/ s3://minus34.com/opendata/environment/
 
-aws --profile minus34 s3 cp ~/tmp/bushfire/veg/nvis6_bal.fgb s3://minus34.com/open-data/environment/
+
+
+# ESA Worldview 10m veg
+aws s3 cp s3://esa-worldcover/v100/2020/map/ESA_WorldCover_10m_2020_v100_S36E150_Map.tif ~/temp/bushfire/veg/
+
+
+
 
 
