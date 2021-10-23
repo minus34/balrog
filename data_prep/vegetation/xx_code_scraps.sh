@@ -40,6 +40,6 @@ ssh -F ${SSH_CONFIG} ${INSTANCE_ID} 'cat ~/04_merge_geometries.log'
 
 aws --profile minus34 s3 cp ~/tmp/bushfire/srtm_1sec_dem_s.tif s3://minus34.com/open-data/ga/
 
-
+aws --profile minus34 s3 cp ~/tmp/bushfire/veg/nvis6_bal.fgb s3://minus34.com/open-data/environment/
 
 
