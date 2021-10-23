@@ -3,6 +3,7 @@ import fiona
 import io
 import logging
 import os
+import pathlib
 import platform
 import psycopg2.extras
 import pyproj
@@ -26,7 +27,7 @@ if platform.system() == "Darwin":
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
-    veg_file_path = os.path.join(os.path.expanduser("~"), "tmp/bushfire/veg/nvis6_bal.fgb")
+    veg_file_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/veg/nvis6_bal.fgb")
     # veg_file_path = "s3://bushfire-rasters/vegetation/nvis6_bal.fgb"
     dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
     aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
