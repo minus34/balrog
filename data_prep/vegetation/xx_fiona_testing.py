@@ -59,8 +59,10 @@ else:
 # ------------------------------------------------------------------------------------------------------------------
 
 # test coordinates
-latitude = -33.7292483
-longitude = 150.3861878
+latitude = -33.7345186
+longitude = 150.3393519
+# latitude = -33.7292483
+# longitude = 150.3861878
 
 buffer_size_m = 250.0
 
@@ -124,8 +126,8 @@ def main():
 
             # TODO: QA slope values - results look suspect
 
-            gdal.DEMProcessing("slope.tif", "dem.tif", "slope")
-            gdal.DEMProcessing("aspect.tif", "dem.tif", "aspect")
+            gdal.DEMProcessing("slope.tif", "dem.tif", "slope", scale=111120)
+            gdal.DEMProcessing("aspect.tif", "dem.tif", "aspect", scale=111120)
 
     print(f"Created elevation, aspect, slope files : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -185,6 +187,9 @@ def process_veg_polygon(geom, row, point):
     veg_dict["azimuth"] = fwd_azimuth
     veg_dict["distance"] = distance
     veg_dict["line"] = LineString(points)
+
+
+    # TODO: check what happens when coords are in vegetation - dist should = 0 ,bearing = None
 
     # TODO: get slope, aspect & elevation for each veg polygon AND a 100m buffer around input coordinates
     #   then determine if each polygon is above, level or below input cords
