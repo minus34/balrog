@@ -3,13 +3,16 @@ import fiona
 import io
 import logging
 import os
-import pathlib
+# import pathlib
 import platform
 import psycopg2.extras
 import pyproj
 import rasterio
 
 from datetime import datetime
+from osgeo import gdal
+from rasterio import mask
+from rasterio.windows import from_bounds
 from shapely import wkt
 from shapely.geometry import Polygon, Point, LineString, mapping
 from shapely.ops import nearest_points, transform
@@ -46,8 +49,8 @@ else:
 
     veg_file_path = "/data/nvis6_bal.fgb"
     dem_file_path = "/data/tmp/cog/srtm_1sec_dem_s.tif"
-    aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
-    slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
+    # aspect_file_path = "/data/tmp/cog/srtm_1sec_aspect.tif"
+    # slope_file_path = "/data/tmp/cog/srtm_1sec_slope.tif"
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='ec2-user' password='ec2-user'"
 
@@ -59,7 +62,9 @@ else:
 latitude = -33.7292483
 longitude = 150.3861878
 
-buffer_size_m = 250
+buffer_size_m = 250.0
+
+dem_resolution_m = 30.0
 
 # get coordinate systems, geodetic parameters and transforms
 geodesic = pyproj.Geod(ellps='WGS84')
@@ -87,10 +92,40 @@ def main():
     buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m, cap_style=1))
     dict_buffer = mapping(buffer)  # a dict representing a GeoJSON geometry
 
+    # create a larger buffer for aspect & slope calcs (need min of one pixel added to input buffer on all sides)
+    dem_buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m + dem_resolution_m * 2.5, cap_style=1))
+
     if debug:
         pg_cur.execute(f"insert into {output_table}_buffer values (st_geomfromtext('{wkt.dumps(buffer)}', 4283))")
 
     print(f"created buffer : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+    # get elevation, aspect & slope data
+    with rasterio.Env():
+        with rasterio.open(dem_file_path, "r") as src:
+            # create mask using the large buffer
+            dem_array, dem_transform = mask.mask(src, [dem_buffer], crop=True, nodata=-9999)
+
+            # save masked dem to file
+            profile = src.profile
+
+            profile.update(
+                compress='deflate',
+                driver='GTiff',
+                height=dem_array.shape[1],
+                width=dem_array.shape[2],
+                nodata=-9999,
+                transform=dem_transform
+            )
+
+            with rasterio.open('dem.tif', 'w', **profile) as dst:
+                dst.write(dem_array)
+
+            gdal.DEMProcessing("slope.tif", "dem.tif", "slope")
+            gdal.DEMProcessing("aspect.tif", "dem.tif", "aspect")
+
+    print(f"Created elevation, aspect, slope files : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # open vegetation file and filter by buffer
@@ -154,9 +189,6 @@ def process_veg_polygon(geom, row, point):
 
     return veg_dict
 
-
-def get_elevation_aspect_slope():
-    with raster as rasterio.open(dem_file_path, "r"):
 
 
 def bulk_insert(results):
