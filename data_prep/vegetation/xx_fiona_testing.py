@@ -7,6 +7,7 @@ import pathlib
 import platform
 import psycopg2.extras
 import pyproj
+import rasterio
 
 from datetime import datetime
 from shapely import wkt
@@ -27,15 +28,15 @@ if platform.system() == "Darwin":
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
-    # veg_file_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/veg/nvis6_bal.fgb")
-    veg_file_path = "https://minus34.com/opendata/environment/nvis6_bal.fgb"
-    # veg_file_path = "s3://bushfire-rasters/vegetation/nvis6_bal.fgb"
+    # veg_file_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/veg/nvis6_bal.fgb")  # local
+    veg_file_path = "https://minus34.com/opendata/environment/nvis6_bal.fgb"  # over HTTP GetRange
+    # veg_file_path = "s3://bushfire-rasters/vegetation/nvis6_bal.fgb"  # over S3 GetRange
 
-    dem_file_path = "https://minus34.com/opendata/ga/srtm_1sec_dem_s.tif"
-    # dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-
-    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
-    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+    # Can't use HTTP GetRange - 20GB limit per file in AWS Cloudfront (file is 37GB)
+    # dem_file_path = "https://minus34.com/opendata/ga/srtm_1sec_dem_s.tif"
+    dem_file_path = "s3://minus34.com/opendata/ga/srtm_1sec_dem_s.tif"  # over S3 GetRange
+    # aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
+    # slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
 else:
@@ -62,11 +63,10 @@ buffer_size_m = 250
 
 # get coordinate systems, geodetic parameters and transforms
 geodesic = pyproj.Geod(ellps='WGS84')
-wgs84 = pyproj.CRS('EPSG:4326')
-lcc = pyproj.CRS('EPSG:3577')
-
-project_2_lcc = pyproj.Transformer.from_crs(wgs84, lcc, always_xy=True).transform
-project_2_wgs84 = pyproj.Transformer.from_crs(lcc, wgs84, always_xy=True).transform
+wgs84_cs = pyproj.CRS('EPSG:4326')
+lcc_proj = pyproj.CRS('EPSG:3577')
+project_2_lcc = pyproj.Transformer.from_crs(wgs84_cs, lcc_proj, always_xy=True).transform
+project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
 
 
 def main():
@@ -79,7 +79,6 @@ def main():
 
     # drop/create temp table
     sql = open("05_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
-    # sql = f"delete from {output_table} where bal_number = 4; analyse {output_table}"  # DEBUGGING
     pg_cur.execute(sql)
 
     # create input buffer polygon as both a WGS84 shape and a dict
@@ -114,7 +113,6 @@ def main():
 
                 veg_list.append(veg_dict)
 
-
     # TODO: log Python OrderedDict bug
 
     print(f"Got {len(veg_list)} polygons : {datetime.now() - start_time}")
@@ -136,12 +134,10 @@ def main():
         bulk_insert(veg_list)
 
 
-    # # get closest points and their bearing & distance
-    # for veg in veg_list:
-    #     nearest_point_pair = nearest_points(wgs84_point, veg
-
-
 def process_veg_polygon(geom, row, point):
+    """Takes a vegetation polygon and determines its distance & bearing to the input coordinates,
+         as well as it's median slope and aspect"""
+
     veg_dict = dict(row['properties'])  # convert from OrderDict: Python 3.9 bug appending to lists
     veg_dict["polygon"] = geom
 
@@ -153,12 +149,14 @@ def process_veg_polygon(geom, row, point):
     veg_dict["distance"] = distance
     veg_dict["line"] = LineString(points)
 
-
     # TODO: get slope, aspect & elevation for each veg polygon AND a 100m buffer around input coordinates
     #   then determine if each polygon is above, level or below input cords
 
-
     return veg_dict
+
+
+def get_elevation_aspect_slope():
+    with raster as rasterio.open(dem_file_path, "r"):
 
 
 def bulk_insert(results):
