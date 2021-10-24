@@ -104,30 +104,7 @@ def main():
     start_time = datetime.now()
 
     # get elevation, aspect & slope data
-    with rasterio.Env():
-        with rasterio.open(dem_file_path, "r") as src:
-            # create mask using the large buffer
-            dem_array, dem_transform = mask.mask(src, [dem_buffer], crop=True, nodata=-9999)
-
-            # save masked dem to file
-            profile = src.profile
-
-            profile.update(
-                compress='deflate',
-                driver='GTiff',
-                height=dem_array.shape[1],
-                width=dem_array.shape[2],
-                nodata=-9999,
-                transform=dem_transform
-            )
-
-            with rasterio.open('dem.tif', 'w', **profile) as dst:
-                dst.write(dem_array)
-
-            # TODO: QA slope values - results look suspect
-
-            gdal.DEMProcessing("slope.tif", "dem.tif", "slope", scale=111120)
-            gdal.DEMProcessing("aspect.tif", "dem.tif", "aspect", scale=111120)
+    get_elevation_aspect_slope(dem_buffer)
 
     print(f"Created elevation, aspect, slope files : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -173,6 +150,33 @@ def main():
         bulk_insert(veg_list)
 
 
+def get_elevation_aspect_slope(dem_buffer):
+    with rasterio.Env():
+        with rasterio.open(dem_file_path, "r") as src:
+            # create mask using the large buffer
+            dem_array, dem_transform = mask.mask(src, [dem_buffer], crop=True, nodata=-9999)
+
+            # set profile of output dem file
+            profile = src.profile
+            profile.update(
+                compress='deflate',
+                driver='GTiff',
+                height=dem_array.shape[1],
+                width=dem_array.shape[2],
+                nodata=-9999,
+                transform=dem_transform
+            )
+
+            # save masked dem to file
+            with rasterio.open('dem.tif', 'w', **profile) as dst:
+                dst.write(dem_array)
+
+            # convert masked dem to aspect & slope
+            # note : scale is required to convert degrees to metres for calcs
+            gdal.DEMProcessing("slope.tif", "dem.tif", "slope", scale=111120)
+            gdal.DEMProcessing("aspect.tif", "dem.tif", "aspect", scale=111120)
+
+
 def process_veg_polygon(geom, row, point):
     """Takes a vegetation polygon and determines its distance & bearing to the input coordinates,
          as well as it's median slope and aspect"""
@@ -184,18 +188,15 @@ def process_veg_polygon(geom, row, point):
     points = nearest_points(point, geom)
     fwd_azimuth, back_azimuth, distance = geodesic.inv(points[0].x, points[0].y, points[1].x, points[1].y)
 
+    # note: will return distance, bearing = 0 when coordinates are in vegetation
     veg_dict["azimuth"] = fwd_azimuth
     veg_dict["distance"] = distance
     veg_dict["line"] = LineString(points)
-
-
-    # TODO: check what happens when coords are in vegetation - dist should = 0 ,bearing = None
 
     # TODO: get slope, aspect & elevation for each veg polygon AND a 100m buffer around input coordinates
     #   then determine if each polygon is above, level or below input cords
 
     return veg_dict
-
 
 
 def bulk_insert(results):
