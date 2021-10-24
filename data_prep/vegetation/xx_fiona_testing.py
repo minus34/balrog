@@ -122,6 +122,8 @@ def main():
             with rasterio.open('dem.tif', 'w', **profile) as dst:
                 dst.write(dem_array)
 
+            # TODO: QA slope values - results look suspect
+
             gdal.DEMProcessing("slope.tif", "dem.tif", "slope")
             gdal.DEMProcessing("aspect.tif", "dem.tif", "aspect")
 
