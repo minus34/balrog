@@ -11,6 +11,8 @@ create table {1} (
     area_m2 double precision,
     azimuth double precision,
     distance_m double precision,
+    aspect smallint,
+    slope smallint,
     geom geometry(polygon, 4283),
     line_geom geometry(linestring, 4283)
 )

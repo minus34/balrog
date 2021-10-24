@@ -2,8 +2,8 @@
 import fiona
 import io
 import logging
+import numpy
 import os
-# import pathlib
 import platform
 import psycopg2.extras
 import pyproj
@@ -12,7 +12,6 @@ import rasterio
 from datetime import datetime
 from osgeo import gdal
 from rasterio import mask
-from rasterio.windows import from_bounds
 from shapely import wkt
 from shapely.geometry import Polygon, Point, LineString, mapping
 from shapely.ops import nearest_points, transform
@@ -59,10 +58,14 @@ else:
 # ------------------------------------------------------------------------------------------------------------------
 
 # test coordinates
-latitude = -33.7345186
-longitude = 150.3393519
-# latitude = -33.7292483
-# longitude = 150.3861878
+
+# # wentworth falls
+# latitude = -33.7345186
+# longitude = 150.3393519
+
+# sublime point
+latitude = -33.7292483
+longitude = 150.3861878
 
 buffer_size_m = 250.0
 
@@ -193,10 +196,44 @@ def process_veg_polygon(geom, row, point):
     veg_dict["distance"] = distance
     veg_dict["line"] = LineString(points)
 
-    # TODO: get slope, aspect & elevation for each veg polygon AND a 100m buffer around input coordinates
-    #   then determine if each polygon is above, level or below input cords
+    # get slope & aspect
+    veg_dict["aspect"] = get_raster_values(geom, "aspect")
+    veg_dict["slope"] = get_raster_values(geom, "slope")
+
+    # TODO: get elevation for each veg polygon AND a 100m buffer around input coordinates
+    #   then determine if each veg polygon is above, level or below input cords
+    #   also convert aspect to cardinal directions
 
     return veg_dict
+
+
+def get_raster_values(geom, image_type):
+    with rasterio.open(f"{image_type}.tif", "r") as src:
+        masked_image, dem_transform = mask.mask(src, [geom], crop=True, nodata=-9999)
+        # get rid of nodata values and flatten array
+        flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
+
+        if flat_array.size != 0:
+            # get stats across the masked image
+            min_value = numpy.min(flat_array)
+            max_value = numpy.max(flat_array)
+
+            # aspect is a special case - values could be either side of 360 degrees (North)
+            if image_type == "aspect":
+                if min_value < 90 and max_value > 270:
+                    flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
+
+                med_value = int(numpy.median(flat_array))
+
+                if med_value > 360:
+                    med_value -= 360
+
+            else:
+                med_value = int(numpy.median(flat_array))
+
+            return med_value
+        else:
+            return None
 
 
 def bulk_insert(results):
