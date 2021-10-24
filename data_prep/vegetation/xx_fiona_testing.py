@@ -100,17 +100,25 @@ def main():
     # create a larger buffer for aspect & slope calcs (need min of one pixel added to input buffer on all sides)
     dem_buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m + dem_resolution_m * 2.5, cap_style=1))
 
-    if debug:
-        pg_cur.execute(f"insert into {output_table}_buffer values (st_geomfromtext('{wkt.dumps(buffer)}', 4283))")
-
     print(f"created buffer : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # get elevation, aspect & slope data
-    get_elevation_aspect_slope(dem_buffer)
-
+    get_elevation_aspect_slope_files(dem_buffer)
     print(f"Created elevation, aspect, slope files : {datetime.now() - start_time}")
     start_time = datetime.now()
+
+    # get elevation, aspect & slope of the 100m buffer around inpit coordinates
+    buffer_elevation = get_raster_values(buffer, "dem")
+    buffer_aspect = get_raster_values(buffer, "aspect")
+    buffer_slope = get_raster_values(buffer, "slope")
+    print(f"Got elevation, aspect, slope for buffer : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+    if debug:
+        pg_cur.execute(f"insert into {output_table}_buffer "
+                       f"values ({buffer_elevation} , {buffer_aspect}, {buffer_slope}, "
+                       f"st_geomfromtext('{wkt.dumps(buffer)}', 4283))")
 
     # open vegetation file and filter by buffer
     with fiona.open(veg_file_path) as src:
@@ -153,7 +161,7 @@ def main():
         bulk_insert(veg_list)
 
 
-def get_elevation_aspect_slope(dem_buffer):
+def get_elevation_aspect_slope_files(dem_buffer):
     with rasterio.Env():
         with rasterio.open(dem_file_path, "r") as src:
             # create mask using the large buffer
@@ -224,10 +232,8 @@ def get_raster_values(geom, image_type):
                     flat_array[(flat_array >= 0.0) & (flat_array < 90.0)] += 360.0
 
                 med_value = int(numpy.median(flat_array))
-
                 if med_value > 360:
                     med_value -= 360
-
             else:
                 med_value = int(numpy.median(flat_array))
 

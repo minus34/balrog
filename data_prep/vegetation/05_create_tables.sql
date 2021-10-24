@@ -22,6 +22,9 @@ alter table {1} owner to "{0}";
 
 drop table if exists {1}_buffer;
 create table {1}_buffer (
+    elevation smallint,
+    aspect smallint,
+    slope smallint,
     geom geometry(polygon, 4283)
 )
 tablespace {2};
