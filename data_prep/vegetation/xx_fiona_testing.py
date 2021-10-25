@@ -4,6 +4,7 @@ import io
 import logging
 import numpy
 import os
+import pathlib
 import platform
 import psycopg2.extras
 import pyproj
@@ -30,13 +31,14 @@ if platform.system() == "Darwin":
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
-    # veg_file_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/veg/nvis6_bal.fgb")  # local
-    veg_file_path = "https://minus34.com/opendata/environment/nvis6_bal.fgb"  # over HTTP GetRange
+    veg_file_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/veg/nvis6_bal.fgb")  # local
+    # veg_file_path = "https://minus34.com/opendata/environment/nvis6_bal.fgb"  # over HTTP GetRange
     # veg_file_path = "s3://bushfire-rasters/vegetation/nvis6_bal.fgb"  # over S3 GetRange
 
     # Can't use HTTP GetRange - 20GB limit per file in AWS Cloudfront (file is 37GB)
     # dem_file_path = "https://minus34.com/opendata/ga/srtm_1sec_dem_s.tif"
-    dem_file_path = "s3://minus34.com/opendata/ga/srtm_1sec_dem_s.tif"  # over S3 GetRange
+    # dem_file_path = "s3://minus34.com/opendata/ga/srtm_1sec_dem_s.tif"  # over S3 GetRange
+    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"  # over S3 GetRange
     # aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
     # slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
 
@@ -59,13 +61,17 @@ else:
 
 # test coordinates
 
-# # wentworth falls
+# # Sublime point, NSW
 # latitude = -33.7345186
 # longitude = 150.3393519
 
-# sublime point
+# Wentworth Falls, NSW
 latitude = -33.7292483
 longitude = 150.3861878
+
+# # Marysville, VIC
+# latitude = -37.5125066
+# longitude = 145.7369306
 
 buffer_size_m = 250.0
 
@@ -80,7 +86,10 @@ project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True
 
 
 def main():
+    full_start_time = datetime.now()
     start_time = datetime.now()
+
+    logger.info(f"START : Auto BAL Assessment : {full_start_time}")
 
     # get postgres connection
     pg_conn = psycopg2.connect(pg_connect_string)
@@ -100,19 +109,19 @@ def main():
     # create a larger buffer for aspect & slope calcs (need min of one pixel added to input buffer on all sides)
     dem_buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m + dem_resolution_m * 2.5, cap_style=1))
 
-    print(f"created buffer : {datetime.now() - start_time}")
+    logger.info(f"\t - created buffer : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # get elevation, aspect & slope data
     get_elevation_aspect_slope_files(dem_buffer)
-    print(f"Created elevation, aspect, slope files : {datetime.now() - start_time}")
+    logger.info(f"\t - created elevation, aspect, slope files : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # get elevation, aspect & slope of the 100m buffer around inpit coordinates
     buffer_elevation = get_raster_values(buffer, "dem")
     buffer_aspect = get_raster_values(buffer, "aspect")
     buffer_slope = get_raster_values(buffer, "slope")
-    print(f"Got elevation, aspect, slope for buffer : {datetime.now() - start_time}")
+    logger.info(f"\t - got elevation, aspect, slope for buffer : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     if debug:
@@ -142,7 +151,7 @@ def main():
 
     # TODO: log Python OrderedDict bug
 
-    print(f"Got {len(veg_list)} polygons : {datetime.now() - start_time}")
+    logger.info(f"\t - got {len(veg_list)} polygons : {datetime.now() - start_time}")
 
     if debug:
         # export clipped veg polygons & nearest point lines to postgres
@@ -159,6 +168,9 @@ def main():
             export_list.append(veg)
 
         bulk_insert(veg_list)
+
+    logger.info(f"FINISHED : Auto BAL Assessment : {datetime.now() - full_start_time}")
+
 
 
 def get_elevation_aspect_slope_files(dem_buffer):
@@ -263,7 +275,7 @@ def bulk_insert(results):
         pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
         output = True
     except Exception as ex:
-        print(f"Copy to Postgres FAILED! : {ex}")
+        logger.info(f"\t - Copy to Postgres FAILED! : {ex}")
         output = False
 
     pg_cur.close()

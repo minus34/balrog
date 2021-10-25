@@ -1,5 +1,5 @@
 
--- -- create a table of exploded polygons with BAL numbers -- 9.5 hours on MacBook
+-- -- STEP 1 -- create a table of exploded polygons with BAL numbers -- 9.5 hours on MacBook
 -- drop table if exists bushfire.nvis6_exploded;
 -- create table bushfire.nvis6_exploded as
 -- with veg as (
@@ -31,48 +31,50 @@
 -- ALTER TABLE bushfire.nvis6_exploded CLUSTER ON nvis6_exploded_geom_idx;
 
 
---
--- -- merge with lookup table
--- drop table if exists temp_nvis6_merge;
--- create temporary table temp_nvis6_merge as
--- select lkp.mvg_number::smallint as veg_group,
---        lkp.mvs_number::smallint as veg_subgroup,
---        veg.geom
--- from temp_nvis6 as veg
--- inner join bushfire.nvis6_lookup as lkp on veg.nvis_id = lkp.nvis_id
+-- -- STEP 2 -- union all polygons of the same vegetation group & subgroup -- 36 hours on a good EC2 box
+-- --   then split the non-contiguous ones into separate records
+-- drop table if exists bushfire.nvis6_bal;
+-- create table bushfire.nvis6_bal as
+-- with merge as (
+--     select bal_number,
+--            bal_name,
+--            st_union(geom) as geom
+--     from bushfire.nvis6_exploded
+--     group by bal_number,
+--              bal_name
+-- ), polys as (
+--     select row_number() over () as gid,
+--            bal_number,
+--            bal_name,
+--            (st_dump(geom)).geom as geom
+--     from merge
+-- )
+-- select gid,
+--        bal_number,
+--        bal_name,
+--        st_area(geom::geography) / 10000.0 as area_ha,
+--        geom
+-- from polys
 -- ;
--- analyse temp_nvis6_merge;
+-- analyse bushfire.nvis6_bal;
 --
--- CREATE INDEX temp_nvis6_merge_veg_groups_idx ON bushfire.nvis6_merge USING btree (veg_group, veg_subgroup);
+-- CREATE INDEX nvis6_bal_veg_group_idx ON bushfire.nvis6_bal USING btree (bal_number);
+-- CREATE INDEX nvis6_bal_geom_idx ON bushfire.nvis6_bal USING gist (geom);
+-- ALTER TABLE bushfire.nvis6_bal CLUSTER ON nvis6_bal_geom_idx;
 
 
--- union all polygons of the same vegetation group & subgroup
---   then split the non-contiguous ones into separate records
-drop table if exists bushfire.nvis6_bal;
-create table bushfire.nvis6_bal as
-with merge as (
-    select bal_number,
-           bal_name,
-           st_union(geom) as geom
-    from bushfire.nvis6_exploded
-    group by bal_number,
-             bal_name
-), polys as (
-    select row_number() over () as gid,
-           bal_number,
-           bal_name,
-           (st_dump(geom)).geom as geom
-    from merge
-)
+-- subdivide polygons (some of them a very large) to speed up analysis
+drop table if exists bushfire.nvis6_bal_analysis;
+create table bushfire.nvis6_bal_analysis as
 select gid,
        bal_number,
        bal_name,
-       st_area(geom::geography) / 10000.0 as area_ha,
-       geom
-from polys
+       area_m2,
+       st_subdivide(geom, 512) as geom
+from bushfire.nvis6_bal
 ;
-analyse bushfire.nvis6_bal;
 
-CREATE INDEX nvis6_bal_veg_group_idx ON bushfire.nvis6_bal USING btree (bal_number);
-CREATE INDEX nvis6_bal_geom_idx ON bushfire.nvis6_bal USING gist (geom);
-ALTER TABLE bushfire.nvis6_bal CLUSTER ON nvis6_bal_geom_idx;
+CREATE INDEX nvis6_bal_analysis_bal_number_idx ON bushfire.nvis6_bal_analysis USING btree (bal_number);
+CREATE INDEX nvis6_bal_analysis_bal_name_idx ON bushfire.nvis6_bal_analysis USING btree (bal_name);
+CREATE INDEX nvis6_bal_analysis_geom_idx ON bushfire.nvis6_bal_analysis USING gist (geom);
+ALTER TABLE bushfire.nvis6_bal_analysis CLUSTER ON nvis6_bal_analysis_geom_idx;
