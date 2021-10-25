@@ -1,37 +1,68 @@
 
+import boto3
 import glob
 import pathlib
 import os
 
+from boto3.s3.transfer import TransferConfig
+from datetime import datetime
+from osgeo import gdal
+
+# setup connection to AWS S3
+s3_client = boto3.client("s3")
+s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 10MB
+
+s3_bucket = "bushfire-rasters"
+s3_file_path = "geoscpae/geoscape_2m_land_cover.tif"
+
+
 input_path = os.path.join(pathlib.Path.home(), "Downloads/SurfaceCover_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Surface Cover/Surface Cover 2M JUNE 2021/Standard")
 output_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/veg/geoscape_2m_land_cover.tif")
 
-# output commands to bash file
-with open("xx_trees_merge_images.sh", "w") as f:
-    f.write("#!/usr/bin/env bash\n\n")
-    f.write("conda activate geo\n\n")
-    f.write(f"cd '{input_path}'\n\n")
+warped_files = list()
 
-    warped_files = list()
+full_start_time = datetime.now()
 
-    # get merge & warp commands for each projection (MGA zones, aka UTM South zones on GDA94 datum)
-    for zone in range(49, 50):
-        file_list = [os.path.basename(file_name) for file_name in glob.glob(os.path.join(input_path, f"*_Z{zone}_*.tif"))]
-        files_string = " ".join(file_list)
+# mosaic and transform to WGS84 lat/long for each MGA zone (aka UTM South zones on GDA94 datum)
+for zone in range(49, 50):
+    start_time = datetime.now()
 
-        first_file = f"temp_Z{zone}.tif"
-        second_file = f"temp_Z{zone}_4326.tif"
+    print(f"Processing MGA Zone {zone}")
 
-        f.write(f"echo 'Processing MGA Zone {zone}'\n")
-        f.write(f"gdal_merge.py -o {first_file} -of GTiff -n 0 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS {files_string}\n")
-        f.write(f"gdalwarp -t_srs EPSG:4326 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite {first_file} {second_file}\n")
-        f.write(f"rm {first_file}\n\n")
+    files_to_mosaic = glob.glob(os.path.join(input_path, f"*_Z{zone}_*.tif"))
+    vrt_file = os.path.join(input_path, f"temp_Z{zone}.vrt")
+    interim_file = os.path.join(input_path, f"temp_Z{zone}.tif")
 
-        warped_files.append(second_file)
-        warped_files_string = " ".join(warped_files)
+    my_vrt = gdal.BuildVRT(vrt_file, files_to_mosaic)
+    my_vrt = None
+    print(f"\t - VRT created : {datetime.now() - start_time}")
+    start_time = datetime.now()
 
-    f.write(f"echo 'Processing AU'\n")
-    f.write(f"gdal_merge.py -o temp_au.tif -of GTiff -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS {warped_files_string}\n")
-    f.write(f"gdal_translate temp_au.tif {output_file} -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS\n")
-    f.write("rm temp_au.tif\n")
-    f.write(f"aws s3 cp {output_file} s3://bushfire-rasters/geoscape/\n")
+    gd = gdal.Warp(interim_file, vrt_file, format="GTiff", options="-t_srs EPSG:4326 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+    del gd
+    print(f"\t - mosaiced and transformed images : {datetime.now() - start_time}")
+
+    warped_files.append(interim_file)
+
+start_time = datetime.now()
+
+print(f"Processing AU")
+vrt_file = os.path.join(input_path, "temp_au.vrt")
+my_vrt = gdal.BuildVRT(os.path.join(input_path, "temp_au.vrt"), warped_files)
+my_vrt = None
+print(f"\t - VRT created : {datetime.now() - start_time}")
+start_time = datetime.now()
+
+gd = gdal.Warp(output_file, vrt_file, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+del gd
+print(f"\t - mosaiced and transformed images : {datetime.now() - start_time}")
+start_time = datetime.now()
+
+# delete interim files
+for file in warped_files:
+    os.remove(file)
+
+# upload to AWS S3
+aws_response = s3_client.upload_fileobj(output_file, s3_bucket, s3_file_path, Config=s3_config)
+print(f"\t - image uploaded to s3 : {datetime.now() - start_time}")
+start_time = datetime.now()
