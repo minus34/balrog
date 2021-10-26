@@ -47,7 +47,7 @@ echo "-------------------------------------------------------------------------"
 echo " Installing Python packages"
 echo "-------------------------------------------------------------------------"
 
-echo "y" | conda install -c conda-forge gdal boto3
+echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely fiona requests boto3
 
 # remove proxy if set
 if [ -n "${PROXY}" ];
