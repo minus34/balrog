@@ -3,6 +3,7 @@ import boto3
 import glob
 import os
 import platform
+import sys
 
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
@@ -15,6 +16,8 @@ s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 20MB
 s3_bucket = "bushfire-rasters"
 
 if platform.system() == "Darwin":
+    debug = True
+
     input_list = [{"name": "2m land cover",
                "input_path": "/Users/s57405/Downloads/SurfaceCover_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Surface Cover/Surface Cover 2M JUNE 2021/Standard",
                "output_file": "/Users/s57405/tmp/bushfire/veg/geoscape_2m_land_cover.tif",
@@ -28,6 +31,8 @@ if platform.system() == "Darwin":
                "output_file": "/Users/s57405/tmp/bushfire/veg/geoscape_trees.tif",
                "s3_file_path": "geoscape/geoscape_trees.tif"}]
 else:
+    debug = False
+
     input_list = [{"name": "2m land cover",
                    "input_path": "/data/geoscape/Surface Cover/Surface Cover 2M JUNE 2021/Standard",
                    "output_file": "/data/geoscape/geoscape_2m_land_cover.tif",
@@ -41,6 +46,11 @@ else:
                    "output_file": "/data/geoscape/geoscape_trees.tif",
                    "s3_file_path": "geoscape/geoscape_trees.tif"}]
 
+if debug:
+    mga_zones = range(49, 51)
+else:
+    mga_zones = range(49, 57)
+
 # process 1 dataset at a time using parallel processing (built into GDAL)
 for input_dict in input_list:
     full_start_time = datetime.now()
@@ -50,20 +60,14 @@ for input_dict in input_list:
     print(f"Processing MGA Zones")
 
     # mosaic and transform to WGS84 lat/long for each MGA zone (aka UTM South zones on GDA94 datum)
-    for zone in range(49, 57):
+    for zone in mga_zones:
         start_time = datetime.now()
 
         files_to_mosaic = glob.glob(os.path.join(input_dict["input_path"], f"*_Z{zone}_*.tif"))
-        # vrt_file = os.path.join(input_dict["input_path"], f"temp_Z{zone}.vrt")
         interim_file = os.path.join(input_dict["input_path"], f"temp_Z{zone}.tif")
-
-        # my_vrt = gdal.BuildVRT(vrt_file, files_to_mosaic)
-        # my_vrt = None
 
         gd = gdal.Warp(interim_file, files_to_mosaic, format="GTiff", options="-r cubic -multi -wm 80% -t_srs EPSG:4326 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
         del gd
-        # os.remove(vrt_file)
-
         warped_files.append(interim_file)
 
         print(f"\t- zone {zone} done : {datetime.now() - start_time}")
@@ -72,13 +76,14 @@ for input_dict in input_list:
     start_time = datetime.now()
     print(f"Processing AU")
 
-    # vrt_file = os.path.join(input_dict["input_path"], "temp_au.vrt")
-    # my_vrt = gdal.BuildVRT(os.path.join(input_dict["input_path"], "temp_au.vrt"), warped_files)
-    # my_vrt = None
+    vrt_file = os.path.join(input_dict["input_path"], "temp_au.vrt")
+    my_vrt = gdal.BuildVRT(vrt_file, warped_files)
+    my_vrt = None
 
-    gd = gdal.Warp(input_dict["output_file"], warped_files, format="COG", options="-multi -wm 80% -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+    gd = gdal.Translate(input_dict["output_file"], vrt_file, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+    # gd = gdal.Warp(input_dict["output_file"], warped_files, format="COG", options="-multi -wm 80% -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
     del gd
-    # os.remove(vrt_file)
+    os.remove(vrt_file)
 
     print(f"\t- done : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -87,8 +92,9 @@ for input_dict in input_list:
     for file in warped_files:
         os.remove(file)
 
-    # upload to AWS S3
-    aws_response = s3_client.upload_file(input_dict["output_file"], s3_bucket, input_dict["s3_file_path"], Config=s3_config)
-    print(f"\t - {input_dict['name']} - image uploaded to s3 : {datetime.now() - start_time}")
+    # upload to AWS S3 if not debugging
+    if not debug:
+        aws_response = s3_client.upload_file(input_dict["output_file"], s3_bucket, input_dict["s3_file_path"], Config=s3_config)
+        print(f"\t - {input_dict['name']} - image uploaded to s3 : {datetime.now() - start_time}")
 
     print(f"FINISHED - {input_dict['name']} - mosaic and transform images : {datetime.now() - full_start_time}")
