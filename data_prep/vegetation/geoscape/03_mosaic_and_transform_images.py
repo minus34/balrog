@@ -47,7 +47,7 @@ for input_dict in input_list:
         my_vrt = gdal.BuildVRT(vrt_file, files_to_mosaic)
         my_vrt = None
 
-        gd = gdal.Warp(interim_file, vrt_file, format="GTiff", options="-t_srs EPSG:4326 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+        gd = gdal.Warp(interim_file, vrt_file, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4326 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
         del gd
         os.remove(vrt_file)
 
@@ -63,7 +63,7 @@ for input_dict in input_list:
     my_vrt = gdal.BuildVRT(os.path.join(input_dict["input_path"], "temp_au.vrt"), warped_files)
     my_vrt = None
 
-    gd = gdal.Warp(input_dict["output_file"], vrt_file, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+    gd = gdal.Warp(input_dict["output_file"], vrt_file, format="COG", options="-multi -wm 80% -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
     del gd
     os.remove(vrt_file)
 
