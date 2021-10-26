@@ -44,10 +44,10 @@ else:
 # process 1 dataset at a time using parallel processing (built into GDAL)
 for input_dict in input_list:
     full_start_time = datetime.now()
+    warped_files = list()
+
     print(f"START - {input_dict['name']} - mosaic and transform images : {full_start_time}")
     print(f"Processing MGA Zones")
-
-    warped_files = list()
 
     # mosaic and transform to WGS84 lat/long for each MGA zone (aka UTM South zones on GDA94 datum)
     for zone in range(49, 57):
