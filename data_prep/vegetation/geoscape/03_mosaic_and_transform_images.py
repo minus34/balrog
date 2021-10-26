@@ -1,7 +1,6 @@
 
 import boto3
 import glob
-import pathlib
 import os
 
 from boto3.s3.transfer import TransferConfig
@@ -10,11 +9,11 @@ from osgeo import gdal
 
 # setup connection to AWS S3
 s3_client = boto3.client("s3")
-s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 10MB
+s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 20MB
 
 s3_bucket = "bushfire-rasters"
 
-inputs = [{"name": "2m land cover",
+input_list = [{"name": "2m land cover",
            "input_path": "/data/geoscape/Surface Cover/Surface Cover 2M JUNE 2021/Standard",
            "output_file": "/data/geoscape/geoscape_2m_land_cover.tif",
            "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"},
@@ -29,7 +28,7 @@ inputs = [{"name": "2m land cover",
 ]
 
 # process 1 dataset at a time using parallel processing (built into GDAL)
-for input_dict in inputs:
+for input_dict in input_list:
     full_start_time = datetime.now()
     print(f"START - {input_dict['name']} - mosaic and transform images : {full_start_time}")
 
@@ -51,13 +50,15 @@ for input_dict in inputs:
         gd = gdal.Warp(interim_file, vrt_file, format="GTiff", options="-t_srs EPSG:4326 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
         del gd
         os.remove(vrt_file)
-        print(f"\t - {input_dict['name']} - mosaiced and transformed images : {datetime.now() - start_time}")
 
         warped_files.append(interim_file)
+
+        print(f"\t - {input_dict['name']} - mosaiced and transformed images : {datetime.now() - start_time}")
 
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) for all of AU
     start_time = datetime.now()
     print(f" - {input_dict['name']} - Processing AU")
+
     vrt_file = os.path.join(input_dict["input_path"], "temp_au.vrt")
     my_vrt = gdal.BuildVRT(os.path.join(input_dict["input_path"], "temp_au.vrt"), warped_files)
     my_vrt = None
@@ -65,6 +66,7 @@ for input_dict in inputs:
     gd = gdal.Warp(input_dict["output_file"], vrt_file, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
     del gd
     os.remove(vrt_file)
+
     print(f"\t - {input_dict['name']} - mosaiced and transformed images : {datetime.now() - start_time}")
     start_time = datetime.now()
 
