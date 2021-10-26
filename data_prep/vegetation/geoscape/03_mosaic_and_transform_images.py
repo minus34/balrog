@@ -45,14 +45,13 @@ else:
 for input_dict in input_list:
     full_start_time = datetime.now()
     print(f"START - {input_dict['name']} - mosaic and transform images : {full_start_time}")
+    print(f"Processing MGA Zones")
 
     warped_files = list()
 
     # mosaic and transform to WGS84 lat/long for each MGA zone (aka UTM South zones on GDA94 datum)
     for zone in range(49, 57):
         start_time = datetime.now()
-
-        print(f" - Processing MGA Zone {zone}")
 
         files_to_mosaic = glob.glob(os.path.join(input_dict["input_path"], f"*_Z{zone}_*.tif"))
         # vrt_file = os.path.join(input_dict["input_path"], f"temp_Z{zone}.vrt")
@@ -61,17 +60,17 @@ for input_dict in input_list:
         # my_vrt = gdal.BuildVRT(vrt_file, files_to_mosaic)
         # my_vrt = None
 
-        gd = gdal.Warp(interim_file, files_to_mosaic, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4326 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+        gd = gdal.Warp(interim_file, files_to_mosaic, format="GTiff", options="-r cubic -multi -wm 80% -t_srs EPSG:4326 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
         del gd
         # os.remove(vrt_file)
 
         warped_files.append(interim_file)
 
-        print(f"\t - done : {datetime.now() - start_time}")
+        print(f"\t- zone {zone} done : {datetime.now() - start_time}")
 
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) for all of AU
     start_time = datetime.now()
-    print(f" - Processing AU")
+    print(f"Processing AU")
 
     # vrt_file = os.path.join(input_dict["input_path"], "temp_au.vrt")
     # my_vrt = gdal.BuildVRT(os.path.join(input_dict["input_path"], "temp_au.vrt"), warped_files)
@@ -81,7 +80,7 @@ for input_dict in input_list:
     del gd
     # os.remove(vrt_file)
 
-    print(f"\t - done : {datetime.now() - start_time}")
+    print(f"\t- done : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # delete interim files
