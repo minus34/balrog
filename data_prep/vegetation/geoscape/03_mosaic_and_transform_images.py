@@ -70,9 +70,9 @@ def main():
     mp_results = mp_pool.map_async(process_dataset, input_list, chunksize=1)  # use map_async to show progress
 
     while not mp_results.ready():
-        print(f"\rProperties remaining : {mp_results._number_left}", end="")
+        print(f"Datasets remaining : {mp_results._number_left} : {datetime.now()}", end="")
         sys.stdout.flush()
-        time.sleep(10)
+        time.sleep(60)
 
     # print(f"\r\n", end="")
     real_results = mp_results.get()
@@ -85,13 +85,13 @@ def process_dataset(input_dict):
     full_start_time = datetime.now()
     warped_files = list()
 
-    print(f"START - {input_dict['name']} : mosaic and transform images : {full_start_time}")
+    # print(f"START - {input_dict['name']} : mosaic and transform images : {full_start_time}")
 
     # mosaic and transform to WGS84 lat/long for each MGA zone (aka UTM South zones on GDA94 datum)
     for zone in mga_zones:
         start_time = datetime.now()
 
-        files_to_mosaic = glob.glob(os.path.join(input_dict["input_path"], f"*_Z{zone}_*.tif"))
+        files_to_mosaic = glob.glob(os.path.join(input_dict["input_path"], f"*_Z{zone}*.tif"))
 
         if len(files_to_mosaic) > 0:
             interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}")
