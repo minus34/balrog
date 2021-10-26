@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-# installs Python packages to enable converting images to Cloud Optimised GeoTIFFs (COGs)
-
-#PYTHON_VERSION="3.9"
-
 # required to keep long running sessions active
 sudo yum install -y tmux
 
@@ -47,26 +43,11 @@ source ${HOME}/.bashrc
 # update Python packages
 echo "y" | conda update conda
 
-#echo "-------------------------------------------------------------------------"
-#echo " Creating new Conda Environment 'cog'"
-#echo "-------------------------------------------------------------------------"
-#
-## Create Conda environment
-#echo "y" | conda create -n cog python=${PYTHON_VERSION}
-#
-## activate and setup env
-#conda activate cog
-#conda config --env --add channels conda-forge
-#conda config --env --set channel_priority strict
-#
-## reactivate for changes to take effect
-#conda activate cog
-
 echo "-------------------------------------------------------------------------"
 echo " Installing Python packages"
 echo "-------------------------------------------------------------------------"
 
-echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely fiona requests boto3
+echo "y" | conda install -c conda-forge gdal boto3
 
 # remove proxy if set
 if [ -n "${PROXY}" ];
@@ -96,49 +77,8 @@ sudo chown -R ec2-user:ec2-user /data
 mkdir -p /data/tmp/cog
 
 echo "-------------------------------------------------------------------------"
-echo " Setup Postgres Database"
+echo " Copy Geoscape data from S3"
 echo "-------------------------------------------------------------------------"
 
-# start postgres
-initdb -D postgres
-pg_ctl -D postgres -l logfile start
-
-# increase memory usage and minimise logging (don't care if it crashes and we lose everything)
-psql -d postgres -c "ALTER SYSTEM SET max_parallel_workers = 64;"
-psql -d postgres -c "ALTER SYSTEM SET max_parallel_workers_per_gather = 64;"
-psql -d postgres -c "ALTER SYSTEM SET shared_buffers = '256GB';"
-psql -d postgres -c "ALTER SYSTEM SET wal_buffers = '2GB';"
-psql -d postgres -c "ALTER SYSTEM SET max_wal_size = '64GB';"
-psql -d postgres -c "ALTER SYSTEM SET wal_level = 'minimal';"
-psql -d postgres -c "ALTER SYSTEM SET max_wal_senders = 0;"
-psql -d postgres -c "ALTER SYSTEM SET archive_mode = 'off';"
-psql -d postgres -c "ALTER SYSTEM SET fsync = 'off';"
-psql -d postgres -c "ALTER SYSTEM SET full_page_writes = 'off';"
-psql -d postgres -c "ALTER SYSTEM SET synchronous_commit = 'off';"
-
-pg_ctl -D postgres restart
-
-# create new database on mounted drive (not enough space on default drive)
-mkdir -p /data/postgres
-psql -d postgres -c "CREATE TABLESPACE dataspace OWNER \"ec2-user\" LOCATION '/data/postgres';"
-createdb --owner=ec2-user geo -D dataspace
-
-# add PostGIS and create schema
-psql -d geo -c "create extension if not exists postgis;"
-psql -d geo -c "create schema if not exists bushfire;alter schema bushfire owner to \"ec2-user\";"
-
-# restore buildings table(s) (ignore the ALTER TABLE errors)
-aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp --clean
-
-# restore vegetation table(s) (ignore the ALTER TABLE errors)
-aws s3 cp s3://bushfire-rasters/vegetation/nvis6/nvis6.dmp /data/
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/nvis6.dmp --clean
-
-echo "-------------------------------------------------------------------------"
-echo " Copy elevation data from S3"
-echo "-------------------------------------------------------------------------"
-
-## copy elevation files from S3
-#aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/
-#aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/tmp/cog/
+aws s3 sync "s3://bushfire-rasters/geoscape/Surface Cover/" "/data/geoscape/Surface Cover/"
+aws s3 sync "s3://bushfire-rasters/geoscape/Trees/" "/data/geoscape/Trees/"
