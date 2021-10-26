@@ -3,7 +3,6 @@ import boto3
 import glob
 import os
 import platform
-import sys
 
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
@@ -68,13 +67,13 @@ for input_dict in input_list:
         if len(files_to_mosaic) > 0:
             interim_file = os.path.join(input_dict["input_path"], f"temp_Z{zone}.tif")
 
-            gd = gdal.Warp(interim_file, files_to_mosaic, format="GTiff", options="-r cubic -multi -wm 80% -t_srs EPSG:4326 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+            gd = gdal.Warp(interim_file, files_to_mosaic, format="GTiff", options="-r cubic -multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
             del gd
             warped_files.append(interim_file)
 
-            print(f"\t- zone {zone} done : {datetime.now() - start_time}")
+            print(f" - zone {zone} done : {datetime.now() - start_time}")
         else:
-            print(f"\t- zone {zone} has no images : {datetime.now() - start_time}")
+            print(f" - zone {zone} has no images : {datetime.now() - start_time}")
 
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) for all of AU
     start_time = datetime.now()
@@ -86,13 +85,12 @@ for input_dict in input_list:
         my_vrt = None
 
         gd = gdal.Translate(input_dict["output_file"], vrt_file, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
-        # gd = gdal.Warp(input_dict["output_file"], warped_files, format="COG", options="-multi -wm 80% -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
         del gd
         os.remove(vrt_file)
 
-        print(f"\t- done : {datetime.now() - start_time}")
+        print(f" - done : {datetime.now() - start_time}")
     else:
-        print(f"\t- no files to merge : {datetime.now() - start_time}")
+        print(f" - no files to merge : {datetime.now() - start_time}")
 
     start_time = datetime.now()
 
