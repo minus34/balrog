@@ -67,7 +67,7 @@ for input_dict in input_list:
 
         warped_files.append(interim_file)
 
-        print(f"\t - {input_dict['name']} - mosaiced and transformed images : {datetime.now() - start_time}")
+        print(f"\t - mosaiced and transformed images : {datetime.now() - start_time}")
 
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) for all of AU
     start_time = datetime.now()
@@ -81,7 +81,7 @@ for input_dict in input_list:
     del gd
     # os.remove(vrt_file)
 
-    print(f"\t - {input_dict['name']} - mosaiced and transformed images : {datetime.now() - start_time}")
+    print(f"\t - mosaiced and transformed images : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # delete interim files
