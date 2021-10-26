@@ -52,7 +52,7 @@ for input_dict in input_list:
     for zone in range(49, 57):
         start_time = datetime.now()
 
-        print(f" - {input_dict['name']} - Processing MGA Zone {zone}")
+        print(f" - Processing MGA Zone {zone}")
 
         files_to_mosaic = glob.glob(os.path.join(input_dict["input_path"], f"*_Z{zone}_*.tif"))
         # vrt_file = os.path.join(input_dict["input_path"], f"temp_Z{zone}.vrt")
@@ -67,11 +67,11 @@ for input_dict in input_list:
 
         warped_files.append(interim_file)
 
-        print(f"\t - mosaiced and transformed images : {datetime.now() - start_time}")
+        print(f"\t - done : {datetime.now() - start_time}")
 
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) for all of AU
     start_time = datetime.now()
-    print(f" - {input_dict['name']} - Processing AU")
+    print(f" - Processing AU")
 
     # vrt_file = os.path.join(input_dict["input_path"], "temp_au.vrt")
     # my_vrt = gdal.BuildVRT(os.path.join(input_dict["input_path"], "temp_au.vrt"), warped_files)
@@ -81,7 +81,7 @@ for input_dict in input_list:
     del gd
     # os.remove(vrt_file)
 
-    print(f"\t - mosaiced and transformed images : {datetime.now() - start_time}")
+    print(f"\t - done : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     # delete interim files
