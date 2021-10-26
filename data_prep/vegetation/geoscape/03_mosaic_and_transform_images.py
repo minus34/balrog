@@ -16,9 +16,20 @@ s3_client = boto3.client("s3")
 s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 10MB
 
 s3_bucket = "bushfire-rasters"
+
+inputs = [{"name": "2m land cover",
+           "input_path": "/data/geoscape/SurfaceCover_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Surface Cover/Surface Cover 2M JUNE 2021/Standard",
+           "output_file": "/data/geoscape/geoscape_2m_land_cover.tif",
+           "s3_file_path": "geoscape/geoscape_2m_land_cover.tif",
+
+           }
+
+]
+
+
 s3_file_path = "geoscape/geoscape_2m_land_cover.tif"
 
-input_path = os.path.join(pathlib.Path.home(), "Downloads/SurfaceCover_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Surface Cover/Surface Cover 2M JUNE 2021/Standard")
+input_path = os.path.join(pathlib.Path.home(), "/data/geoscape/SurfaceCover_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Surface Cover/Surface Cover 2M JUNE 2021/Standard")
 output_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/veg/geoscape_2m_land_cover.tif")
 
 warped_files = list()
