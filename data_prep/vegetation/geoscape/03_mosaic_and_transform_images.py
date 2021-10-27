@@ -120,10 +120,9 @@ def process_dataset(input_dict):
         files_to_mosaic = glob.glob(os.path.join(input_dict["input_path"], f"*{input_dict['glob_pattern']}Z{zone}*.tif"))
         num_images = len(files_to_mosaic)
 
-
         if num_images > 0:
-            # interim_file = f"/vsimem/temp_Z{zone}_{input_dict['name']}.tif"
-            interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}.tif")
+            interim_file = f"/vsimem/temp_Z{zone}_{input_dict['name']}.tif"
+            # interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}.tif")
 
             gd = gdal.Warp(interim_file, files_to_mosaic, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
             del gd
@@ -160,9 +159,9 @@ def process_dataset(input_dict):
     else:
         print(f" - {input_dict['name']} : no files to merge : {datetime.now() - start_time}")
 
-    # delete interim files
-    for file in warped_files:
-        os.remove(file)
+    # # delete interim files
+    # for file in warped_files:
+    #     os.remove(file)
 
     return f"{input_dict['name']} done : {datetime.now() - full_start_time}"
 
