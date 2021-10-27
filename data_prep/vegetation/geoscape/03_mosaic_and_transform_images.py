@@ -6,6 +6,7 @@ import multiprocessing
 import os
 import pathlib
 import platform
+import subprocess
 import sys
 import time
 
@@ -107,9 +108,9 @@ def main():
 def process_dataset(input_dict):
     """process 1 dataset at a time using parallel processing"""
     full_start_time = datetime.now()
-    warped_files = list()
+    warped_files_to_mosaic = list()
 
-    # os.environ["GDAL_CACHEMAX"] = "80%"
+    # os.environ["GDAL_CACHEMAX"] = "8000"
 
     # print(f"START - {input_dict['name']} : mosaic and transform images : {full_start_time}")
 
@@ -124,9 +125,11 @@ def process_dataset(input_dict):
             interim_file = f"/vsimem/temp_Z{zone}_{input_dict['name']}.tif"
             # interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}.tif")
 
-            gd = gdal.Warp(interim_file, files_to_mosaic, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
-            del gd
-            warped_files.append(interim_file)
+            # cmd = f"gdal_merge.py -q -o {interim_file} -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS"
+            # subprocess.call(cmd.split()+files_to_mosaic)
+
+            gdal.Warp(interim_file, files_to_mosaic, options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+            warped_files_to_mosaic.append(interim_file)
 
             print(f" - {input_dict['name']} : zone {zone} done ({num_images} images) : {datetime.now() - start_time}")
         else:
@@ -135,16 +138,16 @@ def process_dataset(input_dict):
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) for all of AU
     start_time = datetime.now()
 
-    if len(warped_files) > 0:
-        vrt_file = os.path.join(output_path, f"temp_au_{input_dict['name']}.vrt")
-        my_vrt = gdal.BuildVRT(vrt_file, warped_files)
-        my_vrt = None
+    if len(warped_files_to_mosaic) > 0:
+        vrt_file = f"temp_au_{input_dict['name']}.vrt"
+        # vrt_file = os.path.join(output_path, f"temp_au_{input_dict['name']}.vrt")
+        vrt = gdal.BuildVRT(vrt_file, warped_files_to_mosaic)
 
-        # gd = gdal.Warp(input_dict["output_file"], warped_files, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+        # gd = gdal.Warp(input_dict["output_file"], warped_files_to_mosaic, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
         # del gd
 
-        gd = gdal.Translate(input_dict["output_file"], vrt_file, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
-        del gd
+        gdal.Translate(input_dict["output_file"], vrt, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+        vrt = None
         os.remove(vrt_file)
 
         print(f" - {input_dict['name']} : AU done : {datetime.now() - start_time}")
@@ -160,7 +163,7 @@ def process_dataset(input_dict):
         print(f" - {input_dict['name']} : no files to merge : {datetime.now() - start_time}")
 
     # # delete interim files
-    # for file in warped_files:
+    # for file in warped_files_to_mosaic:
     #     os.remove(file)
 
     return f"{input_dict['name']} done : {datetime.now() - full_start_time}"
