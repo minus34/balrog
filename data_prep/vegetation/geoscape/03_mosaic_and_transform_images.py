@@ -20,6 +20,8 @@ s3_bucket = "bushfire-rasters"
 if platform.system() == "Darwin":
     debug = True
 
+    ram_to_use = 8
+
     output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/veg")
 
     input_list = [{"name": "30m_land_cover",
@@ -44,6 +46,8 @@ if platform.system() == "Darwin":
                    "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"}]
 else:
     debug = False
+
+    ram_to_use = 480
 
     output_path = "/data/geoscape"
 
@@ -76,6 +80,9 @@ else:
 
 # how many parallel processes to run
 max_processes = multiprocessing.cpu_count()
+
+# # set max RAM usage
+# gdal.SetCacheMax(ram_to_use * 1024 * 1024)
 
 
 def main():
