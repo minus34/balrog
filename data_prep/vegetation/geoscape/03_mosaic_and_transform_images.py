@@ -6,9 +6,6 @@ import multiprocessing
 import os
 import pathlib
 import platform
-import subprocess
-import sys
-import time
 
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
@@ -122,34 +119,26 @@ def process_dataset(input_dict):
         num_images = len(files_to_mosaic)
 
         if num_images > 0:
+            # store the interim images in memory
             interim_file = f"/vsimem/temp_Z{zone}_{input_dict['name']}.tif"
-            # interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}.tif")
 
-            # cmd = f"gdal_merge.py -q -o {interim_file} -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS"
-            # subprocess.call(cmd.split()+files_to_mosaic)
-
+            # merge and convert to GDA 94
             gdal.Warp(interim_file, files_to_mosaic, options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
             warped_files_to_mosaic.append(interim_file)
-
             print(f" - {input_dict['name']} : zone {zone} done ({num_images} images) : {datetime.now() - start_time}")
         else:
             print(f" - {input_dict['name']} : zone {zone} has no images : {datetime.now() - start_time}")
 
-    # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) for all of AU
     start_time = datetime.now()
 
+    # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) for all of AU
     if len(warped_files_to_mosaic) > 0:
         vrt_file = f"temp_au_{input_dict['name']}.vrt"
-        # vrt_file = os.path.join(output_path, f"temp_au_{input_dict['name']}.vrt")
         vrt = gdal.BuildVRT(vrt_file, warped_files_to_mosaic)
-
-        # gd = gdal.Warp(input_dict["output_file"], warped_files_to_mosaic, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
-        # del gd
 
         gdal.Translate(input_dict["output_file"], vrt, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
         vrt = None
         os.remove(vrt_file)
-
         print(f" - {input_dict['name']} : AU done : {datetime.now() - start_time}")
 
         # upload to AWS S3 if not debugging
