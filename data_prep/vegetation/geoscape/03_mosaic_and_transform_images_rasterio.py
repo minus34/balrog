@@ -11,8 +11,11 @@ import rasterio
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
 from rasterio import Affine
+from rasterio.io import MemoryFile
+from rio_cogeo import cog_translate
+from rio_cogeo.profiles import cog_profiles
 from rasterio.merge import merge
-from rasterio.warp import reproject, Resampling
+from rasterio.warp import calculate_default_transform, reproject, Resampling
 
 # setup connection to AWS S3
 s3_client = boto3.client("s3")
@@ -77,6 +80,8 @@ if debug:
 else:
     mga_zones = range(49, 57)
 
+target_crs = "EPSG:4283"
+
 # how many parallel processes to run
 max_processes = multiprocessing.cpu_count()
 
@@ -131,12 +136,64 @@ def process_dataset(input_dict):
                 src = rasterio.open(file_path, "r")
                 loaded_files_to_mosaic.append(src)
 
+            profile = loaded_files_to_mosaic[0].meta.copy()
+
+            # fred = rasterio.band(loaded_files_to_mosaic[0], 1)
+
             mosaic_array, mosaic_transform = merge(loaded_files_to_mosaic)
             del loaded_files_to_mosaic  # clean up memory
 
+            # set profile of mosaic file
+            profile.update(
+                compress='deflate',
+                driver='GTiff',
+                height=mosaic_array.shape[1],
+                width=mosaic_array.shape[2],
+                nodata=-9999,
+                transform=mosaic_transform
+            )
+
+            # save mosaic to file
+            with rasterio.open("mosaic.tif", "w", **profile) as mosaic:
+                mosaic.write(mosaic_array)
 
 
-            # gdal.Warp(interim_file, files_to_mosaic, options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+
+
+
+
+
+            # Update the mosaic's metadata
+            mosaic_metadata.update({"driver": "GTiff",
+                                    "height": mosaic_array.shape[1],
+                                    "width": mosaic_array.shape[2],
+                                    "transform": mosaic_transform,
+                                    })
+
+            # get the transform parameters for reprojection
+            transform, width, height = calculate_default_transform(
+                mosaic_metadata["crs"], target_crs, mosaic_metadata["width"], mosaic_metadata["height"], *mosaic_metadata["bounds"])
+            kwargs = mosaic_metadata
+            kwargs.update({
+                'crs': target_crs,
+                'transform': transform,
+                'width': width,
+                'height': height
+            })
+        
+            with rasterio.open('/tmp/RGB.byte.wgs84.tif', 'w', **kwargs) as dst:
+                for i in range(1, src.count + 1):
+                    reproject(
+                        source=rasterio.band(src, i),
+                        destination=rasterio.band(dst, i),
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=transform,
+                        dst_crs=target_crs,
+                        resampling=Resampling.nearest)
+
+
+# gdal.Warp(interim_file, files_to_mosaic, options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
             warped_files_to_mosaic.append(interim_file)
 
 
