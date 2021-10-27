@@ -6,13 +6,13 @@ import multiprocessing
 import os
 import pathlib
 import platform
-import subprocess
-import sys
-import time
+import rasterio
 
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
-from osgeo import gdal
+from rasterio import Affine
+from rasterio.merge import merge
+from rasterio.warp import reproject, Resampling
 
 # setup connection to AWS S3
 s3_client = boto3.client("s3")
@@ -123,13 +123,22 @@ def process_dataset(input_dict):
 
         if num_images > 0:
             interim_file = f"/vsimem/temp_Z{zone}_{input_dict['name']}.tif"
-            # interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}.tif")
 
-            # cmd = f"gdal_merge.py -q -o {interim_file} -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS"
-            # subprocess.call(cmd.split()+files_to_mosaic)
+            # merge images
+            loaded_files_to_mosaic = list()
 
-            gdal.Warp(interim_file, files_to_mosaic, options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+            for file_path in files_to_mosaic:
+                src = rasterio.open(file_path, "r")
+                loaded_files_to_mosaic.append(src)
+
+            mosaic_array, mosaic_transform = merge(loaded_files_to_mosaic)
+            del loaded_files_to_mosaic  # clean up memory
+
+
+
+            # gdal.Warp(interim_file, files_to_mosaic, options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
             warped_files_to_mosaic.append(interim_file)
+
 
             print(f" - {input_dict['name']} : zone {zone} done ({num_images} images) : {datetime.now() - start_time}")
         else:
