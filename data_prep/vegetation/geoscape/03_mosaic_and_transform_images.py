@@ -45,7 +45,7 @@ if platform.system() == "Darwin":
                    "output_file": os.path.join(output_path, "geoscape_2m_land_cover.tif"),
                    "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"}]
 else:
-    debug = False
+    debug = True
 
     output_path = "/data/geoscape"
 
@@ -58,17 +58,17 @@ else:
                    "input_path": "/data/geoscape/Trees/Trees JUNE 2021/Standard",
                    "glob_pattern": "_TREES_METADATA_",
                    "output_file": os.path.join(output_path, "geoscape_trees_metadata.tif"),
-                   "s3_file_path": "geoscape/geoscape_trees_metadata.tif"}
-                  # {"name": "30m land cover",
-                  #  "input_path": "/data/geoscape/Surface Cover/Surface Cover 30M JUNE 2021/Standard",
-                  #  "glob_pattern": "_SURFACECOVER_30M_",
-                  #  "output_file": os.path.join(output_path, "geoscape_30m_land_cover.tif"),
-                  #  "s3_file_path": "geoscape/geoscape_30m_land_cover.tif"},
-                  # {"name": "2m land cover",
-                  #  "input_path": "/data/geoscape/Surface Cover/Surface Cover 2M JUNE 2021/Standard",
-                  #  "glob_pattern": "_SURFACECOVER_2M_",
-                  #  "output_file": os.path.join(output_path, "geoscape_2m_land_cover.tif"),
-                  #  "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"}
+                   "s3_file_path": "geoscape/geoscape_trees_metadata.tif"},
+                  {"name": "30m land cover",
+                   "input_path": "/data/geoscape/Surface Cover/Surface Cover 30M JUNE 2021/Standard",
+                   "glob_pattern": "_SURFACECOVER_30M_",
+                   "output_file": os.path.join(output_path, "geoscape_30m_land_cover.tif"),
+                   "s3_file_path": "geoscape/geoscape_30m_land_cover.tif"},
+                  {"name": "2m land cover",
+                   "input_path": "/data/geoscape/Surface Cover/Surface Cover 2M JUNE 2021/Standard",
+                   "glob_pattern": "_SURFACECOVER_2M_",
+                   "output_file": os.path.join(output_path, "geoscape_2m_land_cover.tif"),
+                   "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"}
                   ]
 
 if debug:
