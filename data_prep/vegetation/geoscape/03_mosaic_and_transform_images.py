@@ -91,14 +91,7 @@ def main():
 
     mp_pool = multiprocessing.Pool(max_processes)
     mp_results = mp_pool.map_async(process_dataset, input_list)
-    # mp_results = mp_pool.map_async(process_dataset, input_list, chunksize=1)  # use map_async to show progress
 
-    # while not mp_results.ready():
-    #     print(f"Datasets remaining : {mp_results._number_left} : {datetime.now()}")
-    #     sys.stdout.flush()
-    #     time.sleep(10)
-
-    # print(f"\r\n", end="")
     results = mp_results.get()
     mp_pool.close()
     mp_pool.join()
@@ -113,10 +106,6 @@ def process_dataset(input_dict):
     """process 1 dataset at a time using parallel processing"""
     full_start_time = datetime.now()
     warped_files_to_mosaic = list()
-
-    # os.environ["GDAL_CACHEMAX"] = "8000"
-
-    # print(f"START - {input_dict['name']} : mosaic and transform images : {full_start_time}")
 
     # mosaic and transform to WGS84 lat/long for each MGA zone (aka UTM South zones on GDA94 datum)
     for zone in mga_zones:
