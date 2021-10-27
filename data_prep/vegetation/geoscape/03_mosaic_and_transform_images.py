@@ -74,15 +74,15 @@ else:
                   ]
 
 if debug:
-    mga_zones = range(49, 50)
+    mga_zones = [49, 51]
 else:
     mga_zones = range(49, 57)
 
 # how many parallel processes to run
 max_processes = multiprocessing.cpu_count()
 
-# # set max RAM usage
-# gdal.SetCacheMax(ram_to_use * 1024 * 1024)
+# set max RAM usage
+gdal.SetCacheMax(ram_to_use * 1024 * 1024)
 
 
 def main():
@@ -116,10 +116,12 @@ def process_dataset(input_dict):
 
         if num_images > 0:
             # store the interim images in memory
-            interim_file = f"/vsimem/temp_Z{zone}_{input_dict['name']}.tif"
+            # interim_file = f"/vsimem/temp_Z{zone}_{input_dict['name']}.tif"
+            interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}.tif")
 
             # merge and convert to GDA 94
-            gdal.Warp(interim_file, files_to_mosaic, options="-r average -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+            gdw = gdal.Warp(interim_file, files_to_mosaic, options="-r average -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+            del gdw
             warped_files_to_mosaic.append(interim_file)
             print(f" - {input_dict['name']} : zone {zone} done ({num_images} images) : {datetime.now() - start_time}")
         else:
@@ -132,7 +134,9 @@ def process_dataset(input_dict):
         vrt_file = f"temp_au_{input_dict['name']}.vrt"
         vrt = gdal.BuildVRT(vrt_file, warped_files_to_mosaic)
 
-        gdal.Translate(input_dict["output_file"], vrt, format="COG", options="-co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+        # gdal.Warp(input_dict["output_file"], warped_files_to_mosaic, options="-multi -wm 80% -co TILED=YES -co BIGTIFF=YES -co COMPRESS=LZW -co NUM_THREADS=ALL_CPUS -overwrite")
+        gdt = gdal.Translate(input_dict["output_file"], vrt, format="COG", options="-co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+        del gdt
         vrt = None
         os.remove(vrt_file)
         print(f" - {input_dict['name']} : AU done : {datetime.now() - start_time}")
