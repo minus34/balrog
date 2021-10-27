@@ -26,14 +26,22 @@ if platform.system() == "Darwin":
 
     input_list = [{"name": "30m_land_cover",
                    "input_path": os.path.join(pathlib.Path.home(), "Downloads/SurfaceCover_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Surface Cover/Surface Cover 30M JUNE 2021/Standard"),
+                   "glob_pattern": "_SURFACECOVER_30M_",
                    "output_file": os.path.join(output_path, "geoscape_30m_land_cover.tif"),
                    "s3_file_path": "geoscape/geoscape_30m_land_cover.tif"},
                   {"name": "trees",
                    "input_path": os.path.join(pathlib.Path.home(), "Downloads/Trees_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Trees/Trees JUNE 2021/Standard"),
+                   "glob_pattern": "_TREES_",
                    "output_file": os.path.join(output_path, "geoscape_trees.tif"),
                    "s3_file_path": "geoscape/geoscape_trees.tif"},
+                  {"name": "trees_metadata",
+                   "input_path": os.path.join(pathlib.Path.home(), "Downloads/Trees_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Trees/Trees JUNE 2021/Standard"),
+                   "glob_pattern": "_TREES_METADATA_",
+                   "output_file": os.path.join(output_path, "geoscape_trees_metadata.tif"),
+                   "s3_file_path": "geoscape/geoscape_trees_metadata.tif"},
                   {"name": "2m_land_cover",
                    "input_path": os.path.join(pathlib.Path.home(), "Downloads/SurfaceCover_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Surface Cover/Surface Cover 2M JUNE 2021/Standard"),
+                   "glob_pattern": "_SURFACECOVER_2M_",
                    "output_file": os.path.join(output_path, "geoscape_2m_land_cover.tif"),
                    "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"}]
 else:
@@ -41,22 +49,30 @@ else:
 
     output_path = "/data/geoscape"
 
-    input_list = [{"name": "30m land cover",
-                   "input_path": "/data/geoscape/Surface Cover/Surface Cover 30M JUNE 2021/Standard",
-                   "output_file": os.path.join(output_path, "geoscape_30m_land_cover.tif"),
-                   "s3_file_path": "geoscape/geoscape_30m_land_cover.tif"},
-                  {"name": "trees",
+    input_list = [{"name": "trees",
                    "input_path": "/data/geoscape/Trees/Trees JUNE 2021/Standard",
+                   "glob_pattern": "_TREES_",
                    "output_file": os.path.join(output_path, "geoscape_trees.tif"),
                    "s3_file_path": "geoscape/geoscape_trees.tif"},
+                  {"name": "trees_metadata",
+                   "input_path": "/data/geoscape/Trees/Trees JUNE 2021/Standard",
+                   "glob_pattern": "_TREES_METADATA_",
+                   "output_file": os.path.join(output_path, "geoscape_trees_metadata.tif"),
+                   "s3_file_path": "geoscape/geoscape_trees_metadata.tif"}
+                  # {"name": "30m land cover",
+                  #  "input_path": "/data/geoscape/Surface Cover/Surface Cover 30M JUNE 2021/Standard",
+                  #  "glob_pattern": "_SURFACECOVER_30M_",
+                  #  "output_file": os.path.join(output_path, "geoscape_30m_land_cover.tif"),
+                  #  "s3_file_path": "geoscape/geoscape_30m_land_cover.tif"},
                   # {"name": "2m land cover",
                   #  "input_path": "/data/geoscape/Surface Cover/Surface Cover 2M JUNE 2021/Standard",
+                  #  "glob_pattern": "_SURFACECOVER_2M_",
                   #  "output_file": os.path.join(output_path, "geoscape_2m_land_cover.tif"),
-                  #  "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"},
+                  #  "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"}
                   ]
 
 if debug:
-    mga_zones = range(49, 51)
+    mga_zones = range(49, 50)
 else:
     mga_zones = range(49, 57)
 
@@ -65,19 +81,27 @@ max_processes = multiprocessing.cpu_count()
 
 
 def main():
+    full_start_time = datetime.now()
+    logger.info(f"START mosaic and transform images : {full_start_time}")
 
     mp_pool = multiprocessing.Pool(max_processes)
-    mp_results = mp_pool.map_async(process_dataset, input_list, chunksize=1)  # use map_async to show progress
+    mp_results = mp_pool.map_async(process_dataset, input_list)
+    # mp_results = mp_pool.map_async(process_dataset, input_list, chunksize=1)  # use map_async to show progress
 
-    while not mp_results.ready():
-        print(f"Datasets remaining : {mp_results._number_left} : {datetime.now()}", end="")
-        sys.stdout.flush()
-        time.sleep(60)
+    # while not mp_results.ready():
+    #     print(f"Datasets remaining : {mp_results._number_left} : {datetime.now()}")
+    #     sys.stdout.flush()
+    #     time.sleep(10)
 
     # print(f"\r\n", end="")
-    real_results = mp_results.get()
+    results = mp_results.get()
     mp_pool.close()
     mp_pool.join()
+
+    for result in results:
+        logger.info(f" - {result}")
+
+    logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
 
 def process_dataset(input_dict):
@@ -85,22 +109,27 @@ def process_dataset(input_dict):
     full_start_time = datetime.now()
     warped_files = list()
 
+    # os.environ["GDAL_CACHEMAX"] = "80%"
+
     # print(f"START - {input_dict['name']} : mosaic and transform images : {full_start_time}")
 
     # mosaic and transform to WGS84 lat/long for each MGA zone (aka UTM South zones on GDA94 datum)
     for zone in mga_zones:
         start_time = datetime.now()
 
-        files_to_mosaic = glob.glob(os.path.join(input_dict["input_path"], f"*_Z{zone}*.tif"))
+        files_to_mosaic = glob.glob(os.path.join(input_dict["input_path"], f"*{input_dict['glob_pattern']}Z{zone}*.tif"))
+        num_images = len(files_to_mosaic)
 
-        if len(files_to_mosaic) > 0:
-            interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}")
 
-            gd = gdal.Warp(interim_file, files_to_mosaic, format="GTiff", options="-r cubic -multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+        if num_images > 0:
+            # interim_file = f"/vsimem/temp_Z{zone}_{input_dict['name']}.tif"
+            interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}.tif")
+
+            gd = gdal.Warp(interim_file, files_to_mosaic, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
             del gd
             warped_files.append(interim_file)
 
-            print(f" - {input_dict['name']} : zone {zone} done : {datetime.now() - start_time}")
+            print(f" - {input_dict['name']} : zone {zone} done ({num_images} images) : {datetime.now() - start_time}")
         else:
             print(f" - {input_dict['name']} : zone {zone} has no images : {datetime.now() - start_time}")
 
@@ -112,11 +141,14 @@ def process_dataset(input_dict):
         my_vrt = gdal.BuildVRT(vrt_file, warped_files)
         my_vrt = None
 
+        # gd = gdal.Warp(input_dict["output_file"], warped_files, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
+        # del gd
+
         gd = gdal.Translate(input_dict["output_file"], vrt_file, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
         del gd
         os.remove(vrt_file)
 
-        print(f" - {input_dict['name']} : done : {datetime.now() - start_time}")
+        print(f" - {input_dict['name']} : AU done : {datetime.now() - start_time}")
 
         # upload to AWS S3 if not debugging
         if not debug:
@@ -128,35 +160,31 @@ def process_dataset(input_dict):
     else:
         print(f" - {input_dict['name']} : no files to merge : {datetime.now() - start_time}")
 
-    start_time = datetime.now()
-
     # delete interim files
     for file in warped_files:
         os.remove(file)
 
-    print(f"FINISHED - {input_dict['name']} : mosaic and transform images : {datetime.now() - full_start_time}")
-
-    return True
+    return f"{input_dict['name']} done : {datetime.now() - full_start_time}"
 
 
 if __name__ == "__main__":
-    # # setup logging
-    # logger = logging.getLogger()
-    #
-    # # set logger
-    # log_file = os.path.abspath(__file__).replace(".py", ".log")
-    # logging.basicConfig(filename=log_file, level=logging.INFO, format="%(asctime)s %(message)s",
-    #                     datefmt="%m/%d/%Y %I:%M:%S %p")
-    #
-    # # setup logger to write to screen as well as writing to log file
-    # # define a Handler which writes INFO messages or higher to the sys.stderr
-    # console = logging.StreamHandler()
-    # console.setLevel(logging.INFO)
-    # # set a format which is simpler for console use
-    # formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
-    # # tell the handler to use this format
-    # console.setFormatter(formatter)
-    # # add the handler to the root logger
-    # logging.getLogger("").addHandler(console)
+    # setup logging
+    logger = logging.getLogger()
+
+    # set logger
+    log_file = os.path.abspath(__file__).replace(".py", ".log")
+    logging.basicConfig(filename=log_file, level=logging.INFO, format="%(asctime)s %(message)s",
+                        datefmt="%m/%d/%Y %I:%M:%S %p")
+
+    # setup logger to write to screen as well as writing to log file
+    # define a Handler which writes INFO messages or higher to the sys.stderr
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    # set a format which is simpler for console use
+    formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
+    # tell the handler to use this format
+    console.setFormatter(formatter)
+    # add the handler to the root logger
+    logging.getLogger("").addHandler(console)
 
     main()
