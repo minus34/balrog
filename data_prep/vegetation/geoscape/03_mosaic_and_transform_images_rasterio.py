@@ -216,9 +216,9 @@ def process_dataset(input_dict):
     else:
         print(f" - {input_dict['name']} : no files to merge : {datetime.now() - start_time}")
 
-    # # delete interim files
-    # for file in warped_files_to_mosaic:
-    #     os.remove(file)
+    # delete interim files
+    for file in warped_files_to_mosaic:
+        os.remove(file)
 
     return f"{input_dict['name']} done : {datetime.now() - full_start_time}"
 
