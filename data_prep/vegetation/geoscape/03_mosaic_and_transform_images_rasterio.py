@@ -1,4 +1,10 @@
 
+
+
+# WARNING - currently doesn't work
+# - it flattens the 2m & 30m land cover colour ramps
+# - it adds false values to the tree heights (band 1)
+
 import boto3
 import glob
 import logging
@@ -9,11 +15,8 @@ import platform
 import rasterio
 
 from boto3.s3.transfer import TransferConfig
+from contextlib import contextmanager
 from datetime import datetime
-from rasterio import Affine
-from rasterio.io import MemoryFile
-from rio_cogeo import cog_translate
-from rio_cogeo.profiles import cog_profiles
 from rasterio.merge import merge
 from rasterio.warp import calculate_default_transform, reproject, Resampling
 
@@ -127,7 +130,7 @@ def process_dataset(input_dict):
         num_images = len(files_to_mosaic)
 
         if num_images > 0:
-            interim_file = f"/vsimem/temp_Z{zone}_{input_dict['name']}.tif"
+            interim_file = os.path.join(output_path, f"temp_Z{zone}_{input_dict['name']}.tif")
 
             # merge images
             loaded_files_to_mosaic = list()
@@ -143,59 +146,32 @@ def process_dataset(input_dict):
             mosaic_array, mosaic_transform = merge(loaded_files_to_mosaic)
             del loaded_files_to_mosaic  # clean up memory
 
-            # set profile of mosaic file
-            profile.update(
-                compress='deflate',
-                driver='GTiff',
-                height=mosaic_array.shape[1],
-                width=mosaic_array.shape[2],
-                nodata=-9999,
-                transform=mosaic_transform
-            )
+            # create in-memory mosaic image from array and profile
+            with get_inmemory_raster(mosaic_array, profile, mosaic_transform) as mosaic:
 
-            # save mosaic to file
-            with rasterio.open("mosaic.tif", "w", **profile) as mosaic:
-                mosaic.write(mosaic_array)
+                # get the transform parameters for reprojection
+                transform, width, height = calculate_default_transform(
+                    mosaic.crs, target_crs, mosaic.width, mosaic.height, *mosaic.bounds)
+                kwargs = profile
+                kwargs.update({
+                    'crs': target_crs,
+                    'transform': transform,
+                    'width': width,
+                    'height': height
+                })
 
-
-
-
-
-
-
-            # Update the mosaic's metadata
-            mosaic_metadata.update({"driver": "GTiff",
-                                    "height": mosaic_array.shape[1],
-                                    "width": mosaic_array.shape[2],
-                                    "transform": mosaic_transform,
-                                    })
-
-            # get the transform parameters for reprojection
-            transform, width, height = calculate_default_transform(
-                mosaic_metadata["crs"], target_crs, mosaic_metadata["width"], mosaic_metadata["height"], *mosaic_metadata["bounds"])
-            kwargs = mosaic_metadata
-            kwargs.update({
-                'crs': target_crs,
-                'transform': transform,
-                'width': width,
-                'height': height
-            })
-        
-            with rasterio.open('/tmp/RGB.byte.wgs84.tif', 'w', **kwargs) as dst:
-                for i in range(1, src.count + 1):
+                # reproject to a new file
+                with rasterio.open(interim_file, "w", **kwargs) as dst:
                     reproject(
-                        source=rasterio.band(src, i),
-                        destination=rasterio.band(dst, i),
-                        src_transform=src.transform,
-                        src_crs=src.crs,
+                        source=rasterio.band(mosaic, 1),
+                        destination=rasterio.band(dst, 1),
+                        src_transform=mosaic.transform,
+                        src_crs=mosaic.crs,
                         dst_transform=transform,
                         dst_crs=target_crs,
-                        resampling=Resampling.nearest)
+                        resampling=Resampling.average)
 
-
-# gdal.Warp(interim_file, files_to_mosaic, options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
             warped_files_to_mosaic.append(interim_file)
-
 
             print(f" - {input_dict['name']} : zone {zone} done ({num_images} images) : {datetime.now() - start_time}")
         else:
@@ -205,16 +181,28 @@ def process_dataset(input_dict):
     start_time = datetime.now()
 
     if len(warped_files_to_mosaic) > 0:
-        vrt_file = f"temp_au_{input_dict['name']}.vrt"
-        # vrt_file = os.path.join(output_path, f"temp_au_{input_dict['name']}.vrt")
-        vrt = gdal.BuildVRT(vrt_file, warped_files_to_mosaic)
+        # merge images
+        loaded_files_to_mosaic = list()
 
-        # gd = gdal.Warp(input_dict["output_file"], warped_files_to_mosaic, format="GTiff", options="-multi -wm 80% -t_srs EPSG:4283 -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS -overwrite")
-        # del gd
+        for file_path in warped_files_to_mosaic:
+            src = rasterio.open(file_path, "r")
+            loaded_files_to_mosaic.append(src)
 
-        gdal.Translate(input_dict["output_file"], vrt, format="COG", options="-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
-        vrt = None
-        os.remove(vrt_file)
+        profile = loaded_files_to_mosaic[0].meta.copy()
+
+        mosaic_array, mosaic_transform = merge(loaded_files_to_mosaic)
+        del loaded_files_to_mosaic  # clean up memory
+
+        profile.update(
+            compress='deflate',
+            driver='COG',
+            height=mosaic_array.shape[1],
+            width=mosaic_array.shape[2],
+            transform=mosaic_transform
+        )
+
+        with rasterio.open(input_dict["output_file"], "w", **profile) as output_image:
+            output_image.write(mosaic_array)
 
         print(f" - {input_dict['name']} : AU done : {datetime.now() - start_time}")
 
@@ -233,6 +221,23 @@ def process_dataset(input_dict):
     #     os.remove(file)
 
     return f"{input_dict['name']} done : {datetime.now() - full_start_time}"
+
+
+@contextmanager
+def get_inmemory_raster(array, profile, transform):
+    profile.update(
+        compress='deflate',
+        driver='GTiff',
+        height=array.shape[1],
+        width=array.shape[2],
+        transform=transform
+    )
+    with rasterio.MemoryFile() as memfile:
+        with memfile.open(**profile) as dataset: # Open as DatasetWriter
+            dataset.write(array)
+
+        with memfile.open() as dataset:  # Reopen as DatasetReader
+            yield dataset  # Note yield not return
 
 
 if __name__ == "__main__":
