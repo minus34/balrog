@@ -131,9 +131,9 @@ def process_dataset(input_dict):
         if not debug:
             try:
                 aws_response = s3_client.upload_file(input_dict["output_file"], s3_bucket, input_dict["s3_file_path"], Config=s3_config)
-                print(f"\t - {input_dict['name']} : image uploaded to s3 : {datetime.now() - start_time}")
+                print(f"- {input_dict['name']} : image uploaded to s3 : {datetime.now() - start_time}")
             except:
-                print(f"\t - {input_dict['name']} : FAILED - image upload to s3 : AWS token probably expired : {datetime.now() - start_time}")
+                print(f"- {input_dict['name']} : FAILED - image upload to s3 : AWS token probably expired : {datetime.now() - start_time}")
     else:
         print(f" - {input_dict['name']} : no files to merge")
 
