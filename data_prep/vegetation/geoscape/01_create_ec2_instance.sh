@@ -106,7 +106,7 @@ scp -F ${SSH_CONFIG} -r ${HOME}/.aws/credentials ${USER}@${INSTANCE_ID}:~/.aws/c
 
 # copy required scripts
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_ID}:~/
-scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_mosaic_and_transform_images.py ${USER}@${INSTANCE_ID}:~/
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_mosaic_and_transform_images_in_one_go.py ${USER}@${INSTANCE_ID}:~/
 
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then
