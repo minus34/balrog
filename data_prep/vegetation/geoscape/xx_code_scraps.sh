@@ -2,13 +2,13 @@
 
 
 # raw file
-gdalinfo "/Users/s57405/Downloads/Trees_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Trees/Trees JUNE 2021/Standard/WA_TREES_Z49_17496.tif"
+gdalinfo "/Users/$(whoami)/Downloads/Trees_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Trees/Trees JUNE 2021/Standard/WA_TREES_Z49_17496.tif"
 
 # intermediate file
-gdalinfo /Users/s57405/tmp/bushfire/veg/temp_Z49_trees.tif
+gdalinfo /Users/$(whoami)/tmp/bushfire/veg/temp_Z49_trees.tif
 
 # final file
-gdalinfo /Users/s57405/tmp/bushfire/veg/geoscape_trees.tif
+gdalinfo /Users/$(whoami)/tmp/bushfire/veg/geoscape_trees.tif
 
 
 

@@ -93,7 +93,7 @@ sudo mkdir /data
 sudo mount /dev/nvme1n1 /data
 
 sudo chown -R ec2-user:ec2-user /data
-mkdir -p /data/tmp/cog
+mkdir -p /data/dem/cog
 
 echo "-------------------------------------------------------------------------"
 echo " Setup Postgres Database"
@@ -140,5 +140,5 @@ echo " Copy elevation data from S3"
 echo "-------------------------------------------------------------------------"
 
 ## copy elevation files from S3
-#aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/tmp/cog/
-#aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/tmp/cog/
+#aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/cog/
+#aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/dem/cog/

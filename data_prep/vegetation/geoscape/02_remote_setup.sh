@@ -74,7 +74,7 @@ sudo mkdir /data
 sudo mount /dev/nvme1n1 /data
 
 sudo chown -R ec2-user:ec2-user /data
-mkdir -p /data/tmp/cog
+mkdir -p /data/dem/cog
 
 echo "-------------------------------------------------------------------------"
 echo " Copy Geoscape data from S3"
