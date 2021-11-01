@@ -1,9 +1,13 @@
 BALRoG - Bushfire Attack Level (Rewritten on GDAL) 
 ===================================================
 
-WORK IN PROGRESS
+WORK ON HOLD
 ----------------
-**This repo will become a version of Geoscience Australia's BAL toolkit that runs 100% on open source, primarily using GDAL**
+**This repo was to become a version of Geoscience Australia's BAL toolkit that runs 100% on open source, primarily using GDAL**
+
+However, this work is on hold as BAL is potentially going to be replaced with [a better risk assessment methodology](https://www.bbca.org.au/):
+
+Background: https://www.smh.com.au/politics/federal/planning-rules-silent-on-major-risks-bushfire-royal-commission-hears-20200708-p55a78.html
 
 Original README below
 ---------------------
