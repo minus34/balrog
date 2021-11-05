@@ -22,6 +22,24 @@
 -- alter table bushfire.nsw_rfs_bushfire_prone_land owner to postgres;
 
 
+-- analyse bushfire.nsw_rfs_bushfire_prone_land
+--
+-- -- geometry types
+-- select d_category,
+--        st_geometrytype(geom) as geom_type,
+--        sum(st_npoints(geom)) as point_count,
+--        sum(st_numgeometries(geom)) as geom_count,
+--        count(*) as row_count
+-- from bushfire.nsw_rfs_bushfire_prone_land
+-- group by d_category,
+--          geom_type
+-- order by d_category,
+--          geom_type
+-- ;
+
+
+
+
 -- STEP 1 -- create a table of exploded, valid polygons
 drop table if exists bushfire.nsw_rfs_bushfire_prone_land_exploded;
 create table bushfire.nsw_rfs_bushfire_prone_land_exploded as
