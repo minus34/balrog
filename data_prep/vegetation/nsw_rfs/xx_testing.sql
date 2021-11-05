@@ -40,7 +40,7 @@
 
 
 
--- STEP 1 -- create a table of exploded, valid polygons
+-- STEP 1 -- create a table of exploded, valid polygons -- 1 hour 30 mins
 drop table if exists bushfire.nsw_rfs_bushfire_prone_land_exploded;
 create table bushfire.nsw_rfs_bushfire_prone_land_exploded as
 with bf as (
@@ -66,13 +66,13 @@ where st_geometrytype(geom) <> 'ST_Polygon'
 analyse bushfire.nsw_rfs_bushfire_prone_land_exploded;
 
 
--- STEP 2 -- subdivide polygons (some of them are very large) to speed up analysis
+-- STEP 2 -- subdivide polygons (some of them are very large) to speed up analysis -- 30 miuns
 drop table if exists bushfire.nsw_rfs_bushfire_prone_land_analysis;
 create table bushfire.nsw_rfs_bushfire_prone_land_analysis as
 select gid,
        category,
        d_category,
-       st_subdivide(st_makevalid(geom), 512) as geom
+       st_subdivide(geom, 512) as geom
 from bushfire.nsw_rfs_bushfire_prone_land_exploded
 where st_geometrytype(geom) = 'ST_Polygon'
 ;
