@@ -66,7 +66,7 @@ where st_geometrytype(geom) <> 'ST_Polygon'
 analyse bushfire.nsw_rfs_bushfire_prone_land_exploded;
 
 
--- STEP 2 -- subdivide polygons (some of them are very large) to speed up analysis -- 30 miuns
+-- STEP 2 -- subdivide polygons (some of them are very large) to speed up analysis -- 30 mins
 drop table if exists bushfire.nsw_rfs_bushfire_prone_land_analysis;
 create table bushfire.nsw_rfs_bushfire_prone_land_analysis as
 select gid,
@@ -83,3 +83,8 @@ CREATE INDEX nsw_rfs_bushfire_prone_land_analysis_category_idx ON bushfire.nsw_r
 CREATE INDEX nsw_rfs_bushfire_prone_land_analysis_geom_idx ON bushfire.nsw_rfs_bushfire_prone_land_analysis USING gist (geom);
 ALTER TABLE bushfire.nsw_rfs_bushfire_prone_land_analysis CLUSTER ON nsw_rfs_bushfire_prone_land_analysis_geom_idx;
 
+
+-- TODO: STEP 3 -- get rid of overlap errors in polygons
+-- 1. cookie cut category 1 vs others
+-- 2. cookie cut category 3 vs others
+-- 3. cookie cut category 2 vs others
