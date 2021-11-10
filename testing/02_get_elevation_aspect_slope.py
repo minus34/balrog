@@ -31,19 +31,23 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # choose your settings for running locally or on a remote server
 #   - edit this if not running locally on a Mac
 if platform.system() == "Darwin":
-    input_sql = """select bld.bld_pid,
-                          st_asgeojson(bld.geog, 6, 0)::text as buffer
-                   from bushfire.temp_building_buffers as bld
-                   inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
+    # input_sql = """select bld.bld_pid,
+    #                       st_asgeojson(bld.geog, 6, 0)::text as buffer
+    #                from bushfire.temp_building_buffers as bld
+    #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
     # input_sql = """select bld.bld_pid,
     #                       st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
     #                from bushfire.temp_building_buffers as bld
     #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
+    input_sql = """select gid,
+                          st_asgeojson(geog, 6, 0)::text as buffer
+                   from bushfire.temp_point_buffers"""
 
-    output_table = "bushfire.bal_factors_sydney"
+    output_table = "bushfire.bal_factors_mgrs"
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
+    # dem_file_path = "/Users/s57405/tmp/bushfire/srtm_1sec_dem_s.tif"
     dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
     aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
     slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
