@@ -75,6 +75,9 @@ else:
 # END: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
+# the directory of this script
+script_dir = os.path.dirname(os.path.realpath(__file__))
+
 # the order of these cannot be changed (must match table column order)
 image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues around narrow peninsulas and tall buildings
 
@@ -97,7 +100,7 @@ def main():
     # WARNING: drops output table if exists
     schema_name = output_table.split(".")[0]
     pg_cur.execute(f'create schema if not exists {schema_name}; alter schema {schema_name} owner to "{postgres_user}";')
-    sql = open("03_create_tables.sql", "r").read().format(postgres_user, output_table, output_tablespace)
+    sql = open(os.path.join(script_dir, "03_create_tables.sql"), "r").read().format(postgres_user, output_table, output_tablespace)
     pg_cur.execute(sql)
 
     # get input geometries & building IDs (copy_to used for speed)
