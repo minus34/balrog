@@ -107,7 +107,7 @@ pg_ctl -D postgres -l logfile start
 psql -d postgres -c "ALTER SYSTEM SET max_parallel_workers = 64;"
 psql -d postgres -c "ALTER SYSTEM SET max_parallel_workers_per_gather = 64;"
 psql -d postgres -c "ALTER SYSTEM SET shared_buffers = '256GB';"
-psql -d postgres -c "ALTER SYSTEM SET wal_buffers = '2GB';"
+psql -d postgres -c "ALTER SYSTEM SET wal_buffers = '1GB';"
 psql -d postgres -c "ALTER SYSTEM SET max_wal_size = '64GB';"
 psql -d postgres -c "ALTER SYSTEM SET wal_level = 'minimal';"
 psql -d postgres -c "ALTER SYSTEM SET max_wal_senders = 0;"
@@ -146,3 +146,6 @@ echo "-------------------------------------------------------------------------"
 # copy elevation files from S3
 aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/cog/
 #aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/dem/cog/
+
+# for some reason this script lingers for 10-15 mins after the aws s3 sync
+exit

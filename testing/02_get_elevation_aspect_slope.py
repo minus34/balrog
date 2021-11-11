@@ -64,7 +64,7 @@ else:
     # input_sql = """select bld_pid,
     #                       st_asgeojson(geog, 6, 0)::text as buffer
     #                from bushfire.temp_building_buffers"""
-    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers limit 100000"""
+    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers"""
 
     postgres_user = "ec2-user"
     output_table = "bushfire.bal_factors_gnaf"
