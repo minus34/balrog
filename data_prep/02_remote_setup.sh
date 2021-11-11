@@ -127,18 +127,22 @@ createdb --owner=ec2-user geo -D dataspace
 psql -d geo -c "create extension if not exists postgis;"
 psql -d geo -c "create schema if not exists bushfire;alter schema bushfire owner to \"ec2-user\";"
 
-# restore buildings table(s) (ignore the ALTER TABLE errors)
-aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp --clean
+## restore buildings table(s) (ignore the ALTER TABLE errors)
+#aws s3 cp s3://bushfire-rasters/geoscape/buildings.dmp /data/
+#pg_restore -Fc -d geo -p 5432 -U ec2-user /data/buildings.dmp --clean
+#
+## restore vegetation table(s) (ignore the ALTER TABLE errors)
+#aws s3 cp s3://bushfire-rasters/vegetation/nvis6/nvis6.dmp /data/
+#pg_restore -Fc -d geo -p 5432 -U ec2-user /data/nvis6.dmp --clean
 
-# restore vegetation table(s) (ignore the ALTER TABLE errors)
-aws s3 cp s3://bushfire-rasters/vegetation/nvis6/nvis6.dmp /data/
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/nvis6.dmp --clean
+# restore buildings table(s) (ignore the ALTER TABLE errors)
+aws s3 cp s3://bushfire-rasters/geoscape/gnaf.dmp /data/
+pg_restore -Fc -d geo -p 5432 -U ec2-user /data/gnaf.dmp --clean
 
 echo "-------------------------------------------------------------------------"
 echo " Copy elevation data from S3"
 echo "-------------------------------------------------------------------------"
 
-## copy elevation files from S3
-#aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/cog/
+# copy elevation files from S3
+aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/cog/
 #aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/dem/cog/
