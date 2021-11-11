@@ -246,6 +246,10 @@ def process_building(features):
                 wgs84_point = Point(longitude, latitude)
                 lcc_point = transform(project_2_lcc, wgs84_point)
                 buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m, cap_style=1))
+
+                lcc_point = None
+                wgs84_point = None
+
                 # dict_buffer = mapping(buffer)  # a dict representing a GeoJSON geometry
                 #
                 # # create a larger buffer for aspect & slope calcs (need min of one pixel added to input buffer on all sides)
@@ -312,6 +316,8 @@ def process_building(features):
                         output_dict[f"{image_type}_avg"] = -9999
                         output_dict[f"{image_type}_std"] = -9999
                         output_dict[f"{image_type}_med"] = -9999
+
+                buffer = None
 
                 output_list.append(output_dict)
                 success_count += 1

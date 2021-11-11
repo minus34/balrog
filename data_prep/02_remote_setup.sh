@@ -115,6 +115,7 @@ psql -d postgres -c "ALTER SYSTEM SET archive_mode = 'off';"
 psql -d postgres -c "ALTER SYSTEM SET fsync = 'off';"
 psql -d postgres -c "ALTER SYSTEM SET full_page_writes = 'off';"
 psql -d postgres -c "ALTER SYSTEM SET synchronous_commit = 'off';"
+psql -d postgres -c "ALTER SYSTEM SET autovacuum = 'off';"
 
 pg_ctl -D postgres restart
 
