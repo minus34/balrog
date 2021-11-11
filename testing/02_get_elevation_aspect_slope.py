@@ -12,6 +12,8 @@ import psycopg2
 import psycopg2.extras
 import pyproj
 import rasterio.mask
+import shapely.geometry
+import shapely.ops
 
 import sys
 import time
@@ -19,9 +21,8 @@ import time
 from datetime import datetime
 # from osgeo import gdal
 from rasterio.session import AWSSession
-from shapely import wkt
-from shapely.geometry import Polygon, Point, LineString, mapping
-from shapely.ops import nearest_points, transform
+
+
 from typing import Optional, Any
 
 # create AWS session object to pull image data from S3
@@ -64,7 +65,7 @@ else:
     # input_sql = """select bld_pid,
     #                       st_asgeojson(geog, 6, 0)::text as buffer
     #                from bushfire.temp_building_buffers"""
-    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers"""
+    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers limit 1000000"""
 
     postgres_user = "ec2-user"
     output_table = "bushfire.bal_factors_gnaf"
@@ -223,6 +224,8 @@ def process_building(features):
 
     record_count = len(features)
 
+    # print(f"{record_count} records")
+
     success_count = 0
     fail_count = 0
 
@@ -241,17 +244,24 @@ def process_building(features):
                 latitude = float(feature[1])
                 longitude = float(feature[2])
                 # geom = json.loads(feature[1])
+                # print(f"{id} : start")
 
                 # create input buffer polygon as both a WGS84 shape and a dict
-                wgs84_point = Point(longitude, latitude)
-                lcc_point = transform(project_2_lcc, wgs84_point)
-                buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m, cap_style=1))
+                wgs84_point = shapely.geometry.Point(longitude, latitude)
+                # print(f"{id} : got wgs84 point")
+                # print(wgs84_point)
 
-                lcc_point = None
-                wgs84_point = None
+                lcc_point = shapely.ops.transform(project_2_lcc, wgs84_point)
+                # print(f"{id} : got lcc point")
 
-                # dict_buffer = mapping(buffer)  # a dict representing a GeoJSON geometry
-                #
+                buffer = shapely.ops.transform(project_2_wgs84, lcc_point.buffer(buffer_size_m, cap_style=1))
+                # print(f"{id} : got buffer")
+
+                # lcc_point = None
+                # wgs84_point = None
+
+                # dict_buffer = shapely.ops.mapping(buffer)  # a dict representing a GeoJSON geometry
+
                 # # create a larger buffer for aspect & slope calcs (need min of one pixel added to input buffer on all sides)
                 # dem_buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m + dem_resolution_m * 2.5, cap_style=1))
 
@@ -272,6 +282,7 @@ def process_building(features):
 
                     # create mask
                     masked_image, masked_transform = rasterio.mask.mask(raster, [buffer], crop=True)
+                    # print(f"{id} : {image_type} : got masked raster")
 
                     # get rid of nodata values and flatten array
                     flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
@@ -310,6 +321,8 @@ def process_building(features):
                         output_dict[f"{image_type}_std"] = int(std_value)
                         output_dict[f"{image_type}_med"] = int(med_value)
 
+                        # print(f"{id} : {image_type} : got raster stats")
+
                     else:
                         output_dict[f"{image_type}_min"] = -9999
                         output_dict[f"{image_type}_max"] = -9999
@@ -317,14 +330,17 @@ def process_building(features):
                         output_dict[f"{image_type}_std"] = -9999
                         output_dict[f"{image_type}_med"] = -9999
 
-                buffer = None
+                # buffer = None
 
                 output_list.append(output_dict)
                 success_count += 1
+
+                # print(f"{id} : done")
+
             except Exception as ex:
                 error_message = str(ex)
                 if error_message != "Input shapes do not overlap raster.":
-                    print(f"{id} FAILED! : {error_message}")
+                    print(f"{id} :  FAILED! : {error_message}")
                 fail_count += 1
 
     # copy results to Postgres table

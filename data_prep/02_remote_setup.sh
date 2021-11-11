@@ -2,7 +2,7 @@
 
 # installs Python packages to enable converting images to Cloud Optimised GeoTIFFs (COGs)
 
-#PYTHON_VERSION="3.9"
+PYTHON_VERSION="3.9"
 
 # required to keep long running sessions active
 sudo yum install -y tmux
@@ -44,29 +44,29 @@ sh Miniconda3-latest-Linux-x86_64.sh -b
 ${HOME}/miniconda3/bin/conda init
 source ${HOME}/.bashrc
 
-# update Python packages
-echo "y" | conda update conda
-
-#echo "-------------------------------------------------------------------------"
-#echo " Creating new Conda Environment 'cog'"
-#echo "-------------------------------------------------------------------------"
-#
-## Create Conda environment
-#echo "y" | conda create -n cog python=${PYTHON_VERSION}
-#
-## activate and setup env
-#conda activate cog
-#conda config --env --add channels conda-forge
-#conda config --env --set channel_priority strict
-#
-## reactivate for changes to take effect
-#conda activate cog
-
 echo "-------------------------------------------------------------------------"
-echo " Installing Python packages"
+echo "Creating new Conda Environment 'geo'"
 echo "-------------------------------------------------------------------------"
 
-echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely fiona requests boto3
+# deactivate current env
+conda deactivate
+
+# update Conda platform
+conda update -y conda
+
+# Create Conda environment
+conda create -y -n geo python=${PYTHON_VERSION}
+
+# activate and setup env
+conda activate geo
+conda config --env --add channels conda-forge
+conda config --env --set channel_priority strict
+
+# reactivate for env vars to take effect
+conda activate geo
+
+# install lots of geo packages
+conda install -y -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely fiona requests boto3
 
 # remove proxy if set
 if [ -n "${PROXY}" ];
@@ -145,8 +145,5 @@ echo " Copy elevation data from S3"
 echo "-------------------------------------------------------------------------"
 
 # copy elevation files from S3
-aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/cog/
 #aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/dem/cog/
-
-# for some reason this script lingers for 10-15 mins after the aws s3 sync
-exit
+aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/cog/ --exclude "*" --include "*.tif"
