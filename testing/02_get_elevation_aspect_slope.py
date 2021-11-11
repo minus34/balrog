@@ -10,12 +10,18 @@ import numpy
 import platform
 import psycopg2
 import psycopg2.extras
+import pyproj
 import rasterio.mask
+
 import sys
 import time
 
 from datetime import datetime
+# from osgeo import gdal
 from rasterio.session import AWSSession
+from shapely import wkt
+from shapely.geometry import Polygon, Point, LineString, mapping
+from shapely.ops import nearest_points, transform
 from typing import Optional, Any
 
 # create AWS session object to pull image data from S3
@@ -39,9 +45,7 @@ if platform.system() == "Darwin":
     #                       st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
     #                from bushfire.temp_building_buffers as bld
     #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
-    input_sql = """select gid,
-                          st_asgeojson(geog, 6, 0)::text as buffer
-                   from bushfire.temp_point_buffers"""
+    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers limit 1000"""
 
     output_table = "bushfire.bal_factors_mgrs"
     output_tablespace = "pg_default"
@@ -57,12 +61,13 @@ if platform.system() == "Darwin":
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
 else:
-    input_sql = """select bld_pid,
-                          st_asgeojson(geog, 6, 0)::text as buffer
-                   from bushfire.temp_building_buffers"""
+    # input_sql = """select bld_pid,
+    #                       st_asgeojson(geog, 6, 0)::text as buffer
+    #                from bushfire.temp_building_buffers"""
+    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers limit 100000"""
 
     postgres_user = "ec2-user"
-    output_table = "bushfire.bal_factors"
+    output_table = "bushfire.bal_factors_gnaf"
     output_tablespace = "dataspace"
 
     dem_file_path = "/data/dem/cog/srtm_1sec_dem_s.tif"
@@ -83,6 +88,17 @@ image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues arou
 
 # how many parallel processes to run
 max_processes = multiprocessing.cpu_count()
+
+# get coordinate systems, geodetic parameters and transforms
+geodesic = pyproj.Geod(ellps='WGS84')
+wgs84_cs = pyproj.CRS('EPSG:4326')
+lcc_proj = pyproj.CRS('EPSG:3577')
+project_2_lcc = pyproj.Transformer.from_crs(wgs84_cs, lcc_proj, always_xy=True).transform
+project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
+
+buffer_size_m = 110.0
+
+dem_resolution_m = 30.0
 
 
 def main():
@@ -222,7 +238,18 @@ def process_building(features):
         for feature in features:
             try:
                 id = feature[0]
-                geom = json.loads(feature[1])
+                latitude = float(feature[1])
+                longitude = float(feature[2])
+                # geom = json.loads(feature[1])
+
+                # create input buffer polygon as both a WGS84 shape and a dict
+                wgs84_point = Point(longitude, latitude)
+                lcc_point = transform(project_2_lcc, wgs84_point)
+                buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m, cap_style=1))
+                # dict_buffer = mapping(buffer)  # a dict representing a GeoJSON geometry
+                #
+                # # create a larger buffer for aspect & slope calcs (need min of one pixel added to input buffer on all sides)
+                # dem_buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m + dem_resolution_m * 2.5, cap_style=1))
 
                 output_dict = dict()
                 output_dict["id"] = id
@@ -240,7 +267,7 @@ def process_building(features):
                         exit()
 
                     # create mask
-                    masked_image, masked_transform = rasterio.mask.mask(raster, [geom], crop=True)
+                    masked_image, masked_transform = rasterio.mask.mask(raster, [buffer], crop=True)
 
                     # get rid of nodata values and flatten array
                     flat_array = masked_image[numpy.where(masked_image > -9999)].flatten()
