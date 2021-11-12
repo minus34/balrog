@@ -122,9 +122,9 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/05_create_tables.sql ${USER}@${INS
 
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then
-  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} ". ./02_remote_setup.sh -p ${PROXY} && exit"
+  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sh ./02_remote_setup.sh ${PROXY};"
 else
-  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} ". ./02_remote_setup.sh && exit"
+  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "sh ./02_remote_setup.sh;"
 fi
 #if [ -n "${PROXY}" ]; then
 #  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "bash -s" < "${SCRIPT_DIR}/02_remote_setup.sh" "-p ${PROXY}"
