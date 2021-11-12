@@ -65,7 +65,7 @@ else:
     # input_sql = """select bld_pid,
     #                       st_asgeojson(geog, 6, 0)::text as buffer
     #                from bushfire.temp_building_buffers"""
-    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers limit 1000000"""
+    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers"""
 
     postgres_user = "ec2-user"
     output_table = "bushfire.bal_factors_gnaf"
@@ -120,7 +120,7 @@ def main():
     sql = open(os.path.join(script_dir, "03_create_tables.sql"), "r").read().format(postgres_user, output_table, output_tablespace)
     pg_cur.execute(sql)
 
-    # get input geometries & building IDs (copy_to used for speed)
+    # get input geometries & IDs (copy_to used for speed)
     input_file_object = io.StringIO()
     pg_cur.copy_expert(f"COPY ({input_sql}) TO STDOUT", input_file_object)
     input_file_object.seek(0)
@@ -146,14 +146,14 @@ def main():
     # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
     mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
 
-    logger.info(f"\t - got {feature_count} buildings to process : {datetime.now() - start_time}")
+    logger.info(f"\t - got {feature_count} records to process : {datetime.now() - start_time}")
     start_time = datetime.now()
 
     mp_pool = multiprocessing.Pool(max_processes)
-    mp_results = mp_pool.map_async(process_building, mp_job_list, chunksize=1)  # use map_async to show progress
+    mp_results = mp_pool.map_async(process_records, mp_job_list, chunksize=1)  # use map_async to show progress
 
     while not mp_results.ready():
-        print(f"\rProperties remaining : {mp_results._number_left * bulk_insert_row_count}", end="")
+        print(f"\rRecords remaining : {mp_results._number_left * bulk_insert_row_count}", end="")
         sys.stdout.flush()
         time.sleep(10)
 
@@ -194,9 +194,9 @@ def main():
         success_count -= adjustment_count
         fail_count += adjustment_count
 
-    logger.info(f"\t\t - {success_count} properties got data")
+    logger.info(f"\t\t - {success_count} records got data")
     if fail_count > 0:
-        logger.info(f"\t\t - {fail_count} properties got NO data")
+        logger.info(f"\t\t - {fail_count} records got NO data")
 
     logger.info(f"\t - got BAL factors : {datetime.now() - start_time}")
     start_time = datetime.now()
@@ -219,7 +219,7 @@ def split_list(input_list, max_count):
         yield input_list[i:i + max_count]
 
 
-def process_building(features):
+def process_records(features):
     """for a set of features and a set of input rasters - mask using each geometry and return min/max/median values"""
 
     record_count = len(features)

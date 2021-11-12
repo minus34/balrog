@@ -42,29 +42,29 @@ ${HOME}/miniconda3/bin/conda init
 source ${HOME}/.bashrc
 
 echo "-------------------------------------------------------------------------"
-echo "Creating new Conda Environment 'geo'"
+#echo "Creating new Conda Environment 'geo'"
+echo "Install Python packages"
 echo "-------------------------------------------------------------------------"
 
-# deactivate current env
-conda deactivate
+## deactivate current env
+#conda deactivate
 
 # update Conda platform
 conda update -y conda
 
-# Create Conda environment
-conda create -y -n geo python=${PYTHON_VERSION}
+## Create Conda environment
+#conda create -y -n geo python=${PYTHON_VERSION}
+#
+## activate and setup env
+#conda activate geo
+#conda config --env --add channels conda-forge
+#conda config --env --set channel_priority strict
+#
+## reactivate for env vars to take effect
+#conda activate geo
 
-# activate and setup env
-conda activate geo
-conda config --env --add channels conda-forge
-conda config --env --set channel_priority strict
-
-# reactivate for env vars to take effect
-conda activate geo
-
-# install lots of geo packages
-conda install -y -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely fiona requests boto3
-conda activate geo
+# install lots of geo packages -- note: Shapely 1.8.0. install createa a strange environment issue that can freeze Python scripts
+conda install -y -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely=1.7.1 fiona requests boto3
 
 # remove proxy if set
 if [ -n "${PROXY}" ];
