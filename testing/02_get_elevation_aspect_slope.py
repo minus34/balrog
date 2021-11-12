@@ -158,14 +158,18 @@ def main():
         futures = {executor.submit(process_records, mp_job): mp_job for mp_job in mp_job_list}
 
         success_count = 0
+        out_of_area_count = 0
         fail_count = 0
 
         for fut in concurrent.futures.as_completed(futures):
             result = fut.result()
             success_count += result[0]
-            fail_count += result[1]
+            out_of_area_count += result[1]
+            fail_count += result[2]
 
-            print(f"\rRecords processed : {success_count} : failures : {fail_count}", end="")
+            print(f"\rRecords processed : {success_count} : "
+                  f"outside of raster area : {out_of_area_count} : "
+                  f"failures : {fail_count}", end="")
 
         print("")
 
@@ -224,6 +228,7 @@ def process_records(features):
     # print(f"{record_count} records")
 
     success_count = 0
+    out_of_area_count = 0
     fail_count = 0
 
     output_list = list()
@@ -338,20 +343,22 @@ def process_records(features):
                 error_message = str(ex)
                 if error_message != "Input shapes do not overlap raster.":
                     print(f"{id} :  FAILED! : {error_message}")
-                fail_count += 1
+                    fail_count += 1
+                else:
+                    out_of_area_count += 1
 
     # copy results to Postgres table
     if len(output_list) > 0:
         copy_result = bulk_insert(output_list)
 
         if copy_result:
-            return (success_count, fail_count)
+            return (success_count, out_of_area_count, fail_count)
         else:
             # if the copy failed flag all features as failed
-            return (0, record_count)
+            return (0, 0, record_count)
     else:
         # total failure!?
-        return (0, record_count)
+        return (0, 0, record_count)
 
 
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
