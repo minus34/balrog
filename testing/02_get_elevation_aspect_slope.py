@@ -10,10 +10,10 @@ import numpy
 import platform
 import psycopg2
 import psycopg2.extras
-import pyproj
+# import pyproj
 import rasterio.mask
-import shapely.geometry
-import shapely.ops
+# import shapely.geometry
+# import shapely.ops
 
 import sys
 import time
@@ -46,7 +46,7 @@ if platform.system() == "Darwin":
     #                       st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
     #                from bushfire.temp_building_buffers as bld
     #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
-    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers limit 1000"""
+    input_sql = """select gnaf_pid, st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, 110, 4), 6, 0)::text as buffer from bushfire.temp_point_buffers limit 100"""
 
     output_table = "bushfire.bal_factors_mgrs"
     output_tablespace = "pg_default"
@@ -63,9 +63,9 @@ if platform.system() == "Darwin":
     pg_connect_string = "dbname=geo host=localhost port=5432 user='postgres' password='password'"
 else:
     # input_sql = """select bld_pid,
-    #                       st_asgeojson(geog, 6, 0)::text as buffer
+    #                       st_asgeojson(st_buffer(geom::geography, 110, 4), 6, 0)::text as buffer
     #                from bushfire.temp_building_buffers"""
-    input_sql = """select gnaf_pid, lat, lon from bushfire.temp_point_buffers"""
+    input_sql = """select gnaf_pid, st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, 110, 4), 6, 0)::text as buffer from bushfire.temp_point_buffers"""
 
     postgres_user = "ec2-user"
     output_table = "bushfire.bal_factors_gnaf"
@@ -90,16 +90,16 @@ image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues arou
 # how many parallel processes to run
 max_processes = multiprocessing.cpu_count()
 
-# get coordinate systems, geodetic parameters and transforms
-geodesic = pyproj.Geod(ellps='WGS84')
-wgs84_cs = pyproj.CRS('EPSG:4326')
-lcc_proj = pyproj.CRS('EPSG:3577')
-project_2_lcc = pyproj.Transformer.from_crs(wgs84_cs, lcc_proj, always_xy=True).transform
-project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
-
-buffer_size_m = 110.0
-
-dem_resolution_m = 30.0
+# # get coordinate systems, geodetic parameters and transforms
+# geodesic = pyproj.Geod(ellps='WGS84')
+# wgs84_cs = pyproj.CRS('EPSG:4326')
+# lcc_proj = pyproj.CRS('EPSG:3577')
+# project_2_lcc = pyproj.Transformer.from_crs(wgs84_cs, lcc_proj, always_xy=True).transform
+# project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
+#
+# buffer_size_m = 110.0
+#
+# dem_resolution_m = 30.0
 
 
 def main():
@@ -241,29 +241,29 @@ def process_records(features):
         for feature in features:
             try:
                 id = feature[0]
-                latitude = float(feature[1])
-                longitude = float(feature[2])
-                # geom = json.loads(feature[1])
+                # latitude = float(feature[1])
+                # longitude = float(feature[2])
+                buffer = json.loads(feature[1])
                 # print(f"{id} : start")
 
-                # create input buffer polygon as both a WGS84 shape and a dict
-                wgs84_point = shapely.geometry.Point(longitude, latitude)
-                # print(f"{id} : got wgs84 point")
-                # print(wgs84_point)
-
-                lcc_point = shapely.ops.transform(project_2_lcc, wgs84_point)
-                # print(f"{id} : got lcc point")
-
-                buffer = shapely.ops.transform(project_2_wgs84, lcc_point.buffer(buffer_size_m, cap_style=1))
-                # print(f"{id} : got buffer")
-
-                # lcc_point = None
-                # wgs84_point = None
-
-                # dict_buffer = shapely.ops.mapping(buffer)  # a dict representing a GeoJSON geometry
-
-                # # create a larger buffer for aspect & slope calcs (need min of one pixel added to input buffer on all sides)
-                # dem_buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m + dem_resolution_m * 2.5, cap_style=1))
+                # # create input buffer polygon as both a WGS84 shape and a dict
+                # wgs84_point = shapely.geometry.Point(longitude, latitude)
+                # # print(f"{id} : got wgs84 point")
+                # # print(wgs84_point)
+                #
+                # lcc_point = shapely.ops.transform(project_2_lcc, wgs84_point)
+                # # print(f"{id} : got lcc point")
+                #
+                # buffer = shapely.ops.transform(project_2_wgs84, lcc_point.buffer(buffer_size_m, cap_style=1))
+                # # print(f"{id} : got buffer")
+                #
+                # # lcc_point = None
+                # # wgs84_point = None
+                #
+                # # dict_buffer = shapely.ops.mapping(buffer)  # a dict representing a GeoJSON geometry
+                #
+                # # # create a larger buffer for aspect & slope calcs (need min of one pixel added to input buffer on all sides)
+                # # dem_buffer = transform(project_2_wgs84, lcc_point.buffer(buffer_size_m + dem_resolution_m * 2.5, cap_style=1))
 
                 output_dict = dict()
                 output_dict["id"] = id
