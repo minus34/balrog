@@ -28,7 +28,7 @@ aws s3 cp s3://bushfire-rasters/output/bal_factors_gnaf.dmp ${HOME}/tmp/bushfire
 /Applications/Postgres.app/Contents/Versions/13/bin/pg_restore -Fc -d geo -p 5432 -U postgres ${HOME}/tmp/bushfire/bal_factors_gnaf.dmp --clean
 
 # display table counts
-/Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -c "select count(*) as address_count from bushfire.bal_factors_ganf"
+/Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -c "select count(*) as address_count from bushfire.bal_factors_gnaf"
 
 ## add building geoms to bal factors
 #/Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -f "${SCRIPT_DIR}/04_add_geoms_to_bal_factors.sql"
