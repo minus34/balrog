@@ -47,9 +47,11 @@ if platform.system() == "Darwin":
     #                       st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
     #                from bushfire.temp_building_buffers as bld
     #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
-    input_sql = """select gnaf_pid, st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, 110, 4), 6, 0)::text as buffer from bushfire.temp_point_buffers limit 100"""
+    input_sql = """select gnaf_pid, 
+                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, 110, 4), 6, 0)::text as buffer 
+                   from bushfire.temp_point_buffers limit 100"""
 
-    output_table = "bushfire.bal_factors_mgrs"
+    output_table = "bushfire.bal_factors_gnaf"
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
@@ -196,8 +198,10 @@ def main():
         fail_count += adjustment_count
 
     logger.info(f"\t\t - {success_count} records got data")
+    if out_of_area_count > 0:
+        logger.info(f"\t\t - {out_of_area_count} records were outside the raster area & got NO data")
     if fail_count > 0:
-        logger.info(f"\t\t - {fail_count} records got NO data")
+        logger.info(f"\t\t - {fail_count} records FAILED")
 
     logger.info(f"\t - got BAL factors : {datetime.now() - start_time}")
     start_time = datetime.now()

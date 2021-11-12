@@ -20,15 +20,15 @@ ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "rm ~/${LOGFILENAME}; python3 ${FILENAME}"
 scp -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID}:~/${LOGFILENAME}  ${SCRIPT_DIR}/
 
 # dump results from Postgres and copy to S3 and then locally
-ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "pg_dump -Fc -d geo -t bushfire.bal_factors -p 5432 -U ec2-user -f /data/bal_factors.dmp --no-owner"
-ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "aws s3 cp /data/bal_factors.dmp s3://bushfire-rasters/output/"
-aws s3 cp s3://bushfire-rasters/output/bal_factors.dmp ${HOME}/tmp/bushfire/
+ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "pg_dump -Fc -d geo -t bushfire.bal_factors_gnaf -p 5432 -U ec2-user -f /data/bal_factors_gnaf.dmp --no-owner"
+ssh -F ${SSH_CONFIG} ${INSTANCE_ID} "aws s3 cp /data/bal_factors_gnaf.dmp s3://bushfire-rasters/output/"
+aws s3 cp s3://bushfire-rasters/output/bal_factors_gnaf.dmp ${HOME}/tmp/bushfire/
 
 # load into local postgres (WARNING: force drops tables first)
-/Applications/Postgres.app/Contents/Versions/13/bin/pg_restore -Fc -d geo -p 5432 -U postgres ${HOME}/tmp/bushfire/bal_factors.dmp --clean
+/Applications/Postgres.app/Contents/Versions/13/bin/pg_restore -Fc -d geo -p 5432 -U postgres ${HOME}/tmp/bushfire/bal_factors_gnaf.dmp --clean
 
 # display table counts
-/Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -c "select count(*) as address_count from bushfire.bal_factors"
+/Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -c "select count(*) as address_count from bushfire.bal_factors_ganf"
 
-# add building geoms to bal factors
-/Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -f "${SCRIPT_DIR}/04_add_geoms_to_bal_factors.sql"
+## add building geoms to bal factors
+#/Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -f "${SCRIPT_DIR}/04_add_geoms_to_bal_factors.sql"
