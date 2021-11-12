@@ -8,13 +8,19 @@ PYTHON_VERSION="3.9"
 sudo yum install -y tmux
 
 # check if proxy server required
-while getopts ":p:" opt; do
-  case $opt in
-  p)
-    PROXY=$OPTARG
-    ;;
-  esac
-done
+if [ -z "$1" ]
+  then
+    echo "No proxy supplied"
+  else
+    PROXY=$1
+fi
+#while getopts ":p:" opt; do
+#  case $opt in
+#  p)
+#    PROXY=$OPTARG
+#    ;;
+#  esac
+#done
 
 if [ -n "${PROXY}" ];
   then
@@ -67,6 +73,7 @@ conda activate geo
 
 # install lots of geo packages
 conda install -y -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely fiona requests boto3
+conda activate geo
 
 # remove proxy if set
 if [ -n "${PROXY}" ];
