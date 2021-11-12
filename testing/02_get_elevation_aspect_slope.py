@@ -65,7 +65,9 @@ else:
     # input_sql = """select bld_pid,
     #                       st_asgeojson(st_buffer(geom::geography, 110, 4), 6, 0)::text as buffer
     #                from bushfire.temp_building_buffers"""
-    input_sql = """select gnaf_pid, st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, 110, 4), 6, 0)::text as buffer from bushfire.temp_point_buffers"""
+    input_sql = """select gnaf_pid, 
+                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, 110, 4), 6, 0)::text as buffer
+                   from bushfire.temp_point_buffers"""
 
     postgres_user = "ec2-user"
     output_table = "bushfire.bal_factors_gnaf"
@@ -141,7 +143,7 @@ def main():
 
     # determine features per process (for multiprocessing)
     feature_count = len(feature_list)
-    bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes))
+    bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes * 2))
 
     # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
     mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
