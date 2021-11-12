@@ -154,7 +154,7 @@ def main():
     logger.info(f"\t - got {feature_count} records to process : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    with concurrent.futures.ProcessPoolExecutor(max_processes) as executor:
+    with concurrent.futures.ProcessPoolExecutor(int(max_processes / 2)) as executor:
         futures = {executor.submit(process_records, mp_job): mp_job for mp_job in mp_job_list}
 
         success_count = 0
