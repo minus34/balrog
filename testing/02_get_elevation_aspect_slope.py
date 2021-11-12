@@ -1,5 +1,6 @@
 
 import boto3
+import concurrent.futures
 import io
 import json
 import logging
@@ -144,6 +145,8 @@ def main():
     # determine features per process (for multiprocessing)
     feature_count = len(feature_list)
     bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes * 4))
+    if bulk_insert_row_count > 200000:
+        bulk_insert_row_count = 200000
 
     # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
     mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
@@ -151,28 +154,20 @@ def main():
     logger.info(f"\t - got {feature_count} records to process : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    mp_pool = multiprocessing.Pool(max_processes)
-    mp_results = mp_pool.map_async(process_records, mp_job_list, chunksize=1)  # use map_async to show progress
+    with concurrent.futures.ProcessPoolExecutor(max_processes) as executor:
+        futures = {executor.submit(process_records, mp_job): mp_job for mp_job in mp_job_list}
 
-    while not mp_results.ready():
-        print(f"\rRecords remaining : {mp_results._number_left * bulk_insert_row_count}", end="")
-        sys.stdout.flush()
-        time.sleep(10)
+        success_count = 0
+        fail_count = 0
 
-    # print(f"\r\n", end="")
-    real_results = mp_results.get()
-    mp_pool.close()
-    mp_pool.join()
-
-    success_count = 0
-    fail_count = 0
-
-    for result in real_results:
-        if result is None:
-            logger.warning("A multiprocessing process failed!")
-        else:
+        for fut in concurrent.futures.as_completed(futures):
+            result = fut.result()
             success_count += result[0]
             fail_count += result[1]
+
+            print(f"\rRecords processed : {success_count} : failures : {fail_count}", end="")
+
+        print("")
 
     # get postgres connection
     pg_conn = psycopg2.connect(pg_connect_string)
