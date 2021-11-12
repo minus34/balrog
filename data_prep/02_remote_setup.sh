@@ -8,7 +8,7 @@ PYTHON_VERSION="3.9"
 sudo yum install -y tmux
 
 # check if proxy server required
-if [ ! -z "$1" ]
+if [ -n "$1" ]
   then
     PROXY=$1
 fi
@@ -144,4 +144,7 @@ echo "-------------------------------------------------------------------------"
 
 # copy elevation files from S3
 #aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/dem/cog/
-aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/cog/ --exclude "*" --include "*.tif"
+#aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/cog/ --exclude "*" --include "*.tif"
+aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif /data/dem/cog/
+aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif /data/dem/cog/
+aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif /data/dem/cog/

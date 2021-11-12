@@ -105,7 +105,7 @@ ssh -F ${SSH_CONFIG} -o StrictHostKeyChecking=no ${INSTANCE_ID} 'mkdir ~/.aws'
 scp -F ${SSH_CONFIG} -r ${HOME}/.aws/credentials ${USER}@${INSTANCE_ID}:~/.aws/credentials
 
 # copy required scripts
-#scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_ID}:~/
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_export_to_cog.py ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/03_create_dem_aspect_slope_rasters.sh ${USER}@${INSTANCE_ID}:~/
 
@@ -122,11 +122,15 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/05_create_tables.sql ${USER}@${INS
 
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then
-  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "bash -s" < "${SCRIPT_DIR}/02_remote_setup.sh" "-p ${PROXY}"
+  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} ". ./02_remote_setup.sh -p ${PROXY} && exit"
 else
-  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "bash -s" < "${SCRIPT_DIR}/02_remote_setup.sh"
-#  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} ". ./02_remote_setup.sh"
+  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} ". ./02_remote_setup.sh && exit"
 fi
+#if [ -n "${PROXY}" ]; then
+#  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "bash -s" < "${SCRIPT_DIR}/02_remote_setup.sh" "-p ${PROXY}"
+#else
+#  ssh -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID} "bash -s" < "${SCRIPT_DIR}/02_remote_setup.sh"
+#fi
 
 echo "-------------------------------------------------------------------------"
 duration=$SECONDS
