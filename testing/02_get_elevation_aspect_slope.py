@@ -143,7 +143,7 @@ def main():
 
     # determine features per process (for multiprocessing)
     feature_count = len(feature_list)
-    bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes * 2))
+    bulk_insert_row_count = math.ceil(float(feature_count) / float(max_processes * 4))
 
     # split jobs into groups of 1,000 records (to ease to load on Postgres) for multiprocessing
     mp_job_list = list(split_list(feature_list, bulk_insert_row_count))
@@ -332,7 +332,7 @@ def process_records(features):
                         output_dict[f"{image_type}_std"] = -9999
                         output_dict[f"{image_type}_med"] = -9999
 
-                # buffer = None
+                del buffer
 
                 output_list.append(output_dict)
                 success_count += 1
