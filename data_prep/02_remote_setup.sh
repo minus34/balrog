@@ -8,19 +8,10 @@ PYTHON_VERSION="3.9"
 sudo yum install -y tmux
 
 # check if proxy server required
-if [ -z "$1" ]
+if [ ! -z "$1" ]
   then
-    echo "No proxy supplied"
-  else
     PROXY=$1
 fi
-#while getopts ":p:" opt; do
-#  case $opt in
-#  p)
-#    PROXY=$OPTARG
-#    ;;
-#  esac
-#done
 
 if [ -n "${PROXY}" ];
   then
