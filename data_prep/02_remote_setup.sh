@@ -148,3 +148,7 @@ echo "-------------------------------------------------------------------------"
 aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif /data/dem/cog/
 aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif /data/dem/cog/
 aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif /data/dem/cog/
+
+echo "-------------------------------------------------------------------------"
+echo " Remote setup finished!"
+echo "-------------------------------------------------------------------------"
