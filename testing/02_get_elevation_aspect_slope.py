@@ -17,12 +17,11 @@ import rasterio.mask
 # import shapely.ops
 # import sys
 # import time
-import uuid
+# import uuid
 
 from datetime import datetime
-from osgeo import gdal
+# from osgeo import gdal
 from rasterio.session import AWSSession
-
 
 from typing import Optional, Any
 
@@ -46,8 +45,7 @@ max_processes = multiprocessing.cpu_count()
 # project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
 
 buffer_size_m = 110.0
-
-dem_resolution_m = 30.0
+# dem_resolution_m = 30.0
 
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -66,18 +64,18 @@ if platform.system() == "Darwin":
     #                from bushfire.temp_building_buffers as bld
     #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
     input_sql = f"""select gnaf_pid, 
-                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m}, 4), 6, 0)::text as buffer, 
-                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer 
+                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m}, 4), 6, 0)::text as buffer
                    from bushfire.temp_point_buffers limit 100"""
+    # st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
 
     output_table = "bushfire.bal_factors_gnaf"
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
     # dem_file_path = "/Users/s57405/tmp/bushfire/srtm_1sec_dem_s.tif"
-    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif"
-    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif"
-    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif"
+    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/geotiff/srtm_1sec_dem_s.tif"
+    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/geotiff/srtm_1sec_aspect.tif"
+    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/geotiff/srtm_1sec_slope.tif"
     # dem_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
     # aspect_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/aspect/Sydney-ASP-AHD_56_5m.tif"
     # slope_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/slope/Sydney-SLP-AHD_56_5m.tif"
@@ -88,17 +86,17 @@ else:
     #                       st_asgeojson(st_buffer(geom::geography, 110, 4), 6, 0)::text as buffer
     #                from bushfire.temp_building_buffers"""
     input_sql = f"""select gnaf_pid, 
-                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m}, 4), 6, 0)::text as buffer, 
-                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
+                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m}, 4), 6, 0)::text as buffer
                    from bushfire.temp_point_buffers"""
+    # st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
 
     postgres_user = "ec2-user"
     output_table = "bushfire.bal_factors_gnaf_2"
     output_tablespace = "dataspace"
 
-    dem_file_path = "/data/dem/cog/srtm_1sec_dem_s.tif"
-    # aspect_file_path = "/data/dem/cog/srtm_1sec_aspect.tif"
-    # slope_file_path = "/data/dem/cog/srtm_1sec_slope.tif"
+    dem_file_path = "/data/dem/geotiff/srtm_1sec_dem_s.tif"
+    aspect_file_path = "/data/dem/geotiff/srtm_1sec_aspect.tif"
+    slope_file_path = "/data/dem/geotiff/srtm_1sec_slope.tif"
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='ec2-user' password='ec2-user'"
 
@@ -227,7 +225,7 @@ def split_list(input_list, max_count):
 def process_records(features):
     """for a set of features and a set of input rasters - mask using each geometry and return min/max/median values"""
 
-    process_id = uuid.uuid4()
+    # process_id = uuid.uuid4()
     record_count = len(features)
 
     # print(f"{record_count} records")
@@ -246,7 +244,7 @@ def process_records(features):
                 # latitude = float(feature[1])
                 # longitude = float(feature[2])
                 buffer = json.loads(feature[1])
-                dem_buffer = json.loads(feature[2])  # need oversized dem buffer to calc aspect & slope
+                # dem_buffer = json.loads(feature[2])  # need oversized dem buffer to calc aspect & slope
                 # print(f"{id} : start")
 
                 # # create input buffer polygon as both a WGS84 shape and a dict
@@ -271,13 +269,13 @@ def process_records(features):
                 output_dict = dict()
                 output_dict["id"] = id
 
-                # create dem, slope and aspect images for this feature
-                get_elevation_aspect_slope_files(process_id, dem_buffer)
+                # # create dem, slope and aspect images for this feature
+                # get_elevation_aspect_slope_files(process_id, dem_buffer)
 
                 # open the images
-                raster_dem = rasterio.open(f"{process_id}_dem.tif", "r")
-                raster_aspect = rasterio.open(f"{process_id}_aspect.tif", "r")
-                raster_slope = rasterio.open(f"{process_id}_slope.tif", "r")
+                raster_dem = rasterio.open(dem_file_path, "r")
+                raster_aspect = rasterio.open(aspect_file_path, "r")
+                raster_slope = rasterio.open(slope_file_path, "r")
 
                 for image_type in image_types:
                     # set input to use
@@ -370,31 +368,31 @@ def process_records(features):
         return (0, 0, record_count)
 
 
-def get_elevation_aspect_slope_files(process_id, dem_buffer):
-    with rasterio.Env():
-        with rasterio.open(dem_file_path, "r") as src:
-            # create mask using the large buffer
-            dem_array, dem_transform = rasterio.mask.mask(src, [dem_buffer], crop=True, nodata=-9999)
-
-            # set profile of output dem file
-            profile = src.profile
-            profile.update(
-                compress="deflate",
-                driver="GTiff",
-                height=dem_array.shape[1],
-                width=dem_array.shape[2],
-                nodata=-9999,
-                transform=dem_transform
-            )
-
-            # save masked dem to file
-            with rasterio.open(f"{process_id}_dem.tif", "w", **profile) as dst:
-                dst.write(dem_array)
-
-            # convert masked dem to aspect & slope
-            # note : scale is required to convert degrees to metres for calcs
-            gdal.DEMProcessing(f"{process_id}_slope.tif", f"{process_id}_dem.tif", "slope", scale=111120)
-            gdal.DEMProcessing(f"{process_id}_aspect.tif", f"{process_id}_dem.tif", "aspect", scale=111120)
+# def get_elevation_aspect_slope_files(process_id, dem_buffer):
+#     with rasterio.Env():
+#         with rasterio.open(dem_file_path, "r") as src:
+#             # create mask using the large buffer
+#             dem_array, dem_transform = rasterio.mask.mask(src, [dem_buffer], crop=True, nodata=-9999)
+#
+#             # set profile of output dem file
+#             profile = src.profile
+#             profile.update(
+#                 compress="deflate",
+#                 driver="GTiff",
+#                 height=dem_array.shape[1],
+#                 width=dem_array.shape[2],
+#                 nodata=-9999,
+#                 transform=dem_transform
+#             )
+#
+#             # save masked dem to file
+#             with rasterio.open(f"{process_id}_dem.tif", "w", **profile) as dst:
+#                 dst.write(dem_array)
+#
+#             # convert masked dem to aspect & slope
+#             # note : scale is required to convert degrees to metres for calcs
+#             gdal.DEMProcessing(f"{process_id}_slope.tif", f"{process_id}_dem.tif", "slope", scale=111120)
+#             gdal.DEMProcessing(f"{process_id}_aspect.tif", f"{process_id}_dem.tif", "aspect", scale=111120)
 
 
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
