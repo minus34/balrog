@@ -15,12 +15,12 @@ import psycopg2.extras
 import rasterio.mask
 # import shapely.geometry
 # import shapely.ops
-
-import sys
-import time
+# import sys
+# import time
+import uuid
 
 from datetime import datetime
-# from osgeo import gdal
+from osgeo import gdal
 from rasterio.session import AWSSession
 
 
@@ -31,6 +31,24 @@ aws_session = AWSSession(boto3.Session())
 
 # the directory of this script
 script_dir = os.path.dirname(os.path.realpath(__file__))
+
+# the order of these cannot be changed (must match table column order)
+image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues around narrow peninsulas and tall buildings
+
+# how many parallel processes to run
+max_processes = multiprocessing.cpu_count()
+
+# # get coordinate systems, geodetic parameters and transforms
+# geodesic = pyproj.Geod(ellps="WGS84")
+# wgs84_cs = pyproj.CRS("EPSG:4326")
+# lcc_proj = pyproj.CRS("EPSG:3577")
+# project_2_lcc = pyproj.Transformer.from_crs(wgs84_cs, lcc_proj, always_xy=True).transform
+# project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
+
+buffer_size_m = 110.0
+
+dem_resolution_m = 30.0
+
 
 # ------------------------------------------------------------------------------------------------------------------
 # START: edit settings
@@ -47,8 +65,9 @@ if platform.system() == "Darwin":
     #                       st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
     #                from bushfire.temp_building_buffers as bld
     #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
-    input_sql = """select gnaf_pid, 
-                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, 110, 4), 6, 0)::text as buffer 
+    input_sql = f"""select gnaf_pid, 
+                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m}, 4), 6, 0)::text as buffer, 
+                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer 
                    from bushfire.temp_point_buffers limit 100"""
 
     output_table = "bushfire.bal_factors_gnaf"
@@ -69,7 +88,8 @@ else:
     #                       st_asgeojson(st_buffer(geom::geography, 110, 4), 6, 0)::text as buffer
     #                from bushfire.temp_building_buffers"""
     input_sql = """select gnaf_pid, 
-                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, 110, 4), 6, 0)::text as buffer
+                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m}, 4), 6, 0)::text as buffer, 
+                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
                    from bushfire.temp_point_buffers"""
 
     postgres_user = "ec2-user"
@@ -77,34 +97,14 @@ else:
     output_tablespace = "dataspace"
 
     dem_file_path = "/data/dem/cog/srtm_1sec_dem_s.tif"
-    aspect_file_path = "/data/dem/cog/srtm_1sec_aspect.tif"
-    slope_file_path = "/data/dem/cog/srtm_1sec_slope.tif"
+    # aspect_file_path = "/data/dem/cog/srtm_1sec_aspect.tif"
+    # slope_file_path = "/data/dem/cog/srtm_1sec_slope.tif"
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='ec2-user' password='ec2-user'"
 
 # ------------------------------------------------------------------------------------------------------------------
 # END: edit settings
 # ------------------------------------------------------------------------------------------------------------------
-
-# the directory of this script
-script_dir = os.path.dirname(os.path.realpath(__file__))
-
-# the order of these cannot be changed (must match table column order)
-image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues around narrow peninsulas and tall buildings
-
-# how many parallel processes to run
-max_processes = multiprocessing.cpu_count()
-
-# # get coordinate systems, geodetic parameters and transforms
-# geodesic = pyproj.Geod(ellps='WGS84')
-# wgs84_cs = pyproj.CRS('EPSG:4326')
-# lcc_proj = pyproj.CRS('EPSG:3577')
-# project_2_lcc = pyproj.Transformer.from_crs(wgs84_cs, lcc_proj, always_xy=True).transform
-# project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
-#
-# buffer_size_m = 110.0
-#
-# dem_resolution_m = 30.0
 
 
 def main():
@@ -121,7 +121,7 @@ def main():
     # create target table (and schema if it doesn't exist)
     # WARNING: drops output table if exists
     schema_name = output_table.split(".")[0]
-    pg_cur.execute(f'create schema if not exists {schema_name}; alter schema {schema_name} owner to "{postgres_user}";')
+    pg_cur.execute(f"create schema if not exists {schema_name}; alter schema {schema_name} owner to {postgres_user};")
     sql = open(os.path.join(script_dir, "03_create_tables.sql"), "r").read().format(postgres_user, output_table, output_tablespace)
     pg_cur.execute(sql)
 
@@ -227,6 +227,7 @@ def split_list(input_list, max_count):
 def process_records(features):
     """for a set of features and a set of input rasters - mask using each geometry and return min/max/median values"""
 
+    process_id = uuid.uuid4()
     record_count = len(features)
 
     # print(f"{record_count} records")
@@ -238,11 +239,6 @@ def process_records(features):
     output_list = list()
 
     with rasterio.Env(aws_session):
-        # open the images
-        raster_dem = rasterio.open(dem_file_path, "r")
-        raster_aspect = rasterio.open(aspect_file_path, "r")
-        raster_slope = rasterio.open(slope_file_path, "r")
-
         # expected feature format is [id:string, geometry:string representing a valid geojson geometry]
         for feature in features:
             try:
@@ -250,6 +246,7 @@ def process_records(features):
                 # latitude = float(feature[1])
                 # longitude = float(feature[2])
                 buffer = json.loads(feature[1])
+                dem_buffer = json.loads(feature[2])  # need oversized dem buffer to calc aspect & slope
                 # print(f"{id} : start")
 
                 # # create input buffer polygon as both a WGS84 shape and a dict
@@ -273,6 +270,14 @@ def process_records(features):
 
                 output_dict = dict()
                 output_dict["id"] = id
+
+                # create dem, slope and aspect images for this feature
+                get_elevation_aspect_slope_files(process_id, dem_buffer)
+
+                # open the images
+                raster_dem = rasterio.open(f"{process_id}_dem.tif", "r")
+                raster_aspect = rasterio.open(f"{process_id}_aspect.tif", "r")
+                raster_slope = rasterio.open(f"{process_id}_slope.tif", "r")
 
                 for image_type in image_types:
                     # set input to use
@@ -365,6 +370,33 @@ def process_records(features):
         return (0, 0, record_count)
 
 
+def get_elevation_aspect_slope_files(process_id, dem_buffer):
+    with rasterio.Env():
+        with rasterio.open(dem_file_path, "r") as src:
+            # create mask using the large buffer
+            dem_array, dem_transform = rasterio.mask.mask(src, [dem_buffer], crop=True, nodata=-9999)
+
+            # set profile of output dem file
+            profile = src.profile
+            profile.update(
+                compress="deflate",
+                driver="GTiff",
+                height=dem_array.shape[1],
+                width=dem_array.shape[2],
+                nodata=-9999,
+                transform=dem_transform
+            )
+
+            # save masked dem to file
+            with rasterio.open(f"{process_id}_dem.tif", "w", **profile) as dst:
+                dst.write(dem_array)
+
+            # convert masked dem to aspect & slope
+            # note : scale is required to convert degrees to metres for calcs
+            gdal.DEMProcessing(f"{process_id}_slope.tif", f"{process_id}_dem.tif", "slope", scale=111120)
+            gdal.DEMProcessing(f"{process_id}_aspect.tif", f"{process_id}_dem.tif", "aspect", scale=111120)
+
+
 # def bulk_insert(results: Iterator[Dict[str, Any]]) -> None:
 def bulk_insert(results):
     """creates a file object of the results to insert many rows into Postgres efficiently"""
@@ -378,13 +410,13 @@ def bulk_insert(results):
 
     try:
         for result in results:
-            csv_file_like_object.write('|'.join(map(clean_csv_value, (result.values()))) + '\n')
+            csv_file_like_object.write("|".join(map(clean_csv_value, (result.values()))) + "\n")
 
         csv_file_like_object.seek(0)
 
         # Psycopg2 bug workaround - add schema to postgres search path and only use table name in copy_from
         pg_cur.execute(f"SET search_path TO {output_table.split('.')[0]}, public")
-        pg_cur.copy_from(csv_file_like_object, output_table.split('.')[1], sep='|')
+        pg_cur.copy_from(csv_file_like_object, output_table.split(".")[1], sep="|")
         output = True
     except Exception as ex:
         print(f"Copy to Postgres FAILED! : {ex}")
@@ -399,8 +431,8 @@ def bulk_insert(results):
 def clean_csv_value(value: Optional[Any]) -> str:
     """Escape a couple of things that postgres won't like"""
     if value is None:
-        return r'\N'
-    return str(value).replace('\n', '\\n')
+        return r"\N"
+    return str(value).replace("\n", "\\n")
 
 
 if __name__ == "__main__":
