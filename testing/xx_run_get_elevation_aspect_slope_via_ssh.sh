@@ -32,3 +32,4 @@ aws s3 cp s3://bushfire-rasters/output/bal_factors_gnaf.dmp ${HOME}/tmp/bushfire
 
 ## add building geoms to bal factors
 #/Applications/Postgres.app/Contents/Versions/13/bin/psql -d geo -f "${SCRIPT_DIR}/04_add_geoms_to_bal_factors.sql"
+
