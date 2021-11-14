@@ -10,6 +10,9 @@
 #
 #aws s3 sync /data/dem/cog s3://bushfire-rasters/geoscience_australia/5m-dem/
 
+mkdir -p /data/dem/geotiff
+mkdir /data/dem/cog
+
 
 # download and unzip SRTM 1 second (~30m) resolution smoothed elevation data
 cd /data/dem
@@ -32,3 +35,4 @@ gdal_translate ../geotiff/srtm_1sec_aspect.tif ./cog/srtm_1sec_aspect.tif -of CO
 # copy files to S3
 aws s3 sync /data/dem/cog s3://bushfire-rasters/geoscience_australia/1sec-dem/ --exclude "*" --include "*.tif"
 
+cd ~
