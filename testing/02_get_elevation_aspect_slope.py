@@ -87,13 +87,13 @@ else:
     # input_sql = """select bld_pid,
     #                       st_asgeojson(st_buffer(geom::geography, 110, 4), 6, 0)::text as buffer
     #                from bushfire.temp_building_buffers"""
-    input_sql = """select gnaf_pid, 
+    input_sql = f"""select gnaf_pid, 
                           st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m}, 4), 6, 0)::text as buffer, 
                           st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
                    from bushfire.temp_point_buffers"""
 
     postgres_user = "ec2-user"
-    output_table = "bushfire.bal_factors_gnaf"
+    output_table = "bushfire.bal_factors_gnaf_2"
     output_tablespace = "dataspace"
 
     dem_file_path = "/data/dem/cog/srtm_1sec_dem_s.tif"
@@ -121,7 +121,7 @@ def main():
     # create target table (and schema if it doesn't exist)
     # WARNING: drops output table if exists
     schema_name = output_table.split(".")[0]
-    pg_cur.execute(f"create schema if not exists {schema_name}; alter schema {schema_name} owner to {postgres_user};")
+    pg_cur.execute(f'create schema if not exists {schema_name}; alter schema {schema_name} owner to "{postgres_user}";')
     sql = open(os.path.join(script_dir, "03_create_tables.sql"), "r").read().format(postgres_user, output_table, output_tablespace)
     pg_cur.execute(sql)
 
