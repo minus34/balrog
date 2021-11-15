@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # copy mega-DEM
-aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif /Users/$(whoami)/tmp/bushfire/
+aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/geotiff/srtm_1sec_slope.tif /Users/$(whoami)/tmp/bushfire/
 
 
 # export and copy GNAF pids & coords

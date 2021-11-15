@@ -32,7 +32,8 @@ aws_session = AWSSession(boto3.Session())
 script_dir = os.path.dirname(os.path.realpath(__file__))
 
 # the order of these cannot be changed (must match table column order)
-image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues around narrow peninsulas and tall buildings
+# image_types = ["aspect", "slope", "dem"]  # Note: SRTM elevation has issues around narrow peninsulas and tall buildings
+image_types = ["slope"]  # Note: SRTM elevation has issues around narrow peninsulas and tall buildings
 
 # how many parallel processes to run
 max_processes = multiprocessing.cpu_count()
@@ -68,14 +69,15 @@ if platform.system() == "Darwin":
                    from bushfire.temp_point_buffers limit 100"""
     # st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
 
-    output_table = "bushfire.bal_factors_gnaf"
+    output_table = "bushfire.bal_factors_mgrs_slope_only"
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
     # dem_file_path = "/Users/s57405/tmp/bushfire/srtm_1sec_dem_s.tif"
-    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_dem_s.tif"
-    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_aspect.tif"
-    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_slope.tif"
+    slope_file_path = "/Users/s57405/tmp/bushfire/srtm_1sec_slope.tif"
+    # dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_dem_s.tif"
+    # aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_aspect.tif"
+    # slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_slope.tif"
     # dem_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
     # aspect_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/aspect/Sydney-ASP-AHD_56_5m.tif"
     # slope_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/slope/Sydney-SLP-AHD_56_5m.tif"
@@ -172,7 +174,8 @@ def main():
 
             print(f"\rRecords processed : {success_count} : "
                   f"outside of raster area : {out_of_area_count} : "
-                  f"failures : {fail_count}", end="")
+                  f"failures : {fail_count} : "
+                  f"{datetime.now() - start_time}", end="")
 
         print("")
 
