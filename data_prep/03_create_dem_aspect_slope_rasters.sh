@@ -10,15 +10,15 @@
 #
 #aws s3 sync /data/dem/cog s3://bushfire-rasters/geoscience_australia/5m-dem/
 
-mkdir -p /data/dem/geotiff
-mkdir /data/dem/cog
+#mkdir -p /data/dem/geotiff
+#mkdir /data/dem/cog
 
 
 # download and unzip SRTM 1 second (~30m) resolution smoothed elevation data
 cd /data/dem
-#curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/1sec-dem/70715.zip --progress-bar
-#unzip -o 70715.zip
-#rm 70715.zip
+curl -O https://elevation-direct-downloads.s3-ap-southeast-2.amazonaws.com/1sec-dem/70715.zip --progress-bar
+unzip -o 70715.zip
+rm 70715.zip
 
 # convert elevation data from ESRI Grid to GeoTIFF
 gdal_translate ./aac46307-fce8-449d-e044-00144fdd4fa6/hdr.adf ./geotiff/srtm_1sec_dem_s.tif -of GTiff -co BIGTIFF=YES -co TILED=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS

@@ -91,7 +91,6 @@ sudo mkdir /data
 sudo mount /dev/nvme1n1 /data
 
 sudo chown -R ec2-user:ec2-user /data
-mkdir -p /data/dem/cog
 
 echo "-------------------------------------------------------------------------"
 echo " Setup Postgres Database"
@@ -141,6 +140,9 @@ pg_restore -Fc -d geo -p 5432 -U ec2-user /data/gnaf.dmp --clean
 echo "-------------------------------------------------------------------------"
 echo " Copy elevation data from S3"
 echo "-------------------------------------------------------------------------"
+
+mkdir -p /data/dem/geotiff
+mkdir /data/dem/cog
 
 # copy elevation files from S3
 #aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/dem/geotiff/
