@@ -33,6 +33,6 @@ gdal_translate ./geotiff/srtm_1sec_slope.tif ./cog/srtm_1sec_slope.tif -of COG -
 gdal_translate ./geotiff/srtm_1sec_aspect.tif ./cog/srtm_1sec_aspect.tif -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
 
 # copy files to S3
-aws s3 sync /data/dem/cog s3://bushfire-rasters/geoscience_australia/1sec-dem/ --exclude "*" --include "*.tif"
+aws s3 sync /data/dem s3://bushfire-rasters/geoscience_australia/1sec-dem/ --exclude "*" --include "*.tif"
 
 cd ~

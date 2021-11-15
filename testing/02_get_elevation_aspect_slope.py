@@ -73,9 +73,9 @@ if platform.system() == "Darwin":
     postgres_user = "postgres"
 
     # dem_file_path = "/Users/s57405/tmp/bushfire/srtm_1sec_dem_s.tif"
-    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/geotiff/srtm_1sec_dem_s.tif"
-    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/geotiff/srtm_1sec_aspect.tif"
-    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/geotiff/srtm_1sec_slope.tif"
+    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_dem_s.tif"
+    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_aspect.tif"
+    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_slope.tif"
     # dem_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/dem/Sydney-DEM-AHD_56_5m.tif"
     # aspect_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/aspect/Sydney-ASP-AHD_56_5m.tif"
     # slope_file_path = "s3://bushfire-rasters/nsw_dcs_spatial_services/slope/Sydney-SLP-AHD_56_5m.tif"
