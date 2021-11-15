@@ -94,9 +94,12 @@ else:
     output_table = "bushfire.bal_factors_gnaf_2"
     output_tablespace = "dataspace"
 
-    dem_file_path = "/data/dem/geotiff/srtm_1sec_dem_s.tif"
-    aspect_file_path = "/data/dem/geotiff/srtm_1sec_aspect.tif"
-    slope_file_path = "/data/dem/geotiff/srtm_1sec_slope.tif"
+    # dem_file_path = "/data/dem/cog/srtm_1sec_dem_s.tif"
+    # aspect_file_path = "/data/dem/cog/srtm_1sec_aspect.tif"
+    # slope_file_path = "/data/dem/cog/srtm_1sec_slope.tif"
+    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_dem_s.tif"
+    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_aspect.tif"
+    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_slope.tif"
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='ec2-user' password='ec2-user'"
 
