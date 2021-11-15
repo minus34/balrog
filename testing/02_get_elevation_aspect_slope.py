@@ -64,10 +64,13 @@ if platform.system() == "Darwin":
     #                       st_asgeojson(st_transform(geom::geometry, 28356), 1, 0)::jsonb as buffer
     #                from bushfire.temp_building_buffers as bld
     #                inner join bushfire.buildings_sydney as syd on bld.bld_pid = syd.bld_pid"""
-    input_sql = f"""select gnaf_pid, 
-                          st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m}, 4), 6, 0)::text as buffer
-                   from bushfire.temp_point_buffers limit 100"""
+    # input_sql = f"""select gnaf_pid,
+    #                       st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m}, 4), 6, 0)::text as buffer
+    #                from bushfire.temp_point_buffers limit 100"""
     # st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
+    input_sql = f"""select ext_geo_id, 
+                          st_asgeojson(st_buffer(geom::geography, {buffer_size_m}, 4), 6, 0)::text as buffer
+                   from bushfire.temp_mgrs_points"""
 
     output_table = "bushfire.bal_factors_mgrs_slope_only"
     output_tablespace = "pg_default"
@@ -186,10 +189,13 @@ def main():
 
     # delete records from output table with invalid values (if any)
     sql = f"""delete from {output_table}
-                  where aspect_med = -9999
-                      or slope_med = -9999 
-                      or dem_med = -9999
+                  where slope_med = -9999 
                       """
+    # sql = f"""delete from {output_table}
+    #               where aspect_med = -9999
+    #                   or slope_med = -9999
+    #                   or dem_med = -9999
+    #                   """
     pg_cur.execute(sql)
     adjustment_count = pg_cur.rowcount
 
@@ -244,8 +250,8 @@ def process_records(features):
 
     with rasterio.Env(aws_session):
         # open the images
-        raster_dem = rasterio.open(dem_file_path, "r")
-        raster_aspect = rasterio.open(aspect_file_path, "r")
+        # raster_dem = rasterio.open(dem_file_path, "r")
+        # raster_aspect = rasterio.open(aspect_file_path, "r")
         raster_slope = rasterio.open(slope_file_path, "r")
 
         # expected feature format is [id:string, geometry:string representing a valid geojson geometry]
