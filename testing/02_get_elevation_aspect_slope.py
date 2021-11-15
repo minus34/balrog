@@ -237,6 +237,11 @@ def process_records(features):
     output_list = list()
 
     with rasterio.Env(aws_session):
+        # open the images
+        raster_dem = rasterio.open(dem_file_path, "r")
+        raster_aspect = rasterio.open(aspect_file_path, "r")
+        raster_slope = rasterio.open(slope_file_path, "r")
+
         # expected feature format is [id:string, geometry:string representing a valid geojson geometry]
         for feature in features:
             try:
@@ -271,11 +276,6 @@ def process_records(features):
 
                 # # create dem, slope and aspect images for this feature
                 # get_elevation_aspect_slope_files(process_id, dem_buffer)
-
-                # open the images
-                raster_dem = rasterio.open(dem_file_path, "r")
-                raster_aspect = rasterio.open(aspect_file_path, "r")
-                raster_slope = rasterio.open(slope_file_path, "r")
 
                 for image_type in image_types:
                     # set input to use
