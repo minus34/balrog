@@ -28,9 +28,9 @@ gdaldem slope ./geotiff/srtm_1sec_dem_s.tif ./geotiff/srtm_1sec_slope.tif -s 111
 gdaldem aspect ./geotiff/srtm_1sec_dem_s.tif ./geotiff/srtm_1sec_aspect.tif -zero_for_flat -of GTiff -co BIGTIFF=YES -co TILED=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
 
 # convert GeoTIFFs to Cloud Optimised GeoTIFFs
-gdal_translate ../geotiff/srtm_1sec_dem_s.tif ./cog/srtm_1sec_dem_s.tif -of COG -co BIGTIFF=YES -co TILED=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
-gdal_translate ../geotiff/srtm_1sec_slope.tif ./cog/srtm_1sec_slope.tif -of COG -co BIGTIFF=YES -co TILED=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
-gdal_translate ../geotiff/srtm_1sec_aspect.tif ./cog/srtm_1sec_aspect.tif -of COG -co BIGTIFF=YES -co TILED=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
+gdal_translate ./geotiff/srtm_1sec_dem_s.tif ./cog/srtm_1sec_dem_s.tif -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
+gdal_translate ./geotiff/srtm_1sec_slope.tif ./cog/srtm_1sec_slope.tif -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
+gdal_translate ./geotiff/srtm_1sec_aspect.tif ./cog/srtm_1sec_aspect.tif -of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS
 
 # copy files to S3
 aws s3 sync /data/dem/cog s3://bushfire-rasters/geoscience_australia/1sec-dem/ --exclude "*" --include "*.tif"
