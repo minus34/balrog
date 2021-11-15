@@ -145,11 +145,10 @@ mkdir -p /data/dem/geotiff
 mkdir /data/dem/cog
 
 # copy elevation files from S3
-#aws s3 sync s3://bushfire-rasters/nsw_dcs_spatial_services/ /data/dem/geotiff/
-#aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/geotiff/ --exclude "*" --include "*.tif"
-aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif /data/dem/geotiff/
-aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif /data/dem/geotiff/
-aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif /data/dem/geotiff/
+aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/ --exclude "*" --include "*.tif"
+#aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif /data/dem/geotiff/
+#aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif /data/dem/geotiff/
+#aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif /data/dem/geotiff/
 
 echo "-------------------------------------------------------------------------"
 echo " Remote setup finished!"
