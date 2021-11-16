@@ -45,7 +45,7 @@ max_processes = multiprocessing.cpu_count()
 # project_2_lcc = pyproj.Transformer.from_crs(wgs84_cs, lcc_proj, always_xy=True).transform
 # project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
 
-buffer_size_m = 110.0
+buffer_size_m = 30.0
 # dem_resolution_m = 30.0
 
 
