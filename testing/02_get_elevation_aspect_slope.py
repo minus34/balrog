@@ -96,7 +96,7 @@ else:
     # st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
 
     postgres_user = "ec2-user"
-    output_table = "bushfire.bal_factors_gnaf_2"
+    output_table = "bushfire.bal_factors_gnaf_slope_only"
     output_tablespace = "dataspace"
 
     # dem_file_path = "/data/dem/cog/srtm_1sec_dem_s.tif"
@@ -188,24 +188,24 @@ def main():
     pg_cur = pg_conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
     # delete records from output table with invalid values (if any)
-    sql = f"""delete from {output_table}
-                  where slope_med = -9999 
-                      """
+    # sql = f"""delete from {output_table}
+    #               where slope_med = -9999
+    #                   """
     # sql = f"""delete from {output_table}
     #               where aspect_med = -9999
     #                   or slope_med = -9999
     #                   or dem_med = -9999
     #                   """
-    pg_cur.execute(sql)
-    adjustment_count = pg_cur.rowcount
+    # pg_cur.execute(sql)
+    # adjustment_count = pg_cur.rowcount
 
     # update output table's stats
     pg_cur.execute(f"ANALYSE {output_table}")
 
-    # adjust results due to invalid values being removed
-    if adjustment_count is not None:
-        success_count -= adjustment_count
-        fail_count += adjustment_count
+    # # adjust results due to invalid values being removed
+    # if adjustment_count is not None:
+    #     success_count -= adjustment_count
+    #     fail_count += adjustment_count
 
     logger.info(f"\t\t - {success_count} records got data")
     if out_of_area_count > 0:
@@ -341,6 +341,7 @@ def process_records(features):
                         output_dict[f"{image_type}_avg"] = int(avg_value)
                         output_dict[f"{image_type}_std"] = int(std_value)
                         output_dict[f"{image_type}_med"] = int(med_value)
+                        output_dict[f"{image_type}_pixel_count"] = flat_array.size
 
                         # print(f"{id} : {image_type} : got raster stats")
 
@@ -350,8 +351,9 @@ def process_records(features):
                         output_dict[f"{image_type}_avg"] = -9999
                         output_dict[f"{image_type}_std"] = -9999
                         output_dict[f"{image_type}_med"] = -9999
+                        output_dict[f"{image_type}_pixel_count"] = -9999
 
-                del buffer
+                # del buffer
 
                 output_list.append(output_dict)
                 success_count += 1
@@ -366,18 +368,25 @@ def process_records(features):
                 else:
                     out_of_area_count += 1
 
+                    output_dict[f"{image_type}_min"] = -9999
+                    output_dict[f"{image_type}_max"] = -9999
+                    output_dict[f"{image_type}_avg"] = -9999
+                    output_dict[f"{image_type}_std"] = -9999
+                    output_dict[f"{image_type}_med"] = -9999
+                    output_dict[f"{image_type}_pixel_count"] = -9999
+
     # copy results to Postgres table
     if len(output_list) > 0:
         copy_result = bulk_insert(output_list)
 
         if copy_result:
-            return (success_count, out_of_area_count, fail_count)
+            return success_count, out_of_area_count, fail_count
         else:
             # if the copy failed flag all features as failed
-            return (0, 0, record_count)
+            return 0, 0, record_count
     else:
         # total failure!?
-        return (0, 0, record_count)
+        return 0, 0, record_count
 
 
 # def get_elevation_aspect_slope_files(process_id, dem_buffer):
