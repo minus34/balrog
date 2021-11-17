@@ -6,6 +6,7 @@ create extension if not exists postgis;
 drop table if exists {1};
 create table {1} (
     id text,
+    buffer_size_m double precision,
 --     aspect_min smallint,
 --     aspect_max smallint,
 --     aspect_avg smallint,
