@@ -45,7 +45,7 @@ max_processes = multiprocessing.cpu_count()
 # project_2_lcc = pyproj.Transformer.from_crs(wgs84_cs, lcc_proj, always_xy=True).transform
 # project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
 
-buffer_size_m = 0.0
+buffer_size_m = 30.0
 # dem_resolution_m = 30.0
 
 
@@ -69,13 +69,13 @@ if platform.system() == "Darwin":
     #                from bushfire.temp_point_buffers limit 100"""
     # st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
     input_sql = f"""select ext_geo_id,
-                           st_asgeojson(geom::geography, 6, 0)::text as buffer
+                           st_asgeojson(st_buffer(geom::geography, {buffer_size_m}, 4), 6, 0)::text as buffer
                    from bushfire.temp_mgrs_points"""
 
     # st_asgeojson(geom::geography, 6, 0)::text as buffer
     # st_asgeojson(st_buffer(geom::geography, {buffer_size_m}, 4), 6, 0)::text as buffer
 
-    output_table = "bushfire.bal_factors_mgrs_slope_only"
+    output_table = "bushfire.bal_factors_mgrs_slope_only_30"
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
