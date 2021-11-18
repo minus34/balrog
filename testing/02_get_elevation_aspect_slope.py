@@ -45,7 +45,7 @@ max_processes = multiprocessing.cpu_count()
 # project_2_lcc = pyproj.Transformer.from_crs(wgs84_cs, lcc_proj, always_xy=True).transform
 # project_2_wgs84 = pyproj.Transformer.from_crs(lcc_proj, wgs84_cs, always_xy=True).transform
 
-buffer_size_m = 30.0
+buffer_size_m = 15.0
 # dem_resolution_m = 30.0
 
 
@@ -75,12 +75,12 @@ if platform.system() == "Darwin":
     # st_asgeojson(geom::geography, 6, 0)::text as buffer
     # st_asgeojson(st_buffer(geom::geography, {buffer_size_m}, 4), 6, 0)::text as buffer
 
-    output_table = "bushfire.bal_factors_mgrs_slope_only_30"
+    output_table = "bushfire.bal_factors_mgrs_5m_slope_only_15"
     output_tablespace = "pg_default"
     postgres_user = "postgres"
 
     # dem_file_path = "/Users/s57405/tmp/bushfire/srtm_1sec_dem_s.tif"
-    slope_file_path = "/Users/s57405/tmp/bushfire/srtm_1sec_slope.tif"
+    slope_file_path = "/Users/s57405/tmp/bushfire/nsw_dcs/nsw_dcs_5m_slope.tif"
     # dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_dem_s.tif"
     # aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_aspect.tif"
     # slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_slope.tif"
