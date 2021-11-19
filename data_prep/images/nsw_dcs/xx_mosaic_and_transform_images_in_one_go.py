@@ -53,9 +53,12 @@ def main():
 
     logger.info(f"START mosaic and transform images : {full_start_time}")
 
-    create_dem()
-    logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
-    start_time = datetime.now()
+    get_image_list()
+
+
+    # create_dem()
+    # logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
+    # start_time = datetime.now()
 
     create_slope()
     logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
@@ -64,30 +67,33 @@ def main():
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
 
-def create_dem():
-    files_to_mosaic = list()
-
-    # get images to mosaic and transform
+def get_image_list():
+    """ get list of image files to mosaic and transform"""
     file_path = os.path.join(input_path, glob_pattern)
     files = glob.glob(file_path)
     num_images = len(files)
 
     if num_images > 0:
-        files_to_mosaic.extend(files)
+        logger.info(f"\t - processing {num_images} images")
+        files.extend(files)
     else:
-        print(f" - {file_path} has no images")
+        logger.warning(f"\t - {file_path} has no images")
 
-    # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long for all of AU
-    if len(files_to_mosaic) > 0:
-        gdal.Warp(output_dem_file, files_to_mosaic, format="COG",
-                  options="-overwrite -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
-    else:
-        print(f" - no files to merge")
+    return files
 
 
-def create_slope():
-    gdal.DEMProcessing(output_slope_file, output_dem_file, "slope", scale=111120, format="COG",
-                       options="-overwrite -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+def create_dem(files):
+    # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long
+    if len(files) > 0:
+        gdal.Warp(output_dem_file, files, format="COG",
+                  options="-overwrite -multi -wm 80% -t_srs EPSG:4283 "
+                          "-co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+
+
+def create_slope(input_file, output_file):
+    # convert DEM to slope and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long
+    gdal.DEMProcessing(output_file, input_file, "slope", format="GTiff",
+                       options="-co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
 
 
 if __name__ == "__main__":
