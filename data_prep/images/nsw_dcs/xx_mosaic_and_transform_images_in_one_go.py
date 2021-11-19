@@ -22,20 +22,22 @@ if platform.system() == "Darwin":
 
     ram_to_use = 8
 
-    input_path = "/Users/s57405/Downloads"
-    glob_pattern = "*/*-SLP-AHD_56_5m.asc"
+    input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
+    glob_pattern = "*/*-DEM-AHD_56_5m.asc"
 
-    output_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_slope.tif")
+    output_dem_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_dem.tif")
+    output_slope_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_slope.tif")
 
 else:
     debug = False
 
     ram_to_use = 480
 
-    input_path = "/Users/s57405/Downloads"
-    glob_pattern = "*/*-SLP-AHD_56_5m.asc"
+    input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
+    glob_pattern = "*/*-DEM-AHD_56_5m.asc"
 
-    output_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_slope.tif")
+    output_dem_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_dem.tif")
+    output_slope_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_slope.tif")
 
 
 # how many parallel processes to run
@@ -47,14 +49,22 @@ gdal.SetCacheMax(int(ram_to_use / 4) * 1024 * 1024)
 
 def main():
     full_start_time = datetime.now()
+    start_time = datetime.now()
+
     logger.info(f"START mosaic and transform images : {full_start_time}")
 
-    process_dataset()
+    create_dem()
+    logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
+    start_time = datetime.now()
+
+    create_slope()
+    logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
+    # start_time = datetime.now()
 
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
 
-def process_dataset():
+def create_dem():
     files_to_mosaic = list()
 
     # get images to mosaic and transform
@@ -69,11 +79,15 @@ def process_dataset():
 
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long for all of AU
     if len(files_to_mosaic) > 0:
-        gdt = gdal.Warp(output_file, files_to_mosaic, format="COG", options="-overwrite -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
-        del gdt
-
+        gdal.Warp(output_dem_file, files_to_mosaic, format="COG", options="-overwrite -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
     else:
         print(f" - no files to merge")
+
+
+def create_slope():
+    gdal.DEMProcessing(output_slope_file, output_dem_file, "slope", scale=111120)
+
+
 
 
 if __name__ == "__main__":
