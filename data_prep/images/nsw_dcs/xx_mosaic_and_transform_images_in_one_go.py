@@ -81,6 +81,10 @@ def main():
     mosaic_and_transform(dem_files, output_dem_file)
     logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
+    # remove temp files
+    for file in slope_files:
+        os.remove(file)
+
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
 
