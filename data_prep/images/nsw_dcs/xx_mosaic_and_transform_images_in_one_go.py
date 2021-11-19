@@ -72,14 +72,14 @@ def main():
     logger.info(f"\t - created temp slope files : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    # mosaic DEM images and transform to GDA94 lat/long
-    mosaic_and_transform(dem_files)
-    logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
+    # mosaic slope images and transform to GDA94 lat/long
+    mosaic_and_transform(slope_files, output_slope_file)
+    logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
     start_time = datetime.now()
 
-    # mosaic slope images and transform to GDA94 lat/long
-    mosaic_and_transform(slope_files)
-    logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
+    # mosaic DEM images and transform to GDA94 lat/long
+    mosaic_and_transform(dem_files, output_dem_file)
+    logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
@@ -124,10 +124,10 @@ def create_slope_image(input_file):
     return output_file
 
 
-def mosaic_and_transform(files):
+def mosaic_and_transform(files, output_file):
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long
     if len(files) > 0:
-        gdal.Warp(output_dem_file, files, format="COG",
+        gdal.Warp(output_file, files, format="COG",
                   options="-overwrite -multi -wm 80% -t_srs EPSG:4283 "
                           "-co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
 
