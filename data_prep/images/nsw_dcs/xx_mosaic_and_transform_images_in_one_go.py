@@ -1,11 +1,13 @@
 
 import boto3
+import concurrent.futures
 import glob
 import logging
 import multiprocessing
 import os
 import pathlib
 import platform
+
 
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
@@ -25,8 +27,11 @@ if platform.system() == "Darwin":
     input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
     glob_pattern = "*/*-DEM-AHD_56_5m.asc"
 
-    output_dem_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_dem.tif")
-    output_slope_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_slope.tif")
+    output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs")
+    temp_output_path = os.path.join(output_path, "tmp")
+
+    output_dem_file = os.path.join(output_path, "nsw_dcs_5m_dem.tif")
+    output_slope_file = os.path.join(output_path, "nsw_dcs_5m_slope.tif")
 
 else:
     debug = False
@@ -36,8 +41,11 @@ else:
     input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
     glob_pattern = "*/*-DEM-AHD_56_5m.asc"
 
-    output_dem_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_dem.tif")
-    output_slope_file = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs", "nsw_dcs_5m_slope.tif")
+    output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs")
+    temp_output_path = os.path.join(output_path, "tmp")
+
+    output_dem_file = os.path.join(output_path, "nsw_dcs_5m_dem.tif")
+    output_slope_file = os.path.join(output_path, "nsw_dcs_5m_slope.tif")
 
 
 # how many parallel processes to run
@@ -46,6 +54,9 @@ max_processes = multiprocessing.cpu_count()
 # set max RAM usage (divide by 4 as there are 4 processes - one per dataset)
 gdal.SetCacheMax(int(ram_to_use / 4) * 1024 * 1024)
 
+# create output path if it doesn't exist
+pathlib.Path(temp_output_path).mkdir(parents=True, exist_ok=True)
+
 
 def main():
     full_start_time = datetime.now()
@@ -53,16 +64,22 @@ def main():
 
     logger.info(f"START mosaic and transform images : {full_start_time}")
 
-    get_image_list()
+    # list of DEM files to process
+    dem_files = get_image_list()
 
+    # convert DEM images to slope
+    slope_files = convert_to_slope(dem_files)
+    logger.info(f"\t - created temp slope files : {datetime.now() - start_time}")
+    start_time = datetime.now()
 
-    # create_dem()
-    # logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
-    # start_time = datetime.now()
+    # mosaic DEM images and transform to GDA94 lat/long
+    mosaic_and_transform(dem_files)
+    logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
+    start_time = datetime.now()
 
-    create_slope()
+    # mosaic slope images and transform to GDA94 lat/long
+    mosaic_and_transform(slope_files)
     logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
-    # start_time = datetime.now()
 
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
@@ -75,25 +92,44 @@ def get_image_list():
 
     if num_images > 0:
         logger.info(f"\t - processing {num_images} images")
-        files.extend(files)
     else:
         logger.warning(f"\t - {file_path} has no images")
 
     return files
 
 
-def create_dem(files):
+def convert_to_slope(dem_files):
+    slope_files = list()
+
+    with concurrent.futures.ProcessPoolExecutor(int(max_processes / 2)) as executor:
+        futures = {executor.submit(create_slope_image, input_file): input_file for input_file in dem_files}
+
+        for fut in concurrent.futures.as_completed(futures):
+            output_file = fut.result()
+            slope_files.append(output_file)
+
+            logger.info(f"\t\t - created {output_file}")
+
+    return slope_files
+
+
+def create_slope_image(input_file):
+    """ convert DEM to slope and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long """
+    file_name = os.path.basename(input_file).replace(".asc", ".tif").replace("-DEM-", "-gdal_slope-")
+    output_file = os.path.join(temp_output_path, file_name)
+
+    gdal.DEMProcessing(output_file, input_file, "slope", alg="Horn",
+                       options="-of GTiff -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+
+    return output_file
+
+
+def mosaic_and_transform(files):
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long
     if len(files) > 0:
         gdal.Warp(output_dem_file, files, format="COG",
                   options="-overwrite -multi -wm 80% -t_srs EPSG:4283 "
                           "-co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
-
-
-def create_slope(input_file, output_file):
-    # convert DEM to slope and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long
-    gdal.DEMProcessing(output_file, input_file, "slope", format="GTiff",
-                       options="-co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
 
 
 if __name__ == "__main__":
