@@ -79,15 +79,15 @@ def create_dem():
 
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long for all of AU
     if len(files_to_mosaic) > 0:
-        gdal.Warp(output_dem_file, files_to_mosaic, format="COG", options="-overwrite -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+        gdal.Warp(output_dem_file, files_to_mosaic, format="COG",
+                  options="-overwrite -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
     else:
         print(f" - no files to merge")
 
 
 def create_slope():
-    gdal.DEMProcessing(output_slope_file, output_dem_file, "slope", scale=111120)
-
-
+    gdal.DEMProcessing(output_slope_file, output_dem_file, "slope", scale=111120, format="COG",
+                       options="-overwrite -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
 
 
 if __name__ == "__main__":
