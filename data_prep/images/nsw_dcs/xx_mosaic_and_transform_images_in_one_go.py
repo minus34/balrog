@@ -24,7 +24,7 @@ if platform.system() == "Darwin":
     ram_to_use = 8
 
     input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
-    glob_pattern = "*/*-DEM-AHD_56_5m.zip"
+    glob_pattern = "*-DEM-AHD_56_5m.zip"
 
     output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs")
     temp_output_path = os.path.join(output_path, "tmp")
@@ -66,23 +66,24 @@ def main():
     # list of DEM files to process
     dem_files = get_image_list()
 
-    # convert DEM images to slope
-    slope_files = convert_to_slope(dem_files)
-    logger.info(f"\t - created temp slope files : {datetime.now() - start_time}")
-    start_time = datetime.now()
+    if len(dem_files) > 0:
+        # convert DEM images to slope
+        slope_files = convert_to_slope(dem_files)
+        logger.info(f"\t - created temp slope files : {datetime.now() - start_time}")
+        start_time = datetime.now()
 
-    # mosaic slope images and transform to GDA94 lat/long
-    mosaic_and_transform(slope_files, output_slope_file)
-    logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
-    start_time = datetime.now()
+        # mosaic slope images and transform to GDA94 lat/long
+        mosaic_and_transform(slope_files, output_slope_file)
+        logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
+        start_time = datetime.now()
 
-    # mosaic DEM images and transform to GDA94 lat/long
-    mosaic_and_transform(dem_files, output_dem_file)
-    logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
+        # mosaic DEM images and transform to GDA94 lat/long
+        mosaic_and_transform(dem_files, output_dem_file)
+        logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
-    # remove temp files
-    for file in slope_files:
-        os.remove(file)
+        # remove temp files
+        for file in slope_files:
+            os.remove(file)
 
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
@@ -129,10 +130,9 @@ def create_slope_image(input_file):
 
 def mosaic_and_transform(files, output_file):
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long
-    if len(files) > 0:
-        gdal.Warp(output_file, files, format="COG",
-                  options="-overwrite -multi -wm 80% -t_srs EPSG:4283 "
-                          "-co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+    gdal.Warp(output_file, files, format="COG",
+              options="-overwrite -multi -wm 80% -t_srs EPSG:4283 "
+                      "-co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
 
 
 if __name__ == "__main__":
