@@ -8,7 +8,6 @@ import os
 import pathlib
 import platform
 
-
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
 from osgeo import gdal
@@ -25,7 +24,7 @@ if platform.system() == "Darwin":
     ram_to_use = 8
 
     input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
-    glob_pattern = "*/*-DEM-AHD_56_5m.asc"
+    glob_pattern = "*/*-DEM-AHD_56_5m.zip"
 
     output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs")
     temp_output_path = os.path.join(output_path, "tmp")
@@ -39,7 +38,7 @@ else:
     ram_to_use = 480
 
     input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
-    glob_pattern = "*/*-DEM-AHD_56_5m.asc"
+    glob_pattern = "*/*-DEM-AHD_56_5m.zip"
 
     output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs")
     temp_output_path = os.path.join(output_path, "tmp")
@@ -119,7 +118,7 @@ def convert_to_slope(dem_files):
 
 def create_slope_image(input_file):
     """ convert DEM to slope and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long """
-    file_name = os.path.basename(input_file).replace(".asc", ".tif").replace("-DEM-", "-gdal_slope-")
+    file_name = os.path.basename(input_file).replace(".zip", ".tif").replace("-DEM-", "-gdal_slope-")
     output_file = os.path.join(temp_output_path, file_name)
 
     gdal.DEMProcessing(output_file, input_file, "slope", alg="Horn",
