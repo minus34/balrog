@@ -11,6 +11,7 @@ import platform
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
 from osgeo import gdal
+from urllib.parse import urlparse
 
 # setup connection to AWS S3
 s3_client = boto3.client("s3")
@@ -24,12 +25,12 @@ base_url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_
 if platform.system() == "Darwin":
     debug = False
 
-    urls = ["https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip/Sydney-DEM-AHD_56_5m.asc",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/Wollongong-DEM-AHD_56_5m.zip/Wollongong-DEM-AHD_56_5m.asc",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/Penrith-DEM-AHD_56_5m.zip/Penrith-DEM-AHD_56_5m.asc",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/Katoomba-DEM-AHD_56_5m.zip/Katoomba-DEM-AHD_56_5m.asc",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/PortHacking-DEM-AHD_56_5m.zip/PortHacking-DEM-AHD_56_5m.zip",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/Burragorang-DEM-AHD_56_5m.zip/Burragorang-DEM-AHD_56_5m.zip"
+    urls = ["https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Wollongong-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Penrith-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Katoomba-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/PortHacking-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Burragorang-DEM-AHD_56_5m.zip"
             ]
 
     ram_to_use = 8
@@ -107,7 +108,9 @@ def get_image_list():
     files = list()
 
     for url in urls:
-        files.append("/vsizip//vsicurl/" + url)
+        # add image file name to URL so GDAL can read it
+        file_name = os.path.basename(urlparse(url).path).replace(".zip", ".asc")
+        files.append("/".join(["/vsizip//vsicurl", url, file_name]))
 
     num_images = len(files)
 
