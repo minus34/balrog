@@ -18,8 +18,19 @@ s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 20MB
 
 s3_bucket = "bushfire-rasters"
 
+base_url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
+
+
 if platform.system() == "Darwin":
     debug = False
+
+    urls = ["https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Wollongong-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Penrith-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Katoomba-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/PortHacking-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Burragorang-DEM-AHD_56_5m.zip"
+            ]
 
     ram_to_use = 8
 
@@ -90,14 +101,20 @@ def main():
 
 def get_image_list():
     """ get list of image files to mosaic and transform"""
-    file_path = os.path.join(input_path, glob_pattern)
-    files = glob.glob(file_path)
+    # file_path = os.path.join(input_path, glob_pattern)
+    # files = glob.glob(file_path)
+
+    files = list()
+
+    for url in urls:
+        files.append("/vsizip//vsicurl/" + url)
+
     num_images = len(files)
 
-    if num_images > 0:
-        logger.info(f"\t - processing {num_images} images")
-    else:
-        logger.warning(f"\t - {file_path} has no images")
+    # if num_images > 0:
+    logger.info(f"\t - processing {num_images} images")
+    # else:
+    #     logger.warning(f"\t - {file_path} has no images")
 
     return files
 
