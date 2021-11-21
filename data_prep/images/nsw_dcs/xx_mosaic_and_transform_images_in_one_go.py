@@ -24,12 +24,12 @@ base_url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_
 if platform.system() == "Darwin":
     debug = False
 
-    urls = ["https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/Wollongong-DEM-AHD_56_5m.zip",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/Penrith-DEM-AHD_56_5m.zip",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/Katoomba-DEM-AHD_56_5m.zip",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/PortHacking-DEM-AHD_56_5m.zip",
-            "https://portal.spatial.nsw.gov.au/download/dem/56/Burragorang-DEM-AHD_56_5m.zip"
+    urls = ["https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip/Sydney-DEM-AHD_56_5m.asc",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Wollongong-DEM-AHD_56_5m.zip/Wollongong-DEM-AHD_56_5m.asc",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Penrith-DEM-AHD_56_5m.zip/Penrith-DEM-AHD_56_5m.asc",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Katoomba-DEM-AHD_56_5m.zip/Katoomba-DEM-AHD_56_5m.asc",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/PortHacking-DEM-AHD_56_5m.zip/PortHacking-DEM-AHD_56_5m.zip",
+            "https://portal.spatial.nsw.gov.au/download/dem/56/Burragorang-DEM-AHD_56_5m.zip/Burragorang-DEM-AHD_56_5m.zip"
             ]
 
     ram_to_use = 8
@@ -136,7 +136,7 @@ def convert_to_slope(dem_files):
 
 def create_slope_image(input_file):
     """ convert DEM to slope and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long """
-    file_name = os.path.basename(input_file).replace(".zip", ".tif").replace("-DEM-", "-gdal_slope-")
+    file_name = os.path.basename(input_file).replace(".asc", ".tif").replace("-DEM-", "-gdal_slope-")
     output_file = os.path.join(temp_output_path, file_name)
 
     gdal.DEMProcessing(output_file, input_file, "slope", alg="Horn",
