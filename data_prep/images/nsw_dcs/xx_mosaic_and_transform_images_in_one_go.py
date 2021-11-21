@@ -19,7 +19,7 @@ s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 20MB
 
 s3_bucket = "bushfire-rasters"
 
-base_url = "https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip"
+# base_url = "https://portal.spatial.nsw.gov.au/download/dem"
 
 
 if platform.system() == "Darwin":
