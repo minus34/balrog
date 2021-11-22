@@ -99,15 +99,17 @@ else:
     # st_asgeojson(st_buffer(st_makepoint(lon, lat)::geography, {buffer_size_m + dem_resolution_m * 3.0}, 4), 6, 0)::text as big_buffer
 
     postgres_user = "ec2-user"
-    output_table = "bushfire.bal_factors_gnaf_slope_only"
+    output_table = "bushfire.bal_factors_gnaf_nsw_slope_only"
     output_tablespace = "dataspace"
+
+    slope_file_path = "/data/nsw_dcs_5m_slope.tif"
 
     # dem_file_path = "/data/dem/cog/srtm_1sec_dem_s.tif"
     # aspect_file_path = "/data/dem/cog/srtm_1sec_aspect.tif"
     # slope_file_path = "/data/dem/cog/srtm_1sec_slope.tif"
-    dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_dem_s.tif"
-    aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_aspect.tif"
-    slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_slope.tif"
+    # dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_dem_s.tif"
+    # aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_aspect.tif"
+    # slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_slope.tif"
 
     pg_connect_string = "dbname=geo host=localhost port=5432 user='ec2-user' password='ec2-user'"
 

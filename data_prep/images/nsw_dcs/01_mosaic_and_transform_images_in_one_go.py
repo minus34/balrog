@@ -117,7 +117,7 @@ def get_image_list():
 
             # Fix source data error
             if file_name == "BaanBaa-DEM-AHD_55_5m":
-                mga_zone = 55
+                mga_zone = "55"
 
             # add image file name to URL so GDAL can read it
             url = "/".join(["/vsizip//vsicurl", base_url, mga_zone, file_name + ".zip", file_name + ".asc"])
@@ -141,6 +141,10 @@ def convert_to_slope(files):
     dem_files = list()
     slope_files = list()
 
+    i = 1
+
+    start_time = datetime.now()
+
     with concurrent.futures.ProcessPoolExecutor(max_processes) as executor:
         futures = {executor.submit(create_slope_image, input_file): input_file for input_file in files}
 
@@ -149,7 +153,9 @@ def convert_to_slope(files):
             dem_files.append(dem_file)
             slope_files.append(slope_file)
 
-            logger.info(f"\t\t - processed {dem_file}")
+            logger.info(f"\t\t - processed file {i}: {dem_file} : {datetime.now() - start_time}")
+
+            i += 1
 
     return dem_files, slope_files
 
