@@ -115,13 +115,17 @@ def get_image_list():
         for line in f.read().splitlines():
             mga_zone, file_name = line.split(",")
 
+            # Fix source data error
+            if file_name == "BaanBaa-DEM-AHD_55_5m":
+                mga_zone = 55
+
             # add image file name to URL so GDAL can read it
             url = "/".join(["/vsizip//vsicurl", base_url, mga_zone, file_name + ".zip", file_name + ".asc"])
             files.append(url)
 
     # if debugging, only process the first 2 files
     if debug:
-        files = files[:8]
+        files = files[:4]
 
     num_images = len(files)
 

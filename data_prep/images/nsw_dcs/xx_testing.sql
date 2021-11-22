@@ -1,6 +1,7 @@
 
 
-select * from bushfire.nsw_elevation_index;
+select * from bushfire.nsw_elevation_index
+where dems5mid = 'BaanBaa-DEM-AHD_55_5m';
 
 
 select zone,
