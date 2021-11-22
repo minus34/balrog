@@ -167,13 +167,14 @@ def create_slope_image(input_file):
     dem_file = os.path.join(temp_output_path, dem_file_name)
 
     # convert ASC format input DEM file to TIF
-    gdal.Translate(dem_file, input_file, format="GTiff", options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+    gdal.Translate(dem_file, input_file, format="GTiff",
+                   options="-co OVERVIEWS=NONE -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
 
     slope_file_name = dem_file_name.replace("-DEM-", "-gdal_slope-")
     slope_file = os.path.join(temp_output_path, slope_file_name)
 
     gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
-                       options="-of GTiff -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+                       options="-of GTiff -co OVERVIEWS=NONE -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
 
     return dem_file, slope_file
 
