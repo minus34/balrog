@@ -5,7 +5,7 @@
 PYTHON_VERSION="3.9"
 
 # required to keep long running sessions active
-sudo yum install -y tmux
+sudo yum install -y tmux mdadm
 
 # check if proxy server required
 if [ -n "$1" ]
@@ -83,14 +83,21 @@ if [ -n "${PROXY}" ];
 fi
 
 echo "-------------------------------------------------------------------------"
-echo " Mount storage"
+echo " create RAID O array from local SSDs and mount storage"
 echo "-------------------------------------------------------------------------"
 
-sudo mkfs -t xfs /dev/nvme1n1
+# create RAID 0 array - WARNING: assumes EC2 instance has 4 SSDs)
+sudo mdadm --create --verbose /dev/md0 --level=0 --raid-devices=4 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1 /dev/nvme4n1
+# format it
+sudo mkfs -t xfs /dev/md0
+# mount it to a directory
 sudo mkdir /data
-sudo mount /dev/nvme1n1 /data
-
+sudo mount /dev/md0 /data
+# set permissions
 sudo chown -R ec2-user:ec2-user /data
+# save RAID settings in case of reboot
+sudo mdadm --detail --scan > ~/mdadm.conf
+sudo cp ~/mdadm.conf /etc/mdadm.conf
 
 echo "-------------------------------------------------------------------------"
 echo " Setup Postgres Database"
