@@ -52,12 +52,11 @@ else:
     # input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
     # glob_pattern = "*/*-DEM-AHD_56_5m.zip"
 
-    output_path = os.path.join(pathlib.Path.home(), "/data/nsw_dcs")
-    temp_output_path = os.path.join(output_path, "/data/nsw_dcs/tmp")
+    output_path = os.path.join(pathlib.Path.home(), "/data")
+    temp_output_path = os.path.join(output_path, "/data/tmp")
 
     output_dem_file = os.path.join(output_path, "nsw_dcs_5m_dem.tif")
     output_slope_file = os.path.join(output_path, "nsw_dcs_5m_slope.tif")
-
 
 # how many parallel processes to run
 max_processes = int(multiprocessing.cpu_count() / 2)
