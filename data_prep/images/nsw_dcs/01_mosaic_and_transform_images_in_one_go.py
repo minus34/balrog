@@ -182,7 +182,7 @@ def mosaic_and_transform(files, output_file):
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long
     gdal.Warp(output_file, files, format="COG",
               options="-overwrite -multi -wm 80% -t_srs EPSG:4283 "
-                      "-co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+                      "-co OVERVIEWS=IGNORE_EXISTING -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
 
 
 if __name__ == "__main__":

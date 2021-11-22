@@ -80,7 +80,7 @@ if platform.system() == "Darwin":
     postgres_user = "postgres"
 
     # dem_file_path = "/Users/s57405/tmp/bushfire/srtm_1sec_dem_s.tif"
-    slope_file_path = "/Users/s57405/tmp/bushfire/nsw_dcs/nsw_dcs_5m_slope.tif"
+    slope_file_path = "s3://bushfire-rasters/nsw_dcs/5m_dem/nsw_dcs_5m_slope.tif"
     # dem_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_dem_s.tif"
     # aspect_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_aspect.tif"
     # slope_file_path = "s3://bushfire-rasters/geoscience_australia/1sec-dem/cog/srtm_1sec_slope.tif"
