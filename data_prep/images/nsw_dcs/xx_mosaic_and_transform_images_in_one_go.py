@@ -93,9 +93,11 @@ def main():
         mosaic_and_transform(dem_files, output_dem_file)
         logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
-        # # remove temp files
-        # for file in slope_files:
-        #     os.remove(file)
+        # remove temp files
+        for file in dem_files:
+            os.remove(file)
+        for file in slope_files:
+            os.remove(file)
 
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
@@ -120,7 +122,7 @@ def get_image_list():
 
     # if debugging, only process the first 2 files
     if debug:
-        files = files[:2]
+        files = files[:8]
 
     num_images = len(files)
 
@@ -155,8 +157,8 @@ def create_slope_image(input_file):
     dem_file_name = os.path.basename(input_file).replace(".asc", ".tif")
     dem_file = os.path.join(temp_output_path, dem_file_name)
 
-    gdal.Translate(dem_file, input_file, format="GTiff",
-              options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+    # convert ASC format input DEM file to TIF
+    gdal.Translate(dem_file, input_file, format="GTiff", options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
 
     slope_file_name = dem_file_name.replace("-DEM-", "-gdal_slope-")
     slope_file = os.path.join(temp_output_path, slope_file_name)
