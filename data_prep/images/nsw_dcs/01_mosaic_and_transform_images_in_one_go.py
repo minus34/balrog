@@ -161,7 +161,7 @@ def convert_to_slope(files):
 
 
 def create_slope_image(input_file):
-    """ convert DEM GeoTIFF and then to slope and output as a single GeoTIFF """
+    """ convert DEM to GeoTIFF and then to slope and output as a single GeoTIFF """
 
     dem_file_name = os.path.basename(input_file).replace(".asc", ".tif")
     dem_file = os.path.join(temp_output_path, dem_file_name)
@@ -180,10 +180,19 @@ def create_slope_image(input_file):
 
 
 def mosaic_and_transform(files, output_file):
-    # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long
-    gdal.Warp(output_file, files,
-              options="-of COG -overwrite -multi -wm 80% -t_srs EPSG:4283 "
-                      "-co OVERVIEWS=IGNORE_EXISTING -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+    temp_output_file = os.path.join(temp_output_path, "temp.tif")
+
+    # mosaic all merged files and output as a single GeoTIFF in GDA94 lat/long
+    gdal.Warp(temp_output_file, files,
+              options="-of GTiff -overwrite -multi -wm 80% -t_srs EPSG:4283 "
+                      "-co BIGTIFF=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+
+    # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
+    gdal.Translate(output_file, temp_output_file, format="COG",
+                   options="-co COMPRESS=DEFLATE -co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
+
+    # delete intermediate file
+    os.remove(temp_output_file)
 
     # # build overviews
     # image = gdal.Open(output_file, 1)
