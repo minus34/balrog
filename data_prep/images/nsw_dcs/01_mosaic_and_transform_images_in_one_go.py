@@ -62,8 +62,8 @@ else:
 # how many parallel processes to run
 max_processes = int(multiprocessing.cpu_count() / 2)
 
-# set max RAM usage (divide by 4 as there are 4 processes - one per dataset)
-gdal.SetCacheMax(int(ram_to_use / 4) * 1024 * 1024)
+# set max RAM usage
+gdal.SetCacheMax(int(ram_to_use) * 1024 * 1024)
 
 # create output paths if they doesn't exist
 pathlib.Path(os.path.join(temp_output_path, "dem")).mkdir(parents=True, exist_ok=True)
