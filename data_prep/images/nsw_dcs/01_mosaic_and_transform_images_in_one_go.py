@@ -82,7 +82,7 @@ def main():
     if len(files) > 0:
         # convert DEM images to slope
         dem_files, slope_files = convert_to_slope(files)
-        # dem_files, slope_files = get_image_list_from_disk()
+        # dem_files, slope_files = get_image_list_from_disk()  # only used if process fails after this point
         logger.info(f"\t - created {len(slope_files)} temp slope files : {datetime.now() - start_time}")
         start_time = datetime.now()
 
@@ -112,7 +112,7 @@ def get_image_list_from_disk():
     dem_files = list()
     slope_files = list()
 
-    file_path = os.path.join(temp_output_path, "*.tif")
+    file_path = os.path.join(temp_output_path, "*/*.tif")
     files = glob.glob(file_path)
 
     for file in files:
@@ -222,7 +222,7 @@ def mosaic_and_transform(files, output_file):
 
     # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
     gdal_dataset = gdal.Translate(output_file, "/vsimem/temp.tif",
-                                  options="-of COG -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+                                  options="-of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
 
     # print(validate_cloud_optimized_geotiff.validate(output_file))
