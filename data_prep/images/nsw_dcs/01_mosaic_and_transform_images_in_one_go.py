@@ -7,12 +7,12 @@ import multiprocessing
 import os
 import pathlib
 import platform
-import validate_cloud_optimized_geotiff
+# import validate_cloud_optimized_geotiff
 
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
 from osgeo import gdal
-from urllib.parse import urlparse
+# from urllib.parse import urlparse
 
 # setup connection to AWS S3
 s3_client = boto3.client("s3")
@@ -202,7 +202,7 @@ def mosaic_and_transform(files, output_file):
     temp_output_file = os.path.join(temp_output_path, "temp.tif")
 
     # mosaic all merged files and output as a single GeoTIFF in GDA94 lat/long
-    gdal_dataset = gdal.Warp(temp_output_file, files,
+    gdal_dataset = gdal.Warp("/vsimem/temp.tif", files,
                              options="-of GTiff -overwrite -multi -wm 80% -t_srs EPSG:4283 "
                                      "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
@@ -210,14 +210,14 @@ def mosaic_and_transform(files, output_file):
     logger.info("\t\t - created big GeoTIFF")
 
     # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
-    gdal_dataset = gdal.Translate(output_file, temp_output_file,
-                                  options="-of COG -co COMPRESS=DEFLATE -co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
+    gdal_dataset = gdal.Translate(output_file, "/vsimem/temp.tif",
+                                  options="-of COG -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
 
-    print(validate_cloud_optimized_geotiff.validate(output_file))
+    # print(validate_cloud_optimized_geotiff.validate(output_file))
 
-    # delete intermediate file
-    os.remove(temp_output_file)
+    # # delete intermediate file
+    # os.remove(temp_output_file)
 
     # # build overviews
     # image = gdal.Open(output_file, 1)
