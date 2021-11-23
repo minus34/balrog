@@ -168,22 +168,28 @@ def create_slope_image(input_file):
 
     # convert ASC format input DEM file to TIF
     gdal.Translate(dem_file, input_file, format="GTiff",
-                   options="-co OVERVIEWS=NONE -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+                   options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
 
     slope_file_name = dem_file_name.replace("-DEM-", "-gdal_slope-")
     slope_file = os.path.join(temp_output_path, slope_file_name)
 
     gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
-                       options="-of GTiff -co OVERVIEWS=NONE -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+                       options="-of GTiff -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
 
     return dem_file, slope_file
 
 
 def mosaic_and_transform(files, output_file):
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long
-    gdal.Warp(output_file, files, format="COG",
-              options="-overwrite -multi -wm 80% -t_srs EPSG:4283 "
+    gdal.Warp(output_file, files,
+              options="-of COG -overwrite -multi -wm 80% -t_srs EPSG:4283 "
                       "-co OVERVIEWS=IGNORE_EXISTING -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+
+    # # build overviews
+    # image = gdal.Open(output_file, 1)
+    # gdal.SetConfigOption('COMPRESS_OVERVIEW', 'DEFLATE')
+    # image.BuildOverviews('NEAREST', [4, 8, 16, 32, 64, 128, 256, 512], gdal.TermProgress_nocb)
+    # del image
 
 
 if __name__ == "__main__":
