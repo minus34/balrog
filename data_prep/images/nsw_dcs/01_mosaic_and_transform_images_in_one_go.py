@@ -199,7 +199,9 @@ def create_slope_image(input_file):
 
 
 def mosaic_and_transform(files, output_file):
-    temp_output_file = os.path.join(temp_output_path, "temp.tif")
+    start_time = datetime.now()
+
+    # temp_output_file = os.path.join(temp_output_path, "temp.tif")
 
     # mosaic all merged files and output as a single GeoTIFF in GDA94 lat/long
     gdal_dataset = gdal.Warp("/vsimem/temp.tif", files,
@@ -207,7 +209,7 @@ def mosaic_and_transform(files, output_file):
                                      "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
 
-    logger.info("\t\t - created big GeoTIFF")
+    logger.info(f"\t - created big GeoTIFF : {datetime.now() - start_time}")
 
     # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
     gdal_dataset = gdal.Translate(output_file, "/vsimem/temp.tif",
