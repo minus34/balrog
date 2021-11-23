@@ -80,6 +80,7 @@ def main():
     if len(files) > 0:
         # convert DEM images to slope
         dem_files, slope_files = convert_to_slope(files)
+        # dem_files, slope_files = get_image_list_from_disk()
         logger.info(f"\t - created temp slope files : {datetime.now() - start_time}")
         start_time = datetime.now()
 
@@ -101,12 +102,27 @@ def main():
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
 
+def get_image_list_from_disk():
+    """ backup function if you need to reference images already downloaded and processed """
+
+    dem_files = list()
+    slope_files = list()
+
+    file_path = os.path.join(temp_output_path, "*.tif")
+    files = glob.glob(file_path)
+
+    for file in files:
+        if "-DEM-" in file:
+            dem_files.append(file)
+        elif "-gdal_slope-" in file:
+            slope_files.append(file)
+
+    return dem_files, slope_files
+
+
 def get_image_list():
     """ Get list of image files to mosaic and transform.
         Creates URLs with GDAL prefixes to enable downloading and reading of ZIP files directly"""
-
-    # file_path = os.path.join(input_path, glob_pattern)
-    # files = glob.glob(file_path)
 
     files = list()
 
@@ -167,14 +183,16 @@ def create_slope_image(input_file):
     dem_file = os.path.join(temp_output_path, dem_file_name)
 
     # convert ASC format input DEM file to TIF
-    gdal.Translate(dem_file, input_file, format="GTiff",
-                   options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+    gdal_dataset = gdal.Translate(dem_file, input_file, format="GTiff",
+                                  options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+    del gdal_dataset
 
     slope_file_name = dem_file_name.replace("-DEM-", "-gdal_slope-")
     slope_file = os.path.join(temp_output_path, slope_file_name)
 
-    gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
-                       options="-of GTiff -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+    gdal_dataset = gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
+                                      options="-of GTiff -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+    del gdal_dataset
 
     return dem_file, slope_file
 
@@ -183,13 +201,17 @@ def mosaic_and_transform(files, output_file):
     temp_output_file = os.path.join(temp_output_path, "temp.tif")
 
     # mosaic all merged files and output as a single GeoTIFF in GDA94 lat/long
-    gdal.Warp(temp_output_file, files,
-              options="-of GTiff -overwrite -multi -wm 80% -t_srs EPSG:4283 "
-                      "-co BIGTIFF=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+    gdal_dataset = gdal.Warp(temp_output_file, files,
+                             options="-of GTiff -overwrite -multi -wm 80% -t_srs EPSG:4283 "
+                                     "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+    del gdal_dataset
+
+    logger.info("\t\t - created big GeoTIFF")
 
     # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
-    gdal.Translate(output_file, temp_output_file, format="COG",
-                   options="-co COMPRESS=DEFLATE -co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
+    gdal_dataset = gdal.Translate(output_file, temp_output_file, format="COG",
+                                  options="-co COMPRESS=DEFLATE -co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
+    del gdal_dataset
 
     # delete intermediate file
     os.remove(temp_output_file)
