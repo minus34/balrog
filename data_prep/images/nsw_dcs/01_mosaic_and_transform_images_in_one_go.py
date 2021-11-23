@@ -65,8 +65,9 @@ max_processes = int(multiprocessing.cpu_count() / 2)
 # set max RAM usage (divide by 4 as there are 4 processes - one per dataset)
 gdal.SetCacheMax(int(ram_to_use / 4) * 1024 * 1024)
 
-# create output path if it doesn't exist
-pathlib.Path(temp_output_path).mkdir(parents=True, exist_ok=True)
+# create output paths if they doesn't exist
+pathlib.Path(os.path.join(temp_output_path, "dem")).mkdir(parents=True, exist_ok=True)
+pathlib.Path(os.path.join(temp_output_path, "slope")).mkdir(parents=True, exist_ok=True)
 
 
 def main():
@@ -82,17 +83,19 @@ def main():
         # convert DEM images to slope
         dem_files, slope_files = convert_to_slope(files)
         # dem_files, slope_files = get_image_list_from_disk()
-        logger.info(f"\t - created temp slope files : {datetime.now() - start_time}")
+        logger.info(f"\t - created {len(slope_files)} temp slope files : {datetime.now() - start_time}")
         start_time = datetime.now()
 
         # mosaic slope images and transform to GDA94 lat/long
+        logger.info(f"\t - processing big slope COG")
         mosaic_and_transform(slope_files, output_slope_file)
         logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
         start_time = datetime.now()
 
-        # # mosaic DEM images and transform to GDA94 lat/long
-        # mosaic_and_transform(dem_files, output_dem_file)
-        # logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
+        # mosaic DEM images and transform to GDA94 lat/long
+        logger.info(f"\t - processing big DEM COG")
+        mosaic_and_transform(dem_files, output_dem_file)
+        logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
         # remove temp files
         for file in dem_files:
@@ -167,10 +170,12 @@ def convert_to_slope(files):
 
         for fut in concurrent.futures.as_completed(futures):
             dem_file, slope_file = fut.result()
-            dem_files.append(dem_file)
-            slope_files.append(slope_file)
-
-            logger.info(f"\t\t - processed file {i}: {dem_file} : {datetime.now() - start_time}")
+            if dem_file is not None:
+                dem_files.append(dem_file)
+                slope_files.append(slope_file)
+                logger.info(f"\t\t - processed file {i}: {dem_file} : {datetime.now() - start_time}")
+            else:
+                logger.warning(f"\t\t - FAILED to process file {i}: {dem_file} : {datetime.now() - start_time}")
 
             i += 1
 
@@ -180,22 +185,26 @@ def convert_to_slope(files):
 def create_slope_image(input_file):
     """ convert DEM to GeoTIFF and then to slope and output as a single GeoTIFF """
 
-    dem_file_name = os.path.basename(input_file).replace(".asc", ".tif")
-    dem_file = os.path.join(temp_output_path, dem_file_name)
+    try:
+        # convert ASC format input DEM file to TIF
+        dem_file_name = os.path.basename(input_file).replace(".asc", ".tif")
+        dem_file = os.path.join(temp_output_path, "dem", dem_file_name)
 
-    # convert ASC format input DEM file to TIF
-    gdal_dataset = gdal.Translate(dem_file, input_file, format="GTiff",
-                                  options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
-    del gdal_dataset
+        gdal_dataset = gdal.Translate(dem_file, input_file, format="GTiff",
+                                      options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+        del gdal_dataset
 
-    slope_file_name = dem_file_name.replace("-DEM-", "-gdal_slope-")
-    slope_file = os.path.join(temp_output_path, slope_file_name)
+        # convert DEM TIF to slope image
+        slope_file_name = dem_file_name.replace("-DEM-", "-gdal_slope-")
+        slope_file = os.path.join(temp_output_path, "slope", slope_file_name)
 
-    gdal_dataset = gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
-                                      options="-of GTiff -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
-    del gdal_dataset
+        gdal_dataset = gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
+                                          options="-of GTiff -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+        del gdal_dataset
 
-    return dem_file, slope_file
+        return dem_file, slope_file
+    except:
+        return None, None
 
 
 def mosaic_and_transform(files, output_file):
@@ -209,7 +218,7 @@ def mosaic_and_transform(files, output_file):
                                      "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
 
-    logger.info(f"\t - created big GeoTIFF : {datetime.now() - start_time}")
+    logger.info(f"\t \t - created big GeoTIFF : {datetime.now() - start_time}")
 
     # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
     gdal_dataset = gdal.Translate(output_file, "/vsimem/temp.tif",
