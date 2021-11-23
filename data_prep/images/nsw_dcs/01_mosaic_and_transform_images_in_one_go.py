@@ -7,6 +7,7 @@ import multiprocessing
 import os
 import pathlib
 import platform
+import validate_cloud_optimized_geotiff
 
 from boto3.s3.transfer import TransferConfig
 from datetime import datetime
@@ -89,9 +90,9 @@ def main():
         logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
         start_time = datetime.now()
 
-        # mosaic DEM images and transform to GDA94 lat/long
-        mosaic_and_transform(dem_files, output_dem_file)
-        logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
+        # # mosaic DEM images and transform to GDA94 lat/long
+        # mosaic_and_transform(dem_files, output_dem_file)
+        # logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
         # remove temp files
         for file in dem_files:
@@ -141,7 +142,7 @@ def get_image_list():
 
     # if debugging, only process the first 2 files
     if debug:
-        files = files[:4]
+        files = files[:2]
 
     num_images = len(files)
 
@@ -209,9 +210,11 @@ def mosaic_and_transform(files, output_file):
     logger.info("\t\t - created big GeoTIFF")
 
     # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
-    gdal_dataset = gdal.Translate(output_file, temp_output_file, format="COG",
-                                  options="-co COMPRESS=DEFLATE -co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
+    gdal_dataset = gdal.Translate(output_file, temp_output_file,
+                                  options="-of COG -co COMPRESS=DEFLATE -co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
+
+    print(validate_cloud_optimized_geotiff.validate(output_file))
 
     # delete intermediate file
     os.remove(temp_output_file)
