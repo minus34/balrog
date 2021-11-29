@@ -20,8 +20,6 @@ s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 20MB
 
 s3_bucket = "bushfire-rasters"
 
-base_url = "https://portal.spatial.nsw.gov.au/download/dem"
-
 
 if platform.system() == "Darwin":
     debug = True
@@ -39,25 +37,22 @@ if platform.system() == "Darwin":
     # input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
     # glob_pattern = "*-DEM-AHD_56_5m.zip"
 
-    output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs")
+    output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/ga_5m")
     temp_output_path = os.path.join(output_path, "tmp")
 
-    output_dem_file = os.path.join(output_path, "test_nsw_dcs_5m_dem.tif")
-    output_slope_file = os.path.join(output_path, "test_nsw_dcs_5m_slope.tif")
+    output_dem_file = os.path.join(output_path, "test_ga_5m_dem.tif")
+    output_slope_file = os.path.join(output_path, "test_ga_5m_slope.tif")
 
 else:
     debug = False
 
     ram_to_use = 480
 
-    # input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
-    # glob_pattern = "*/*-DEM-AHD_56_5m.zip"
-
     output_path = os.path.join(pathlib.Path.home(), "/data")
     temp_output_path = os.path.join(output_path, "/data/tmp")
 
-    output_dem_file = os.path.join(output_path, "nsw_dcs_5m_dem.tif")
-    output_slope_file = os.path.join(output_path, "nsw_dcs_5m_slope.tif")
+    output_dem_file = os.path.join(output_path, "ga_5m_dem.tif")
+    output_slope_file = os.path.join(output_path, "ga_5m_slope.tif")
 
 # how many parallel processes to run
 max_processes = int(multiprocessing.cpu_count() / 2)
@@ -131,16 +126,10 @@ def get_image_list():
     files = list()
 
     # get file names and MGA zones from reference file
-    with open("nsw_elevation_index.csv", "r") as f:
-        for line in f.read().splitlines():
-            mga_zone, file_name = line.split(",")
-
-            # Fix source data error
-            if file_name == "BaanBaa-DEM-AHD_55_5m":
-                mga_zone = "55"
-
+    with open("ga_dem_urls.txt", "r") as f:
+        for file_url in f.read().splitlines():
             # add image file name to URL so GDAL can read it
-            url = "/".join(["/vsizip//vsicurl", base_url, mga_zone, file_name + ".zip", file_name + ".asc"])
+            url = "/".join(["/vsizip//vsicurl", file_url + ".asc"])
             files.append(url)
 
     # if debugging, only process the first 2 files
@@ -186,23 +175,26 @@ def create_slope_image(input_file):
     """ convert DEM to GeoTIFF and then to slope and output as a single GeoTIFF """
 
     try:
-        # convert ASC format input DEM file to TIF
-        dem_file_name = os.path.basename(input_file).replace(".asc", ".tif")
-        dem_file = os.path.join(temp_output_path, "dem", dem_file_name)
+        dem_file_name = os.path.basename(input_file)
 
-        gdal_dataset = gdal.Translate(dem_file, input_file, format="GTiff",
-                                      options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
-        del gdal_dataset
+        # # convert ASC format input DEM file to TIF -- not required as GA 5m DEMs are already uncompressed GeoTIFFs
+        # dem_file_name = os.path.basename(input_file).replace(".asc", ".tif")
+        # dem_file = os.path.join(temp_output_path, "dem", dem_file_name)
+        #
+        # gdal_dataset = gdal.Translate(dem_file, input_file, format="GTiff",
+        #                               options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+        # del gdal_dataset
 
         # convert DEM TIF to slope image
-        slope_file_name = dem_file_name.replace("-DEM-", "-gdal_slope-")
+        slope_file_name = dem_file_name.replace(".tif", "-gdal_slope.tif")
         slope_file = os.path.join(temp_output_path, "slope", slope_file_name)
 
-        gdal_dataset = gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
+        gdal_dataset = gdal.DEMProcessing(slope_file, input_file, "slope", alg="Horn",
                                           options="-of GTiff -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
         del gdal_dataset
 
-        return dem_file, slope_file
+        # return dem_file, slope_file
+        return input_file, slope_file
     except:
         return None, None
 
