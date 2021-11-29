@@ -31,7 +31,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 # START: edit settings
 # ------------------------------------------------------------------------------------------------------------------
 
-urls_file = os.path.join(script_dir, "../../data/input/ga_dem_urls.json")
+urls_file = os.path.join(script_dir, "../../ga_5m/ga_dem_urls.json")
 
 debug = False
 
