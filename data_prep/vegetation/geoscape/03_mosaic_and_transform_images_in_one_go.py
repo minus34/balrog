@@ -121,7 +121,10 @@ def process_dataset(input_dict):
 
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long for all of AU
     if len(files_to_mosaic) > 0:
-        gdt = gdal.Warp(input_dict["output_file"], files_to_mosaic, format="COG", options="-overwrite -multi -wm 80% -t_srs EPSG:4283 -co TILED=YES -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+        gdt = gdal.Warp(input_dict["output_file"], files_to_mosaic, options="-overwrite -multi -wm 80% -t_srs EPSG:4283 "
+                                                                            "-of COG -co BIGTIFF=YES "
+                                                                            "-co COMPRESS=DEFLATE "
+                                                                            "-co NUM_THREADS=ALL_CPUS")
         del gdt
 
         print(f" - {input_dict['name']} done : {datetime.now() - start_time}")
