@@ -178,7 +178,7 @@ def create_slope_image(input_file):
 
     try:
         # convert ASC format input DEM file to TIF -- not required as GA 5m DEMs are already uncompressed GeoTIFFs
-        dem_file_name = os.path.basename(input_file).replace(".zip", ".tif")
+        dem_file_name = os.path.basename(input_file)
         dem_file = os.path.join(temp_output_path, "dem", dem_file_name)
 
         gdal_dataset = gdal.Translate(dem_file, input_file, format="GTiff",
@@ -206,7 +206,7 @@ def mosaic_and_transform(files, output_file):
     # mosaic all merged files and output as a single GeoTIFF in GDA94 lat/long
     gdal_dataset = gdal.Warp("/vsimem/temp.tif", files,
                              options="-of GTiff -overwrite -multi -wm 80% -t_srs EPSG:4283 "
-                                     "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+                                     "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
 
     logger.info(f"\t \t - created big GeoTIFF : {datetime.now() - start_time}")
