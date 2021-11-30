@@ -128,8 +128,10 @@ def get_image_list():
     # get file names and MGA zones from reference file
     with open("ga_dem_urls.txt", "r") as f:
         for file_url in f.read().splitlines():
+            file_name = os.path.basename(file_url).replace(".zip", ".tif")
+
             # add image file name to URL so GDAL can read it
-            url = "/".join(["/vsizip//vsicurl", file_url + ".asc"])
+            url = "/".join(["/vsizip//vsicurl", file_url, file_name])
             files.append(url)
 
     # if debugging, only process the first 2 files
@@ -175,26 +177,23 @@ def create_slope_image(input_file):
     """ convert DEM to GeoTIFF and then to slope and output as a single GeoTIFF """
 
     try:
-        dem_file_name = os.path.basename(input_file)
+        # convert ASC format input DEM file to TIF -- not required as GA 5m DEMs are already uncompressed GeoTIFFs
+        dem_file_name = os.path.basename(input_file).replace(".zip", ".tif")
+        dem_file = os.path.join(temp_output_path, "dem", dem_file_name)
 
-        # # convert ASC format input DEM file to TIF -- not required as GA 5m DEMs are already uncompressed GeoTIFFs
-        # dem_file_name = os.path.basename(input_file).replace(".asc", ".tif")
-        # dem_file = os.path.join(temp_output_path, "dem", dem_file_name)
-        #
-        # gdal_dataset = gdal.Translate(dem_file, input_file, format="GTiff",
-        #                               options="-co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
-        # del gdal_dataset
+        gdal_dataset = gdal.Translate(dem_file, input_file, format="GTiff",
+                                      options="-co COMPRESS=NONE -co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
+        del gdal_dataset
 
         # convert DEM TIF to slope image
         slope_file_name = dem_file_name.replace(".tif", "-gdal_slope.tif")
         slope_file = os.path.join(temp_output_path, "slope", slope_file_name)
 
-        gdal_dataset = gdal.DEMProcessing(slope_file, input_file, "slope", alg="Horn",
-                                          options="-of GTiff -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+        gdal_dataset = gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
+                                          options="-of GTiff -co BIGTIFF=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
         del gdal_dataset
 
-        # return dem_file, slope_file
-        return input_file, slope_file
+        return dem_file, slope_file
     except:
         return None, None
 
