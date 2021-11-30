@@ -28,7 +28,8 @@ conda config --env --set channel_priority strict
 conda activate geo
 
 # install lots of geo packages
-conda install -y -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely fiona requests boto3
+conda install -y -c conda-forge gdal rasterio[s3] psycopg2 shapely fiona requests boto3
+#rio-cogeo postgis
 conda activate geo
 
 # --------------------------
