@@ -92,11 +92,11 @@ def main():
         mosaic_and_transform(dem_files, output_dem_file)
         logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
-        # remove temp files
-        for file in dem_files:
-            os.remove(file)
-        for file in slope_files:
-            os.remove(file)
+        # # remove temp files
+        # for file in dem_files:
+        #     os.remove(file)
+        # for file in slope_files:
+        #     os.remove(file)
 
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
@@ -181,8 +181,9 @@ def create_slope_image(input_file):
         dem_file_name = os.path.basename(input_file)
         dem_file = os.path.join(temp_output_path, "dem", dem_file_name)
 
-        gdal_dataset = gdal.Translate(dem_file, input_file, format="GTiff",
-                                      options="-co COMPRESS=NONE -co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
+        gdal_dataset = gdal.Translate(dem_file, input_file,
+                                      options="-of GTiff -a_nodata -3.402823e+38 -co TILED=YES -co COMPRESS=NONE "
+                                              "-co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
         del gdal_dataset
 
         # convert DEM TIF to slope image
@@ -190,7 +191,8 @@ def create_slope_image(input_file):
         slope_file = os.path.join(temp_output_path, "slope", slope_file_name)
 
         gdal_dataset = gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
-                                          options="-of GTiff -co BIGTIFF=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+                                          options="-of GTiff -co TILED=YES -co COMPRESS=NONE "
+                                                  "-co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
         del gdal_dataset
 
         return dem_file, slope_file
@@ -206,7 +208,7 @@ def mosaic_and_transform(files, output_file):
     # mosaic all merged files and output as a single GeoTIFF in GDA94 lat/long
     gdal_dataset = gdal.Warp("/vsimem/temp.tif", files,
                              options="-of GTiff -overwrite -multi -wm 80% -t_srs EPSG:4283 "
-                                     "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+                                     "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
 
     logger.info(f"\t \t - created big GeoTIFF : {datetime.now() - start_time}")
