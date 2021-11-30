@@ -96,18 +96,18 @@ def main():
         logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
         start_time = datetime.now()
 
-        # remove intermediate files
-        for file in slope_files:
-            os.remove(file)
+        # # remove intermediate files
+        # for file in slope_files:
+        #     os.remove(file)
 
         # mosaic DEM images and transform to GDA94 lat/long
         logger.info(f"\t - processing big DEM COG")
         mosaic_and_transform(dem_files, "dem", output_dem_file)
         logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
-        # remove intermediate files
-        for file in dem_files:
-            os.remove(file)
+        # # remove intermediate files
+        # for file in dem_files:
+        #     os.remove(file)
 
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
