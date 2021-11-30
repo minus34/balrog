@@ -58,8 +58,7 @@ else:
     output_slope_file = os.path.join(output_path, "ga_5m_slope.tif")
 
 # how many parallel processes to run
-max_processes = 1
-# max_processes = int(multiprocessing.cpu_count() / 2)
+max_processes = int(multiprocessing.cpu_count() / 2)
 
 # set max RAM usage
 gdal.SetCacheMax(int(ram_to_use) * 1024 * 1024)
@@ -97,16 +96,18 @@ def main():
         logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
         start_time = datetime.now()
 
+        # remove intermediate files
+        for file in slope_files:
+            os.remove(file)
+
         # mosaic DEM images and transform to GDA94 lat/long
         logger.info(f"\t - processing big DEM COG")
         mosaic_and_transform(dem_files, "dem", output_dem_file)
         logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
-        # # remove temp files
-        # for file in dem_files:
-        #     os.remove(file)
-        # for file in slope_files:
-        #     os.remove(file)
+        # remove intermediate files
+        for file in dem_files:
+            os.remove(file)
 
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
@@ -277,8 +278,8 @@ def mosaic_and_transform(files, image_type, output_file):
 
     # print(validate_cloud_optimized_geotiff.validate(output_file))
 
-    # # delete intermediate file
-    # os.remove(temp_output_file)
+    # delete intermediate file
+    os.remove(temp_output_file)
 
     # # build overviews
     # image = gdal.Open(output_file, 1)
