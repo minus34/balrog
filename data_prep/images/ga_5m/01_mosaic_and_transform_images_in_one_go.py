@@ -78,17 +78,19 @@ def main():
     urls = get_image_list()
 
     if len(urls) > 0:
-        # download and unzip image files
-        dem_files = get_image_files(urls)
-        # dem_files = get_image_list_from_disk()  # only used if process fails after this point
-        logger.info(f"\t - downloaded {len(dem_files)} DEM files : {datetime.now() - start_time}")
-        start_time = datetime.now()
+        # # download and unzip image files
+        # dem_files = get_image_files(urls)
+        # logger.info(f"\t - downloaded {len(dem_files)} DEM files : {datetime.now() - start_time}")
+        # start_time = datetime.now()
+        #
+        # # convert DEM images to slope
+        # slope_files = convert_to_slope(dem_files)
+        # logger.info(f"\t - created {len(slope_files)} temp slope files : {datetime.now() - start_time}")
+        # start_time = datetime.now()
 
-        # convert DEM images to slope
-        slope_files = convert_to_slope(dem_files)
-        # dem_files, slope_files = get_image_list_from_disk()  # only used if process fails after this point
-        logger.info(f"\t - created {len(slope_files)} temp slope files : {datetime.now() - start_time}")
-        start_time = datetime.now()
+        # only used if process fails after this point
+        dem_files = get_image_list_from_disk("dem")
+        slope_files = get_image_list_from_disk("slope")
 
         # mosaic slope images and transform to GDA94 lat/long
         logger.info(f"\t - processing big slope COG")
@@ -112,22 +114,11 @@ def main():
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
 
-def get_image_list_from_disk():
+def get_image_list_from_disk(image_type):
     """ backup function if you need to reference images already downloaded and processed """
 
-    dem_files = list()
-    slope_files = list()
-
-    file_path = os.path.join(temp_output_path, "*/*.tif")
-    files = glob.glob(file_path)
-
-    for file in files:
-        if "-DEM-" in file:
-            dem_files.append(file)
-        elif "-gdal_slope-" in file:
-            slope_files.append(file)
-
-    return dem_files, slope_files
+    file_path = os.path.join(temp_output_path, image_type, "*.tif")
+    return glob.glob(file_path)
 
 
 def get_image_list():
@@ -249,7 +240,7 @@ def create_slope_image(dem_file):
         slope_file = os.path.join(temp_output_path, "slope", slope_file_name)
 
         gdal_dataset = gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
-                                          options="-of GTiff -co TILED=YES -co COMPRESS=NONE "
+                                          options="-of GTiff -co TILED=YES -co COMPRESS=DEFLATE "
                                                   "-co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
         del gdal_dataset
 
@@ -266,7 +257,7 @@ def mosaic_and_transform(files, image_type, output_file):
     # mosaic all merged files and output as a single GeoTIFF in GDA94 lat/long
     gdal_dataset = gdal.Warp(temp_output_file, files,
                              options="-of GTiff -overwrite -multi -wm 80% -t_srs EPSG:4283 "
-                                     "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
+                                     "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
 
     logger.info(f"\t \t - created big {image_type} GeoTIFF : {datetime.now() - start_time}")
