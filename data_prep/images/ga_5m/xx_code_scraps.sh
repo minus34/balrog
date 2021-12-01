@@ -13,7 +13,7 @@ gdaldem slope /Users/s57405/tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem.tif /Users/s5740
 
 
 
-aws s3 sync /data/ s3://bushfire-rasters/nsw_dcs/5m_dem --exclude "*" --include "*.tif"
+aws s3 sync /data/ s3://bushfire-rasters/geoscience_australia/5m-dem/cog/ --exclude "*" --include "*.tif"
 
 aws s3 sync /data/tmp/ s3://bushfire-rasters/nsw_dcs/5m_dem/raw --exclude "*" --include "*.tif"
 

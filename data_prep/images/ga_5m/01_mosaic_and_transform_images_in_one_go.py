@@ -98,18 +98,18 @@ def main():
         logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
         start_time = datetime.now()
 
-        # # remove intermediate files
-        # for file in slope_files:
-        #     os.remove(file)
+        # remove intermediate files
+        for file in slope_files:
+            os.remove(file)
 
         # mosaic DEM images and transform to GDA94 lat/long
         logger.info(f"\t - processing big DEM COG")
         mosaic_and_transform(dem_files, "dem", output_dem_file)
         logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
 
-        # # remove intermediate files
-        # for file in dem_files:
-        #     os.remove(file)
+        # remove intermediate files
+        for file in dem_files:
+            os.remove(file)
 
     logger.info(f"FINISHED mosaic and transform images : {datetime.now() - full_start_time}")
 
@@ -231,7 +231,7 @@ def create_slope_image(dem_file):
         # dem_file = os.path.join(temp_output_path, "dem", dem_file_name)
         #
         # gdal_dataset = gdal.Translate(dem_file, input_file,
-        #                               options="-of GTiff -a_nodata -3.402823e+38 -co TILED=YES -co COMPRESS=NONE "
+        #                               options="-of GTiff -a_nodata -3.402823e+38 -co TILED=YES -co COMPRESS=DEFLATE "
         #                                       "-co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
         # del gdal_dataset
 
