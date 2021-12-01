@@ -78,19 +78,19 @@ def main():
     urls = get_image_list()
 
     if len(urls) > 0:
-        # # download and unzip image files
-        # dem_files = get_image_files(urls)
-        # logger.info(f"\t - downloaded {len(dem_files)} DEM files : {datetime.now() - start_time}")
-        # start_time = datetime.now()
-        #
-        # # convert DEM images to slope
-        # slope_files = convert_to_slope(dem_files)
-        # logger.info(f"\t - created {len(slope_files)} temp slope files : {datetime.now() - start_time}")
-        # start_time = datetime.now()
+        # download and unzip image files
+        dem_files = get_image_files(urls)
+        logger.info(f"\t - downloaded {len(dem_files)} DEM files : {datetime.now() - start_time}")
+        start_time = datetime.now()
 
-        # only used if process fails after this point
-        dem_files = get_image_list_from_disk("dem")
-        slope_files = get_image_list_from_disk("slope")
+        # convert DEM images to slope
+        slope_files = convert_to_slope(dem_files)
+        logger.info(f"\t - created {len(slope_files)} temp slope files : {datetime.now() - start_time}")
+        start_time = datetime.now()
+
+        # # only use if process fails after this point and you need to restart
+        # dem_files = get_image_list_from_disk("dem")
+        # slope_files = get_image_list_from_disk("slope")
 
         # mosaic slope images and transform to GDA94 lat/long
         logger.info(f"\t - processing big slope COG")
