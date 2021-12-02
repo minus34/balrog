@@ -250,21 +250,21 @@ def create_slope_image(dem_file):
 
 
 def mosaic_and_transform(files, image_type, output_file):
-    start_time = datetime.now()
+    # start_time = datetime.now()
 
     temp_output_file = os.path.join(temp_output_path, f"temp_{image_type}.tif")
 
     # mosaic all merged files and output as a single GeoTIFF in GDA94 lat/long
-    gdal_dataset = gdal.Warp(temp_output_file, files,
-                             options="-of GTiff -overwrite -multi -wm 80% -t_srs EPSG:4283 "
-                                     "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
-    del gdal_dataset
-
-    logger.info(f"\t \t - created big {image_type} GeoTIFF : {datetime.now() - start_time}")
-
-    # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
-    gdal_dataset = gdal.Translate(output_file, temp_output_file,
-                                  options="-of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+    gdal_dataset = gdal.Warp(output_file, files,
+                             options="-of COG -overwrite -multi -wm 80% -t_srs EPSG:4283 "
+                                     "-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
+    # del gdal_dataset
+    #
+    # logger.info(f"\t \t - created big {image_type} GeoTIFF : {datetime.now() - start_time}")
+    #
+    # # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
+    # gdal_dataset = gdal.Translate(output_file, temp_output_file,
+    #                               options="-of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
 
     # print(validate_cloud_optimized_geotiff.validate(output_file))
