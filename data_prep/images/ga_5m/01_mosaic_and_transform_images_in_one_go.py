@@ -223,24 +223,17 @@ def convert_to_slope(dem_files):
 
 
 def create_slope_image(dem_file):
-    """ convert DEM to GeoTIFF and then to slope and output as a single GeoTIFF """
+    """ convert DEM to slope and output as GeoTIFF """
 
     try:
-        # convert ASC format input DEM file to TIF -- not required as GA 5m DEMs are already uncompressed GeoTIFFs
         dem_file_name = os.path.basename(dem_file)
-        # dem_file = os.path.join(temp_output_path, "dem", dem_file_name)
-        #
-        # gdal_dataset = gdal.Translate(dem_file, input_file,
-        #                               options="-of GTiff -a_nodata -3.402823e+38 -co TILED=YES -co COMPRESS=DEFLATE "
-        #                                       "-co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
-        # del gdal_dataset
 
         # convert DEM TIF to slope image
         slope_file_name = dem_file_name.replace(".tif", "-gdal_slope.tif")
         slope_file = os.path.join(temp_output_path, "slope", slope_file_name)
 
         gdal_dataset = gdal.DEMProcessing(slope_file, dem_file, "slope", alg="Horn",
-                                          options="-of GTiff -co TILED=YES -co COMPRESS=DEFLATE "
+                                          options="-of GTiff -co TILED=NO -co COMPRESS=NONE "
                                                   "-co BIGTIFF=YES -co NUM_THREADS=ALL_CPUS")
         del gdal_dataset
 
