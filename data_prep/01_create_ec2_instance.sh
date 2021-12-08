@@ -117,9 +117,9 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/04_add_geoms_to_bal_factors.sql ${
 #scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/images/nsw_dcs/01_mosaic_and_transform_images_in_one_go.py ${USER}@${INSTANCE_ID}:~/
 #scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/images/nsw_dcs/nsw_elevation_index.csv ${USER}@${INSTANCE_ID}:~/
 
-# copy GA 5m elevation scripts
-scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/images/ga_5m/01_mosaic_and_transform_images_in_one_go.py ${USER}@${INSTANCE_ID}:~/
-scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/images/ga_5m/ga_dem_urls.txt ${USER}@${INSTANCE_ID}:~/
+## copy GA 5m elevation scripts
+#scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/images/ga_5m/01_mosaic_and_transform_images_in_one_go.py ${USER}@${INSTANCE_ID}:~/
+#scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/images/ga_5m/ga_dem_urls.txt ${USER}@${INSTANCE_ID}:~/
 
 ## copy vegetation scripts
 #scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/02_create_nvis_bal_map_table.sql ${USER}@${INSTANCE_ID}:~/

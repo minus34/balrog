@@ -49,25 +49,26 @@ else:
 
     ram_to_use = 480
 
-    output_path = "/data/geoscape"
+    input_path = "/data"
+    output_path = "/data"
 
     input_list = [{"name": "trees",
-                   "input_path": "/data/geoscape/Trees/Trees JUNE 2021/Standard",
+                   "input_path": input_path,
                    "glob_pattern": "_TREES_",
                    "output_file": os.path.join(output_path, "geoscape_trees.tif"),
                    "s3_file_path": "geoscape/geoscape_trees.tif"},
                   {"name": "trees_metadata",
-                   "input_path": "/data/geoscape/Trees/Trees JUNE 2021/Standard",
+                   "input_path": input_path,
                    "glob_pattern": "_TREES_METADATA_",
                    "output_file": os.path.join(output_path, "geoscape_trees_metadata.tif"),
                    "s3_file_path": "geoscape/geoscape_trees_metadata.tif"},
                   {"name": "30m land cover",
-                   "input_path": "/data/geoscape/Surface Cover/Surface Cover 30M JUNE 2021/Standard",
+                   "input_path": input_path,
                    "glob_pattern": "_SURFACECOVER_30M_",
                    "output_file": os.path.join(output_path, "geoscape_30m_land_cover.tif"),
                    "s3_file_path": "geoscape/geoscape_30m_land_cover.tif"},
                   {"name": "2m land cover",
-                   "input_path": "/data/geoscape/Surface Cover/Surface Cover 2M JUNE 2021/Standard",
+                   "input_path": input_path,
                    "glob_pattern": "_SURFACECOVER_2M_",
                    "output_file": os.path.join(output_path, "geoscape_2m_land_cover.tif"),
                    "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"}
@@ -121,10 +122,9 @@ def process_dataset(input_dict):
 
     # mosaic all merged files and output as a single Cloud Optimised GeoTIFF (COG) in GDA94 lat/long for all of AU
     if len(files_to_mosaic) > 0:
-        gdt = gdal.Warp(input_dict["output_file"], files_to_mosaic, options="-overwrite -multi -wm 80% -t_srs EPSG:4283 "
-                                                                            "-of COG -co BIGTIFF=YES "
-                                                                            "-co COMPRESS=DEFLATE "
-                                                                            "-co NUM_THREADS=ALL_CPUS")
+        gdt = gdal.Warp(input_dict["output_file"], files_to_mosaic,
+                        options="-overwrite -multi -wm 80% -t_srs EPSG:4283 -of COG -co BIGTIFF=YES "
+                                "-co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
         del gdt
 
         print(f" - {input_dict['name']} done : {datetime.now() - start_time}")
