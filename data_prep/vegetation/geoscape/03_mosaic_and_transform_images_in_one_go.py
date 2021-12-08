@@ -28,28 +28,28 @@ if platform.system() == "Darwin":
                    "input_path": os.path.join(pathlib.Path.home(), "Downloads/SurfaceCover_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Surface Cover/Surface Cover 30M JUNE 2021/Standard"),
                    "glob_pattern": "_SURFACECOVER_30M_",
                    "output_file": os.path.join(output_path, "geoscape_30m_land_cover.tif"),
-                   "s3_file_path": "geoscape/geoscape_30m_land_cover.tif"},
+                   "s3_file_path": "geoscape/202111/geoscape_30m_land_cover.tif"},
                   {"name": "trees",
                    "input_path": os.path.join(pathlib.Path.home(), "Downloads/Trees_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Trees/Trees JUNE 2021/Standard"),
                    "glob_pattern": "_TREES_",
                    "output_file": os.path.join(output_path, "geoscape_trees.tif"),
-                   "s3_file_path": "geoscape/geoscape_trees.tif"},
+                   "s3_file_path": "geoscape/202111/geoscape_trees.tif"},
                   {"name": "trees_metadata",
                    "input_path": os.path.join(pathlib.Path.home(), "Downloads/Trees_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Trees/Trees JUNE 2021/Standard"),
                    "glob_pattern": "_TREES_METADATA_",
                    "output_file": os.path.join(output_path, "geoscape_trees_metadata.tif"),
-                   "s3_file_path": "geoscape/geoscape_trees_metadata.tif"},
+                   "s3_file_path": "geoscape/202111/geoscape_trees_metadata.tif"},
                   {"name": "2m_land_cover",
                    "input_path": os.path.join(pathlib.Path.home(), "Downloads/SurfaceCover_JUN21_ALLSTATES_GDA94_GEOTIFF_161/Surface Cover/Surface Cover 2M JUNE 2021/Standard"),
                    "glob_pattern": "_SURFACECOVER_2M_",
                    "output_file": os.path.join(output_path, "geoscape_2m_land_cover.tif"),
-                   "s3_file_path": "geoscape/geoscape_2m_land_cover.tif"}]
+                   "s3_file_path": "geoscape/202111/geoscape_2m_land_cover.tif"}]
 else:
     debug = False
 
     ram_to_use = 480
 
-    input_path = "/data"
+    input_path = "/data/*/*/*/*"
     output_path = "/data"
 
     input_list = [{"name": "trees",

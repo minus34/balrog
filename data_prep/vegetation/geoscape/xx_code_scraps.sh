@@ -12,6 +12,13 @@ gdalinfo /Users/$(whoami)/tmp/bushfire/veg/geoscape_trees.tif
 
 
 
-scp -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID}:~/03_mosaic_and_transform_images.log ${SCRIPT_DIR}/03_mosaic_and_transform_images_remote.log
+scp -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID}:~/03_mosaic_and_transform_images_in_one_go.log ${SCRIPT_DIR}/03_mosaic_and_transform_images_in_one_go.log
+
+
+
+aws s3 sync /data/ s3://bushfire-rasters/nsw_dcs/5m_dem --exclude "*" --include "*.tif"
+
+
+
 
 03_mosaic_and_transform_images.log

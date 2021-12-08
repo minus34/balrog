@@ -113,6 +113,9 @@ scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/02_get_elevation_aspect_slope.py $
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/03_create_tables.sql ${USER}@${INSTANCE_ID}:~/
 scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/../testing/04_add_geoms_to_bal_factors.sql ${USER}@${INSTANCE_ID}:~/
 
+# geoscape raster scripts
+scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/vegetation/geoscape/03_mosaic_and_transform_images_in_one_go.py ${USER}@${INSTANCE_ID}:~/
+
 ## copy NSW DCS elevation scripts
 #scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/images/nsw_dcs/01_mosaic_and_transform_images_in_one_go.py ${USER}@${INSTANCE_ID}:~/
 #scp -F ${SSH_CONFIG} ${SCRIPT_DIR}/images/nsw_dcs/nsw_elevation_index.csv ${USER}@${INSTANCE_ID}:~/

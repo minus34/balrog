@@ -41,3 +41,8 @@ ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_C
 /Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -n geoscape_202111 -p 5432 -U postgres -f /Users/$(whoami)/tmp/geoscape-202111/geoscape.dmp --no-owner
 
 aws s3 cp /Users/$(whoami)/tmp/geoscape-202111/geoscape.dmp s3://bushfire-rasters/geoscape/202111/
+
+
+
+# copy veg TIFs from EC2 to S3
+aws s3 sync /data s3://bushfire-rasters/geoscape/202111/ --exclude "*" --include "*.tif"
