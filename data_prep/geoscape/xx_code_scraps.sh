@@ -34,5 +34,10 @@ psql -d geo -c "create schema if not exists geoscape_202111;alter schema geoscap
 PG_CONNECT_STRING="host=localhost user=postgres dbname=geo password=password schemas=geoscape_202111"
 
 ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape-202111/Buildings_NOV21_AUSTRALIA_GDA94_GDB_300/Buildings/Buildings NOVEMBER 2021/Standard/buildings.gdb"
-
 ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape-202111/Property_NOV21_AUSTRALIA_GDA94_GDB_102/Property/Property NOVEMBER 2021/Standard/property.gdb"
+
+
+# dump schema and copy to s3
+/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -n geoscape_202111 -p 5432 -U postgres -f /Users/$(whoami)/tmp/geoscape-202111/geoscape.dmp --no-owner
+
+aws s3 cp /Users/$(whoami)/tmp/geoscape-202111/geoscape.dmp s3://bushfire-rasters/geoscape/202111/geoscape.dmp
