@@ -27,6 +27,9 @@ psql -d geo -f classify_and_merge_data.sql
 aws s3 sync /Users/s57405/tmp/geoscape-202111 s3://bushfire-rasters/geoscape/202111/
 
 
+# copy processed geoscape files in S3
+aws s3 sync s3://bushfire-rasters/geoscape s3://bushfire-rasters/geoscape/202111/ --exclude "*" --include "*.tif"
+
 
 # import buildings & properties to Postgres
 conda activate geo
