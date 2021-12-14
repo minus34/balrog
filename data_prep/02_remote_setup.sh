@@ -166,8 +166,8 @@ echo "-------------------------------------------------------------------------"
 mkdir -p /data/dem/geotiff
 mkdir /data/dem/cog
 
-## copy Geoscape rasters
-#aws s3 sync s3://bushfire-rasters/geoscape/202111 /data/ --exclude "*" --include "*.tif"
+# copy Geoscape rasters
+aws s3 sync s3://bushfire-rasters/geoscape/202111 /data/ --exclude "*" --include "*.tif"
 
 # copy elevation files from S3
 #aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/ --exclude "*" --include "*.tif"
