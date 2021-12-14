@@ -54,21 +54,18 @@ echo "-------------------------------------------------------------------------"
 echo " Installing Conda"
 echo "-------------------------------------------------------------------------"
 
-mkdir -p /data/conda/geo
-cd /data/conda
-
 # download & install silently
 curl -fSsl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 chmod +x Miniconda3-latest-Linux-x86_64.sh
-sh Miniconda3-latest-Linux-x86_64.sh -b
+sh Miniconda3-latest-Linux-x86_64.sh -b -p /data/miniconda3
 
 # initialise Conda & reload bash environment
-/data/conda/miniconda3/bin/conda init
+/data/miniconda3/bin/conda init
 source ${HOME}/.bashrc
 
 echo "-------------------------------------------------------------------------"
-echo "Creating new Conda Environment 'geo'"
-#echo "Install Python packages"
+#echo "Creating new Conda Environment 'geo'"
+echo "Install Python packages"
 echo "-------------------------------------------------------------------------"
 
 ## deactivate current env
@@ -77,16 +74,16 @@ echo "-------------------------------------------------------------------------"
 # update Conda platform
 conda update -y conda
 
-# Create Conda environment on the RAID 0 array (Postgres logs fill up / otherwise)
-conda create -y -p /data/conda/geo python=${PYTHON_VERSION}
+## Create Conda environment on the RAID 0 array (Postgres logs fill up / otherwise)
+#conda create -y -p /data/conda/geo python=${PYTHON_VERSION}
+#
+## activate and setup env
+#conda activate /data/conda/geo
+#conda config --env --add channels conda-forge
+#conda config --env --set channel_priority strict
 
-# activate and setup env
-conda activate /data/conda/geo
-conda config --env --add channels conda-forge
-conda config --env --set channel_priority strict
-
-# reactivate for env vars to take effect
-conda activate /data/conda/geo
+## reactivate for env vars to take effect
+#conda activate /data/conda/geo
 
 # install lots of geo packages -- note: Shapely 1.8.0. install createa a strange environment issue that can freeze Python scripts
 conda install -y -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely=1.7.1 fiona requests boto3
@@ -129,10 +126,19 @@ psql -d postgres -c "ALTER SYSTEM SET full_page_writes = 'off';"
 psql -d postgres -c "ALTER SYSTEM SET synchronous_commit = 'off';"
 psql -d postgres -c "ALTER SYSTEM SET autovacuum = 'off';"
 
-pg_ctl -D postgres restart
+# shut down server
+pg_ctl -D postgres stop
+
+# copy WAL files to big drive, symlink to the new folder and delete the old folder (to free up space on /)
+mkdir -p /data/postgres
+cp -a ~/postgres/pg_wal/. /data/postgres/pg_wal
+rm -r ~/postgres/pg_wal
+ln -s /data/postgres/pg_wal ~/postgres/pg_wal
+
+# restart down server
+pg_ctl -D postgres start
 
 # create new database on mounted drive (not enough space on default drive)
-mkdir -p /data/postgres
 psql -d postgres -c "CREATE TABLESPACE dataspace OWNER \"ec2-user\" LOCATION '/data/postgres';"
 createdb --owner=ec2-user geo -D dataspace
 
