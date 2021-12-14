@@ -23,7 +23,7 @@ echo "-------------------------------------------------------------------------"
 echo " Set temp local environment vars"
 echo "-------------------------------------------------------------------------"
 
-AMI_ID="ami-0e8b4b277b219124f"  # private AMI - choose your own preferred AMI
+AMI_ID="ami-0a8e5f972d942c19a"  # private AMI - choose your own preferred AMI
 
 #r5d.16xlarge 64	512	4 x 600 NVMe SSD	20	13,600
 INSTANCE_TYPE="r5d.16xlarge"

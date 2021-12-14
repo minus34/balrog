@@ -27,10 +27,35 @@ if [ -n "${PROXY}" ];
     echo "-------------------------------------------------------------------------";
 fi
 
+echo "-------------------------------------------------------------------------"
+echo " create RAID O array from local SSDs and mount storage"
+echo "-------------------------------------------------------------------------"
+
+# create RAID 0 array - WARNING: assumes EC2 instance has 4 SSDs)
+sudo mdadm --create --verbose /dev/md0 --level=0 --raid-devices=4 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1 /dev/nvme4n1
+# format it
+sudo mkfs -t xfs /dev/md0
+# mount it to a directory
+sudo mkdir /data
+sudo mount /dev/md0 /data
+# set permissions
+sudo chown -R ec2-user:ec2-user /data
+# save RAID settings in case of reboot
+sudo mdadm --detail --scan > ~/mdadm.conf
+sudo cp ~/mdadm.conf /etc/mdadm.conf
+## add config to system
+#sudo update-initramfs -u
+
+## move system temp folder to RAID 0 array
+#mkdir -p /data/tmp
+
 # Install Conda to create a Python 3.9 environment (AWS yum repos stop at Python 3.7)
 echo "-------------------------------------------------------------------------"
 echo " Installing Conda"
 echo "-------------------------------------------------------------------------"
+
+mkdir -p /data/conda/geo
+cd /data/conda
 
 # download & install silently
 curl -fSsl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -38,12 +63,12 @@ chmod +x Miniconda3-latest-Linux-x86_64.sh
 sh Miniconda3-latest-Linux-x86_64.sh -b
 
 # initialise Conda & reload bash environment
-${HOME}/miniconda3/bin/conda init
+/data/conda/miniconda3/bin/conda init
 source ${HOME}/.bashrc
 
 echo "-------------------------------------------------------------------------"
-#echo "Creating new Conda Environment 'geo'"
-echo "Install Python packages"
+echo "Creating new Conda Environment 'geo'"
+#echo "Install Python packages"
 echo "-------------------------------------------------------------------------"
 
 ## deactivate current env
@@ -52,16 +77,16 @@ echo "-------------------------------------------------------------------------"
 # update Conda platform
 conda update -y conda
 
-## Create Conda environment
-#conda create -y -n geo python=${PYTHON_VERSION}
-#
-## activate and setup env
-#conda activate geo
-#conda config --env --add channels conda-forge
-#conda config --env --set channel_priority strict
-#
-## reactivate for env vars to take effect
-#conda activate geo
+# Create Conda environment on the RAID 0 array (Postgres logs fill up / otherwise)
+conda create -y -p /data/conda/geo python=${PYTHON_VERSION}
+
+# activate and setup env
+conda activate /data/conda/geo
+conda config --env --add channels conda-forge
+conda config --env --set channel_priority strict
+
+# reactivate for env vars to take effect
+conda activate /data/conda/geo
 
 # install lots of geo packages -- note: Shapely 1.8.0. install createa a strange environment issue that can freeze Python scripts
 conda install -y -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely=1.7.1 fiona requests boto3
@@ -81,23 +106,6 @@ if [ -n "${PROXY}" ];
     echo "-------------------------------------------------------------------------"
     echo ""
 fi
-
-echo "-------------------------------------------------------------------------"
-echo " create RAID O array from local SSDs and mount storage"
-echo "-------------------------------------------------------------------------"
-
-# create RAID 0 array - WARNING: assumes EC2 instance has 4 SSDs)
-sudo mdadm --create --verbose /dev/md0 --level=0 --raid-devices=4 /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1 /dev/nvme4n1
-# format it
-sudo mkfs -t xfs /dev/md0
-# mount it to a directory
-sudo mkdir /data
-sudo mount /dev/md0 /data
-# set permissions
-sudo chown -R ec2-user:ec2-user /data
-# save RAID settings in case of reboot
-sudo mdadm --detail --scan > ~/mdadm.conf
-sudo cp ~/mdadm.conf /etc/mdadm.conf
 
 echo "-------------------------------------------------------------------------"
 echo " Setup Postgres Database"
@@ -152,8 +160,8 @@ echo "-------------------------------------------------------------------------"
 mkdir -p /data/dem/geotiff
 mkdir /data/dem/cog
 
-# copy Geoscape rasters
-aws s3 sync s3://bushfire-rasters/geoscape/202111 /data/ --exclude "*" --include "*.tif"
+## copy Geoscape rasters
+#aws s3 sync s3://bushfire-rasters/geoscape/202111 /data/ --exclude "*" --include "*.tif"
 
 # copy elevation files from S3
 #aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/ --exclude "*" --include "*.tif"
