@@ -88,22 +88,6 @@ conda update -y conda
 # install lots of geo packages -- note: Shapely 1.8.0. install createa a strange environment issue that can freeze Python scripts
 conda install -y -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely=1.7.1 fiona requests boto3
 
-# remove proxy if set
-if [ -n "${PROXY}" ];
-  then
-    unset http_proxy
-    unset HTTP_PROXY
-    unset https_proxy
-    unset HTTPS_PROXY
-    unset no_proxy
-    unset NO_PROXY
-
-    echo "-------------------------------------------------------------------------"
-    echo " Proxy removed"
-    echo "-------------------------------------------------------------------------"
-    echo ""
-fi
-
 echo "-------------------------------------------------------------------------"
 echo " Setup Postgres Database"
 echo "-------------------------------------------------------------------------"
@@ -146,18 +130,36 @@ createdb --owner=ec2-user geo -D dataspace
 psql -d geo -c "create extension if not exists postgis;"
 psql -d geo -c "create schema if not exists bushfire;alter schema bushfire owner to \"ec2-user\";"
 
+# restore GNAF table(s) (ignore the ALTER TABLE errors)
+psql -d geo -c "create schema if not exists gnaf_202111;alter schema gnaf_202111 owner to \"ec2-user\";"
+aws s3 cp s3://minus34.com/opendata/geoscape-202111/gnaf-202111.dmp /data/
+pg_restore -Fc -d geo -p 5432 -U ec2-user /data/gnaf-202111.dmp
+
+# remove proxy if set
+if [ -n "${PROXY}" ];
+  then
+    unset http_proxy
+    unset HTTP_PROXY
+    unset https_proxy
+    unset HTTPS_PROXY
+    unset no_proxy
+    unset NO_PROXY
+
+    echo "-------------------------------------------------------------------------"
+    echo " Proxy removed"
+    echo "-------------------------------------------------------------------------"
+    echo ""
+fi
+
 # restore buildings table(s) (ignore the ALTER TABLE errors)
 psql -d geo -c "create schema if not exists geoscape_202111;alter schema geoscape_202111 owner to \"ec2-user\";"
 aws s3 cp s3://bushfire-rasters/geoscape/202111/geoscape.dmp /data/
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/geoscape.dmp --clean
+pg_restore -Fc -d geo -p 5432 -U ec2-user /data/geoscape.dmp
 
 ## restore vegetation table(s) (ignore the ALTER TABLE errors)
 #aws s3 cp s3://bushfire-rasters/vegetation/nvis6/nvis6.dmp /data/
-#pg_restore -Fc -d geo -p 5432 -U ec2-user /data/nvis6.dmp --clean
+#pg_restore -Fc -d geo -p 5432 -U ec2-user /data/nvis6.dmp
 
-# restore GNAF table(s) (ignore the ALTER TABLE errors)
-aws s3 cp s3://bushfire-rasters/geoscape/gnaf.dmp /data/
-pg_restore -Fc -d geo -p 5432 -U ec2-user /data/gnaf.dmp --clean
 
 echo "-------------------------------------------------------------------------"
 echo " Copy elevation data from S3"
@@ -166,11 +168,11 @@ echo "-------------------------------------------------------------------------"
 mkdir -p /data/dem/geotiff
 mkdir /data/dem/cog
 
-# copy Geoscape rasters
-aws s3 sync s3://bushfire-rasters/geoscape/202111 /data/ --exclude "*" --include "*.tif"
+## copy Geoscape rasters
+#aws s3 sync s3://bushfire-rasters/geoscape/202111 /data/ --exclude "*" --include "*.tif"
 
 # copy elevation files from S3
-#aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/ --exclude "*" --include "*.tif"
+aws s3 sync s3://bushfire-rasters/geoscience_australia/1sec-dem /data/dem/ --exclude "*" --include "*.tif"
 #aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_dem_s.tif /data/dem/geotiff/
 #aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_aspect.tif /data/dem/geotiff/
 #aws s3 cp s3://bushfire-rasters/geoscience_australia/1sec-dem/srtm_1sec_slope.tif /data/dem/geotiff/

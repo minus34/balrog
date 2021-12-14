@@ -16,8 +16,10 @@ scp -F ${SSH_CONFIG} ${USER}@${INSTANCE_ID}:~/03_mosaic_and_transform_images_in_
 
 
 
-aws s3 sync /data/ s3://bushfire-rasters/nsw_dcs/5m_dem --exclude "*" --include "*.tif"
+aws s3 sync /data s3://bushfire-rasters/nsw_dcs/5m_dem --exclude "*" --include "*.tif" --dryrun
 
+
+aws s3 cp /data/geoscape_trees.tif s3://bushfire-rasters/geoscape/202111/
 
 
 
