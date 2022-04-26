@@ -24,28 +24,27 @@ psql -d geo -f classify_and_merge_data.sql
 
 
 # copy geoscape files to S3
-aws s3 sync /Users/s57405/tmp/geoscape-202111 s3://bushfire-rasters/geoscape/202111/
+aws s3 sync /Users/s57405/tmp/geoscape_202203 s3://bushfire-rasters/geoscape/202203/
 
 
 # copy processed geoscape files in S3
-aws s3 sync s3://bushfire-rasters/geoscape s3://bushfire-rasters/geoscape/202111/ --exclude "*" --include "*.tif"
+aws s3 sync s3://bushfire-rasters/geoscape s3://bushfire-rasters/geoscape/202203/ --exclude "*" --include "*.tif"
 
 
 # import buildings & properties to Postgres
 conda activate geo
-psql -d geo -c "create schema if not exists geoscape_202111;alter schema geoscape_202111 owner to postgres"
-PG_CONNECT_STRING="host=localhost user=postgres dbname=geo password=password schemas=geoscape_202111"
+psql -d geo -c "create schema if not exists geoscape_202203;alter schema geoscape_202203 owner to postgres"
+PG_CONNECT_STRING="host=localhost user=postgres dbname=geo password=password schemas=geoscape_202203"
 
-ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape-202111/Buildings_NOV21_AUSTRALIA_GDA94_GDB_300/Buildings/Buildings NOVEMBER 2021/Standard/buildings.gdb"
-ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape-202111/Property_NOV21_AUSTRALIA_GDA94_GDB_102/Property/Property NOVEMBER 2021/Standard/property.gdb"
-
+ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202203/buildings.gdb"
+ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202202/property.gdb"
 
 # dump schema and copy to s3
-/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -n geoscape_202111 -p 5432 -U postgres -f /Users/$(whoami)/tmp/geoscape-202111/geoscape.dmp --no-owner
+/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -n geoscape_202203 -p 5432 -U postgres -f /Users/$(whoami)/tmp/geoscape_202203/geoscape.dmp --no-owner
 
-aws s3 cp /Users/$(whoami)/tmp/geoscape-202111/geoscape.dmp s3://bushfire-rasters/geoscape/202111/
+aws s3 cp /Users/$(whoami)/tmp/geoscape_202203/geoscape.dmp s3://bushfire-rasters/geoscape/202203/
 
 
 
 # copy veg TIFs from EC2 to S3
-aws s3 sync /data s3://bushfire-rasters/geoscape/202111/ --exclude "*" --include "*.tif"
+aws s3 sync /data s3://bushfire-rasters/geoscape/202203/ --exclude "*" --include "*.tif"
