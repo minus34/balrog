@@ -36,7 +36,7 @@ conda activate geo
 psql -d geo -c "create schema if not exists geoscape_202203;alter schema geoscape_202203 owner to postgres"
 PG_CONNECT_STRING="host=localhost user=postgres dbname=geo password=password schemas=geoscape_202203"
 
-ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" -s_srs EPSG:4283 -t_srs EPSG:4283 PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202203/buildings.gdb"
+ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202203/buildings.gdb"
 ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202202/property.gdb"
 
 # dump schema and copy to s3
