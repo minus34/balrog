@@ -36,6 +36,9 @@ conda activate geo
 psql -d geo -c "create schema if not exists geoscape_202203;alter schema geoscape_202203 owner to postgres"
 PG_CONNECT_STRING="host=localhost user=postgres dbname=geo password=password schemas=geoscape_202203"
 
+ogr2ogr -overwrite -progress --config PG_USE_COPY YES -t_srs EPSG:4283 -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/s57405/Downloads/Buildings_MAR22_AUSTRALIA_GDA2020_GDB_310/Buildings/Buildings MARCH 2022/Standard/buildings.gdb"
+
+
 ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202203/buildings.gdb"
 ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202202/property.gdb"
 
