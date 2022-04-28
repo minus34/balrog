@@ -45,9 +45,9 @@ ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_C
 ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202202/property.gdb"
 
 # create indexes
-psql -d geo -c "CREATE INDEX buildings_building_pid_idx ON geoscape_202203.buildings USING btree (building_pid)"
-psql -d geo -c "CREATE INDEX building_address_building_pid_idx ON geoscape_202203.building_address USING btree (building_pid)"
-psql -d geo -c "CREATE INDEX building_address_address_detail_pid_pid_idx ON geoscape_202203.building_address USING btree (address_detail_pid)"
+psql -d geo -c "CREATE UNIQUE INDEX buildings_building_pid_idx ON ${PG_SCHEMA}.buildings USING btree (building_pid)"
+psql -d geo -c "CREATE INDEX building_address_building_pid_idx ON ${PG_SCHEMA}.building_address USING btree (building_pid)"
+psql -d geo -c "CREATE INDEX building_address_address_detail_pid_pid_idx ON ${PG_SCHEMA}.building_address USING btree (address_detail_pid)"
 
 # dump schema and copy to s3
 /Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -n ${PG_SCHEMA} -p 5432 -U postgres -f /Users/$(whoami)/tmp/geoscape_202203/geoscape.dmp --no-owner
