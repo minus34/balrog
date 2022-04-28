@@ -33,17 +33,24 @@ aws s3 sync s3://bushfire-rasters/geoscape s3://bushfire-rasters/geoscape/202203
 
 # import buildings & properties to Postgres
 conda activate geo
-psql -d geo -c "create schema if not exists geoscape_202203;alter schema geoscape_202203 owner to postgres"
-PG_CONNECT_STRING="host=localhost user=postgres dbname=geo password=password schemas=geoscape_202203"
+PG_SCHEMA="geoscape_202203"
+PG_CONNECT_STRING="host=localhost user=postgres dbname=geo password=password schemas=${PG_SCHEMA}"
 
+psql -d geo -c "create schema if not exists ${PG_SCHEMA};alter schema ${PG_SCHEMA} owner to postgres"
+
+# import to PostGIS
 ogr2ogr -overwrite -progress --config PG_USE_COPY YES -t_srs EPSG:4283 -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/s57405/Downloads/Buildings_MAR22_AUSTRALIA_GDA2020_GDB_310/Buildings/Buildings MARCH 2022/Standard/buildings.gdb"
-
 
 ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202203/buildings.gdb"
 ogr2ogr -overwrite -progress --config PG_USE_COPY YES -f "PostgreSQL" PG:"${PG_CONNECT_STRING}" "/Users/$(whoami)/tmp/geoscape_202202/property.gdb"
 
+# create indexes
+psql -d geo -c "CREATE INDEX buildings_building_pid_idx ON geoscape_202203.buildings USING btree (building_pid)"
+psql -d geo -c "CREATE INDEX building_address_building_pid_idx ON geoscape_202203.building_address USING btree (building_pid)"
+psql -d geo -c "CREATE INDEX building_address_address_detail_pid_pid_idx ON geoscape_202203.building_address USING btree (address_detail_pid)"
+
 # dump schema and copy to s3
-/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -n geoscape_202203 -p 5432 -U postgres -f /Users/$(whoami)/tmp/geoscape_202203/geoscape.dmp --no-owner
+/Applications/Postgres.app/Contents/Versions/13/bin/pg_dump -Fc -d geo -n ${PG_SCHEMA} -p 5432 -U postgres -f /Users/$(whoami)/tmp/geoscape_202203/geoscape.dmp --no-owner
 
 aws s3 cp /Users/$(whoami)/tmp/geoscape_202203/geoscape.dmp s3://bushfire-rasters/geoscape/202203/
 
