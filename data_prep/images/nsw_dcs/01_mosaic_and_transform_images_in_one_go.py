@@ -1,4 +1,9 @@
 
+# downloads all NSW DCS DEM images and converts them to slope images. Then creates single mosaiced slope & DEM COGs
+#
+# Hugh Saalmans, IAG Firemark Labs, some time in mid-late 2021
+#
+
 import boto3
 import concurrent.futures
 import glob
@@ -17,7 +22,6 @@ from osgeo import gdal
 # setup connection to AWS S3
 s3_client = boto3.client("s3")
 s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 20MB
-
 s3_bucket = "bushfire-rasters"
 
 base_url = "https://portal.spatial.nsw.gov.au/download/dem"
@@ -26,18 +30,7 @@ base_url = "https://portal.spatial.nsw.gov.au/download/dem"
 if platform.system() == "Darwin":
     debug = True
 
-    # urls = ["https://portal.spatial.nsw.gov.au/download/dem/56/Sydney-DEM-AHD_56_5m.zip",
-    #         "https://portal.spatial.nsw.gov.au/download/dem/56/Wollongong-DEM-AHD_56_5m.zip",
-    #         "https://portal.spatial.nsw.gov.au/download/dem/56/Penrith-DEM-AHD_56_5m.zip",
-    #         "https://portal.spatial.nsw.gov.au/download/dem/56/Katoomba-DEM-AHD_56_5m.zip",
-    #         "https://portal.spatial.nsw.gov.au/download/dem/56/PortHacking-DEM-AHD_56_5m.zip",
-    #         "https://portal.spatial.nsw.gov.au/download/dem/56/Burragorang-DEM-AHD_56_5m.zip"
-    #         ]
-
     ram_to_use = 8
-
-    # input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
-    # glob_pattern = "*-DEM-AHD_56_5m.zip"
 
     output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs")
     temp_output_path = os.path.join(output_path, "tmp")
@@ -49,9 +42,6 @@ else:
     debug = False
 
     ram_to_use = 480
-
-    # input_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs/nsw_dcs_5m_dem")
-    # glob_pattern = "*/*-DEM-AHD_56_5m.zip"
 
     output_path = os.path.join(pathlib.Path.home(), "/data")
     temp_output_path = os.path.join(output_path, "/data/tmp")
@@ -208,36 +198,11 @@ def create_slope_image(input_file):
 
 
 def mosaic_and_transform(files, output_file):
-    start_time = datetime.now()
-
-    # temp_output_file = os.path.join(temp_output_path, "temp.tif")
-
     # mosaic all merged files and output as a single GeoTIFF in GDA94 lat/long
     gdal_dataset = gdal.Warp(output_file, files,
                              options="-of COG -overwrite -multi -wm 80% -t_srs EPSG:4283 "
                                      "-co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
-    # gdal_dataset = gdal.Warp("/vsimem/temp.tif", files,
-    #                          options="-of GTiff -overwrite -multi -wm 80% -t_srs EPSG:4283 "
-    #                                  "-co BIGTIFF=YES -co TILED=YES -co COMPRESS=NONE -co NUM_THREADS=ALL_CPUS")
-    # del gdal_dataset
-    #
-    # logger.info(f"\t \t - created big GeoTIFF : {datetime.now() - start_time}")
-    #
-    # # convert GeoTIFF file to a Cloud Optimised GeoTIFF file (COG)
-    # gdal_dataset = gdal.Translate(output_file, "/vsimem/temp.tif",
-    #                               options="-of COG -co BIGTIFF=YES -co COMPRESS=DEFLATE -co NUM_THREADS=ALL_CPUS")
     del gdal_dataset
-
-    # print(validate_cloud_optimized_geotiff.validate(output_file))
-
-    # # delete intermediate file
-    # os.remove(temp_output_file)
-
-    # # build overviews
-    # image = gdal.Open(output_file, 1)
-    # gdal.SetConfigOption('COMPRESS_OVERVIEW', 'DEFLATE')
-    # image.BuildOverviews('NEAREST', [4, 8, 16, 32, 64, 128, 256, 512], gdal.TermProgress_nocb)
-    # del image
 
 
 if __name__ == "__main__":
