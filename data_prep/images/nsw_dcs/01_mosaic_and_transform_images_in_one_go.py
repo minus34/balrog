@@ -1,5 +1,6 @@
 
 # downloads all NSW DCS DEM images and converts them to slope images. Then creates single mosaiced slope & DEM COGs
+# input is either a locdl directory with DEM images in it or the list of tile names in the NSW map grid (in the nsw_elevation_index.csv file)
 #
 # Hugh Saalmans, IAG Firemark Labs, some time in mid-late 2021
 #
