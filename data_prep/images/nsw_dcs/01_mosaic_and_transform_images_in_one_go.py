@@ -1,11 +1,11 @@
 
 # downloads all NSW DCS DEM images and converts them to slope images. Then creates single mosaiced slope & DEM COGs
-# input is either a locdl directory with DEM images in it or the list of tile names in the NSW map grid (in the nsw_elevation_index.csv file)
+# input is either a local directory with DEM images in it or the list of tile names in the NSW map grid (in the nsw_elevation_index.csv file)
 #
 # Hugh Saalmans, IAG Firemark Labs, some time in mid-late 2021
 #
 
-import boto3
+# import boto3
 import concurrent.futures
 import glob
 import logging
@@ -15,23 +15,28 @@ import pathlib
 import platform
 # import validate_cloud_optimized_geotiff
 
-from boto3.s3.transfer import TransferConfig
+# from boto3.s3.transfer import TransferConfig
 from datetime import datetime
 from osgeo import gdal
 # from urllib.parse import urlparse
 
-# setup connection to AWS S3
-s3_client = boto3.client("s3")
-s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 20MB
-s3_bucket = "bushfire-rasters"
+# # setup connection to AWS S3
+# s3_client = boto3.client("s3")
+# s3_config = TransferConfig(multipart_threshold=10240 ** 2)  # 20MB
+# s3_bucket = "minus34.com"
+# s3_path = "opendata/nsw-dcs/"
+
+
 
 base_url = "https://portal.spatial.nsw.gov.au/download/dem"
 
+csv_file_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "nsw_elevation_index.csv")
+
 
 if platform.system() == "Darwin":
-    debug = True
+    debug = False
 
-    ram_to_use = 8
+    ram_to_use = 16
 
     output_path = os.path.join(pathlib.Path.home(), "tmp/bushfire/nsw_dcs")
     temp_output_path = os.path.join(output_path, "tmp")
@@ -56,7 +61,7 @@ max_processes = int(multiprocessing.cpu_count() / 2)
 # set max RAM usage
 gdal.SetCacheMax(int(ram_to_use) * 1024 * 1024)
 
-# create output paths if they doesn't exist
+# create output paths if they don't exist
 pathlib.Path(os.path.join(temp_output_path, "dem")).mkdir(parents=True, exist_ok=True)
 pathlib.Path(os.path.join(temp_output_path, "slope")).mkdir(parents=True, exist_ok=True)
 
@@ -68,20 +73,22 @@ def main():
     logger.info(f"START mosaic and transform images : {full_start_time}")
 
     # list of DEM files to process
-    files = get_image_list()
+    # files = get_image_list()
+    files = ["dummy"]
 
     if len(files) > 0:
         # convert DEM images to slope
-        dem_files, slope_files = convert_to_slope(files)
-        # dem_files, slope_files = get_image_list_from_disk()  # only used if process fails after this point
+        # dem_files, slope_files = convert_to_slope(files)
+        dem_files, slope_files = get_image_list_from_disk()  # only used if process fails after this point
+
         logger.info(f"\t - created {len(slope_files)} temp slope files : {datetime.now() - start_time}")
         start_time = datetime.now()
 
-        # mosaic slope images and transform to GDA94 lat/long
-        logger.info(f"\t - processing big slope COG")
-        mosaic_and_transform(slope_files, output_slope_file)
-        logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
-        start_time = datetime.now()
+        # # mosaic slope images and transform to GDA94 lat/long
+        # logger.info(f"\t - processing big slope COG")
+        # mosaic_and_transform(slope_files, output_slope_file)
+        # logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
+        # start_time = datetime.now()
 
         # mosaic DEM images and transform to GDA94 lat/long
         logger.info(f"\t - processing big DEM COG")
@@ -122,7 +129,7 @@ def get_image_list():
     files = list()
 
     # get file names and MGA zones from reference file
-    with open("nsw_elevation_index.csv", "r") as f:
+    with open(csv_file_path, "r") as f:
         for line in f.read().splitlines():
             mga_zone, file_name = line.split(",")
 
