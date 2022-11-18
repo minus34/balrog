@@ -120,4 +120,4 @@ echo " End time : $(date)"
 echo " Build took $((duration / 60)) mins"
 echo "----------------------------------------------------------------------------------------------------------------"
 
-ssh ${USER}@${INSTANCE_IP_ADDRESS}
+ssh -i ${AWS_PEM_FILE} ${USER}@${INSTANCE_IP_ADDRESS}

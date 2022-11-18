@@ -73,27 +73,27 @@ def main():
     logger.info(f"START mosaic and transform images : {full_start_time}")
 
     # list of DEM files to process
-    # files = get_image_list()
-    files = ["dummy"]
+    files = get_image_list()
+    # files = ["dummy"]
 
     if len(files) > 0:
         # convert DEM images to slope
-        # dem_files, slope_files = convert_to_slope(files)
-        dem_files, slope_files = get_image_list_from_disk()  # only used if process fails after this point
+        dem_files, slope_files = convert_to_slope(files)
+        # dem_files, slope_files = get_image_list_from_disk()  # only used if process fails after this point
 
         logger.info(f"\t - created {len(slope_files)} temp slope files : {datetime.now() - start_time}")
         start_time = datetime.now()
-
-        # # mosaic slope images and transform to GDA94 lat/long
-        # logger.info(f"\t - processing big slope COG")
-        # mosaic_and_transform(slope_files, output_slope_file)
-        # logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
-        # start_time = datetime.now()
 
         # mosaic DEM images and transform to GDA94 lat/long
         logger.info(f"\t - processing big DEM COG")
         mosaic_and_transform(dem_files, output_dem_file)
         logger.info(f"\t - created DEM COG : {datetime.now() - start_time}")
+
+        # mosaic slope images and transform to GDA94 lat/long
+        logger.info(f"\t - processing big slope COG")
+        mosaic_and_transform(slope_files, output_slope_file)
+        logger.info(f"\t - created slope COG : {datetime.now() - start_time}")
+        start_time = datetime.now()
 
         # remove temp files
         for file in dem_files:
