@@ -106,6 +106,7 @@ scp -i ${AWS_PEM_FILE} -r ${HOME}/.aws/credentials ${USER}@${INSTANCE_IP_ADDRESS
 # copy required scripts
 scp -i ${AWS_PEM_FILE} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_IP_ADDRESS}:~/
 scp -i ${AWS_PEM_FILE} ${SCRIPT_DIR}/03_mosaic_and_transform_images_in_one_go.py ${USER}@${INSTANCE_IP_ADDRESS}:~/
+scp -i ${AWS_PEM_FILE} ${SCRIPT_DIR}/nsw_elevation_index.csv ${USER}@${INSTANCE_IP_ADDRESS}:~/
 
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then
