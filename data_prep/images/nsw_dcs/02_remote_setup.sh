@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# required to keep long running sessions active
-sudo yum install -y tmux
+# required to keep long running sessions active nad to add SSD as a local drive
+sudo yum install -y tmux xfsprogs
 
 # check if proxy server required
 while getopts ":p:" opt; do
@@ -40,8 +40,26 @@ sh Miniconda3-latest-Linux-x86_64.sh -b
 ${HOME}/miniconda3/bin/conda init
 source ${HOME}/.bashrc
 
+ENV_NAME=geo
+PYTHON_VERSION="3.10"
+
+echo "-------------------------------------------------------------------------"
+echo "Creating new Conda Environment '${ENV_NAME}'"
+echo "-------------------------------------------------------------------------"
+
 # update Python packages
 echo "y" | conda update conda
+
+# Create Conda environment
+conda create -y -n ${ENV_NAME} python=${PYTHON_VERSION}
+
+# activate and setup env
+conda activate ${ENV_NAME}
+conda config --env --add channels conda-forge
+conda config --env --set channel_priority strict
+
+# reactivate for env vars to take effect
+conda activate ${ENV_NAME}
 
 echo "-------------------------------------------------------------------------"
 echo " Installing Python packages"
@@ -49,6 +67,7 @@ echo "-------------------------------------------------------------------------"
 
 echo "y" | conda install -c conda-forge gdal boto3
 #echo "y" | conda install -c conda-forge gdal rasterio[s3] rio-cogeo psycopg2 postgis shapely fiona requests boto3
+conda activate ${ENV_NAME}
 
 # remove proxy if set
 if [ -n "${PROXY}" ];
@@ -75,7 +94,7 @@ sudo mkdir /data
 sudo mount /dev/nvme1n1 /data
 
 sudo chown -R ec2-user:ec2-user /data
-mkdir -p /data/dem/cog
+mkdir -p /data/tmp
 
 #echo "-------------------------------------------------------------------------"
 #echo " Copy Geoscape data from S3"
