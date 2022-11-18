@@ -88,7 +88,7 @@ while [ ! $INSTANCE_READY ]; do
     echo "  - Waiting for ready status"
     sleep 5
     set +e
-    OUT=$(ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o BatchMode=yes ${USER}@${INSTANCE_IP_ADDRESS} 2>&1 | grep "Permission denied" )
+    OUT=$(ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no -o BatchMode=yes ${INSTANCE_IP_ADDRESS} 2>&1 | grep "Permission denied" )
     [[ $? = 0 ]] && INSTANCE_READY='ready'
     set -e
 done
@@ -98,18 +98,18 @@ echo " Copy AWS credentials & supporting files and run remote script"
 echo "-------------------------------------------------------------------------"
 
 # copy AWS creds to access S3
-ssh -i ${AWS_PEM_FILE} -o StrictHostKeyChecking=no ${USER}@${INSTANCE_IP_ADDRESS} 'mkdir ~/.aws'
-scp -i ${AWS_PEM_FILE} -r ${HOME}/.aws/minus34/credentials ${USER}@${INSTANCE_IP_ADDRESS}:~/.aws/credentials
+ssh -i ${AWS_KEYPAIR} -o StrictHostKeyChecking=no ${USER}@${INSTANCE_IP_ADDRESS} 'mkdir ~/.aws'
+scp -i ${AWS_KEYPAIR} -r ${HOME}/.aws/minus34/credentials ${USER}@${INSTANCE_IP_ADDRESS}:~/.aws/credentials
 
 # copy required scripts
-scp -i ${AWS_PEM_FILE} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_IP_ADDRESS}:~/
-scp -i ${AWS_PEM_FILE} ${SCRIPT_DIR}/03_mosaic_and_transform_images_in_one_go.py ${USER}@${INSTANCE_IP_ADDRESS}:~/
+scp -i ${AWS_KEYPAIR} ${SCRIPT_DIR}/02_remote_setup.sh ${USER}@${INSTANCE_IP_ADDRESS}:~/
+scp -i ${AWS_KEYPAIR} ${SCRIPT_DIR}/03_mosaic_and_transform_images_in_one_go.py ${USER}@${INSTANCE_IP_ADDRESS}:~/
 
 # setup proxy (if required) install packages & environment and import data
 if [ -n "${PROXY}" ]; then
-  ssh -i ${AWS_PEM_FILE} ${USER}@${INSTANCE_IP_ADDRESS} ". ./02_remote_setup.sh -p ${PROXY}"
+  ssh -i ${AWS_KEYPAIR} ${USER}@${INSTANCE_IP_ADDRESS} ". ./02_remote_setup.sh -p ${PROXY}"
 else
-  ssh -i ${AWS_PEM_FILE} ${USER}@${INSTANCE_IP_ADDRESS} ". ./02_remote_setup.sh"
+  ssh -i ${AWS_KEYPAIR} ${USER}@${INSTANCE_IP_ADDRESS} ". ./02_remote_setup.sh"
 fi
 
 echo "-------------------------------------------------------------------------"
@@ -118,4 +118,4 @@ echo " End time : $(date)"
 echo " Build took $((duration / 60)) mins"
 echo "----------------------------------------------------------------------------------------------------------------"
 
-ssh -i ${AWS_PEM_FILE} ${USER}@${INSTANCE_IP_ADDRESS}
+ssh ${USER}@${INSTANCE_IP_ADDRESS}
